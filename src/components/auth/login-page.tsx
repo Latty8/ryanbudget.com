@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import { startDemoSession } from "@/lib/auth/start-demo";
+import { setOAuthReturnPath } from "@/lib/auth/oauth-return-path";
 import { getSupabaseBrowserClient, hasSupabaseBrowserEnv } from "@/lib/supabase/browser";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
@@ -157,7 +158,11 @@ export function LoginPage() {
 
     setGoogleLoading(true);
     try {
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      setOAuthReturnPath(nextPath);
+      const siteOrigin = (
+        process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
+      ).replace(/\/$/, "");
+      const redirectTo = `${siteOrigin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

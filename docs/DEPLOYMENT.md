@@ -60,6 +60,7 @@
 5. Supabase → **Authentication** → **URL configuration**:
    - **Site URL:** `https://ryanbudget.me`
    - **Redirect URLs:** `https://ryanbudget.me/auth/callback`, `http://localhost:3000/auth/callback`
+   - Use the **exact** path above (no `?next=` query on the allow list)
 6. Redeploy with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set (required; demo-only mode has no Google OAuth).
 
 ## Security headers
