@@ -1,72 +1,8 @@
 import { NextResponse } from "next/server";
-
+import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import { hasSupabaseEnv, supabase } from "@/lib/supabase/client";
-
-import { isDemoUserId } from "@/lib/auth/demo-mode";
-
-import {
-
-  DEMO_MODE_COOKIE,
-
-  ONBOARDED_COOKIE,
-
-  SESSION_COOKIE,
-
-  type SessionPayload,
-
-} from "@/lib/auth/session";
-
-
-
-function attachSessionCookies(
-
-  response: NextResponse,
-
-  payload: SessionPayload,
-
-  options?: { demo?: boolean }
-
-) {
-
-  const isDemo = options?.demo === true || payload.isDemo === true || isDemoUserId(payload.userId);
-
-
-
-  response.cookies.set(SESSION_COOKIE, encodeURIComponent(JSON.stringify({ ...payload, isDemo })), {
-
-    httpOnly: true,
-
-    sameSite: "lax",
-
-    path: "/",
-
-    maxAge: 60 * 60 * 24 * 30,
-
-  });
-
-
-
-  if (isDemo) {
-
-    response.cookies.set(DEMO_MODE_COOKIE, "true", {
-
-      httpOnly: false,
-
-      sameSite: "lax",
-
-      path: "/",
-
-      maxAge: 60 * 60 * 24 * 30,
-
-    });
-
-  }
-
-
-
-  return response;
-
-}
+import { DEMO_MODE_COOKIE, ONBOARDED_COOKIE, SESSION_COOKIE } from "@/lib/auth/session";
+import type { SessionPayload } from "@/lib/auth/session";
 
 
 

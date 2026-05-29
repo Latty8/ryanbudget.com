@@ -51,6 +51,17 @@
 | `NEXT_PUBLIC_POSTHOG_HOST` | Analytics | Optional |
 | `NEXT_PUBLIC_APP_VERSION` | Optional | Shown in `/api/health` |
 
+### Google sign-in (Supabase Auth)
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → **OAuth 2.0 Client** (Web).
+2. **Authorized JavaScript origins:** `https://ryanbudget.me` (and `http://localhost:3000` for dev).
+3. **Authorized redirect URI:** `https://<YOUR-PROJECT-REF>.supabase.co/auth/v1/callback` (copy from Supabase → Authentication → Providers → Google).
+4. Supabase Dashboard → **Authentication** → **Providers** → enable **Google**, paste Client ID + Secret.
+5. Supabase → **Authentication** → **URL configuration**:
+   - **Site URL:** `https://ryanbudget.me`
+   - **Redirect URLs:** `https://ryanbudget.me/auth/callback`, `http://localhost:3000/auth/callback`
+6. Redeploy with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set (required; demo-only mode has no Google OAuth).
+
 ## Security headers
 
 Configure in `next.config.ts` (or Vercel headers):

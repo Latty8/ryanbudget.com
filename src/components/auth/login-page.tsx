@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import { startDemoSession } from "@/lib/auth/start-demo";
+import { getSupabaseBrowserClient, hasSupabaseBrowserEnv } from "@/lib/supabase/browser";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
 
@@ -54,6 +55,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
 
   const nextPath = searchParams.get("next") ?? "/dashboard";
@@ -140,8 +142,38 @@ export function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when ?demo= is present
   }, [wantsDemo]);
 
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) toast.error(decodeURIComponent(error));
+  }, [searchParams]);
+
+  const signInWithGoogle = async () => {
+    if (!hasSupabaseBrowserEnv()) {
+      toast.error("Google sign-in requires Supabase. Add NEXT_PUBLIC_SUPABASE_URL and keys on the server.");
+      return;
+    }
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    setGoogleLoading(true);
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: { prompt: "consent" },
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Google sign-in failed");
+      setGoogleLoading(false);
+    }
+  };
+
   const socialSoon = (provider: string) => {
-    toast.info(`${provider} sign-in is coming soon. Use email or try the demo.`);
+    toast.info(`${provider} sign-in is coming soon. Use email, Google, or try the demo.`);
   };
 
   return (
@@ -197,10 +229,15 @@ export function LoginPage() {
           <div className="grid gap-3">
             <button
               type="button"
-              onClick={() => socialSoon("Google")}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:bg-white/10"
+              disabled={googleLoading || demoLoading}
+              onClick={() => void signInWithGoogle()}
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:bg-white/10 disabled:opacity-60"
             >
-              <GoogleIcon />
+              {googleLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <GoogleIcon />
+              )}
               Continue with Google
             </button>
             <button
