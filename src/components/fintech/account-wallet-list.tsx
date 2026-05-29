@@ -1,0 +1,311 @@
+"use client";
+
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { NumberField } from "@/components/fintech/number-field";
+import {
+  FieldLabel,
+  GhostButton,
+  PrimaryButton,
+  ShellInput,
+  ShellSelect,
+  useShellTheme,
+} from "@/components/fintech/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { cn } from "@/lib/utils";
+import type { AppAccount } from "@/types/app-settings";
+import type { AccountKind } from "@/types/finance";
+
+const ACCOUNT_KINDS: { value: AccountKind; label: string }[] = [
+  { value: "checking", label: "Checking" },
+  { value: "savings", label: "Savings" },
+  { value: "credit", label: "Credit card" },
+  { value: "cash", label: "Cash" },
+  { value: "investment", label: "Investment" },
+];
+
+const ICON_OPTIONS = ["Wallet", "PiggyBank", "CreditCard", "Banknote", "TrendingUp", "Landmark"];
+const COLOR_SWATCHES = ["#38bdf8", "#34d399", "#f472b6", "#fbbf24", "#a78bfa", "#fb7185", "#22c55e", "#60a5fa"];
+
+type AccountWalletListProps = {
+  accounts: AppAccount[];
+  onChange: (accounts: AppAccount[]) => void;
+  transactionCountByAccount?: (accountName: string) => number;
+  onReassignTransactions?: (fromAccount: string, toAccount: string) => void;
+  showHidden?: boolean;
+  compact?: boolean;
+  allowReorder?: boolean;
+};
+
+export function AccountWalletList({
+  accounts,
+  onChange,
+  transactionCountByAccount,
+  onReassignTransactions,
+  showHidden = true,
+  compact = false,
+  allowReorder = true,
+}: AccountWalletListProps) {
+  const { isLight } = useShellTheme();
+  const [draft, setDraft] = useState<Omit<AppAccount, "id">>({
+    name: "",
+    kind: "checking",
+    balance: 0,
+    color: COLOR_SWATCHES[0],
+    icon: "Wallet",
+  });
+  const [pendingDelete, setPendingDelete] = useState<AppAccount | null>(null);
+  const [moveTarget, setMoveTarget] = useState<string>("");
+  const [deleting, setDeleting] = useState(false);
+  const moveTargetRef = useRef("");
+
+  const visible = showHidden ? accounts : accounts.filter((a) => !a.hidden);
+
+  const updateOne = (id: string, patch: Partial<AppAccount>) => {
+    onChange(accounts.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  };
+
+  const reorder = (id: string, direction: "up" | "down") => {
+    const index = accounts.findIndex((a) => a.id === id);
+    const swap = direction === "up" ? index - 1 : index + 1;
+    if (swap < 0 || swap >= accounts.length) return;
+    const next = [...accounts];
+    [next[index], next[swap]] = [next[swap], next[index]];
+    onChange(next);
+  };
+
+  const requestRemove = (account: AppAccount) => {
+    const txCount = transactionCountByAccount?.(account.name) ?? 0;
+    const others = accounts.filter((a) => a.id !== account.id);
+    moveTargetRef.current = others[0]?.name ?? "";
+    setMoveTarget(others[0]?.name ?? "");
+    setPendingDelete(account);
+    if (txCount === 0) {
+      // Simple path: no extra UI needed
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const txCount = transactionCountByAccount?.(pendingDelete.name) ?? 0;
+      const target = moveTargetRef.current || moveTarget;
+      if (txCount > 0 && target && onReassignTransactions) {
+        onReassignTransactions(pendingDelete.name, target);
+        toast.success(`Moved ${txCount} transaction${txCount === 1 ? "" : "s"} to ${target}`);
+      }
+      onChange(accounts.filter((a) => a.id !== pendingDelete.id));
+      toast.success("Wallet removed");
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const addAccount = () => {
+    if (!draft.name.trim()) {
+      toast.error("Enter a wallet name");
+      return;
+    }
+    onChange([
+      ...accounts,
+      {
+        ...draft,
+        id: `acc-${Date.now()}`,
+        name: draft.name.trim(),
+      },
+    ]);
+    setDraft({ name: "", kind: "checking", balance: 0, color: COLOR_SWATCHES[0], icon: "Wallet" });
+    toast.success("Wallet added");
+  };
+
+  const pendingTxCount = pendingDelete ? (transactionCountByAccount?.(pendingDelete.name) ?? 0) : 0;
+  const otherAccounts = pendingDelete ? accounts.filter((a) => a.id !== pendingDelete.id) : [];
+
+  return (
+    <div className="space-y-3">
+      {visible.length === 0 ? (
+        <p className={cn("text-sm", isLight ? "text-slate-500" : "text-slate-400")}>
+          No wallets yet — add the accounts you actually use.
+        </p>
+      ) : (
+        visible.map((account, index) => (
+          <div
+            key={account.id}
+            className={cn(
+              "rounded-2xl border p-4 transition",
+              isLight ? "border-slate-200 bg-slate-50" : "border-slate-700 bg-neutral-900/80"
+            )}
+          >
+            <div className={cn("grid gap-3", compact ? "sm:grid-cols-2" : "lg:grid-cols-[auto_1fr_140px_auto]")}>
+              {allowReorder ? (
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-600 p-1 text-slate-400 hover:bg-neutral-800 disabled:opacity-30"
+                    disabled={index === 0}
+                    onClick={() => reorder(account.id, "up")}
+                    aria-label={`Move ${account.name} up`}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-600 p-1 text-slate-400 hover:bg-neutral-800 disabled:opacity-30"
+                    disabled={index === accounts.length - 1}
+                    onClick={() => reorder(account.id, "down")}
+                    aria-label={`Move ${account.name} down`}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+              <div className="grid gap-2">
+                <ShellInput
+                  value={account.name}
+                  onChange={(e) => updateOne(account.id, { name: e.target.value })}
+                  aria-label={`Wallet name ${account.name}`}
+                />
+                <div className="flex flex-wrap gap-1">
+                  {COLOR_SWATCHES.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={cn(
+                        "h-6 w-6 rounded-full border-2 transition",
+                        account.color === color ? "scale-110 border-white" : "border-transparent"
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() => updateOne(account.id, { color })}
+                      aria-label={`Color ${color}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <ShellSelect
+                  value={account.kind}
+                  onChange={(e) => updateOne(account.id, { kind: e.target.value as AccountKind })}
+                  aria-label={`Type ${account.name}`}
+                >
+                  {ACCOUNT_KINDS.map((k) => (
+                    <option key={k.value} value={k.value}>
+                      {k.label}
+                    </option>
+                  ))}
+                </ShellSelect>
+                <ShellSelect
+                  value={account.icon}
+                  onChange={(e) => updateOne(account.id, { icon: e.target.value })}
+                  aria-label={`Icon ${account.name}`}
+                >
+                  {ICON_OPTIONS.map((icon) => (
+                    <option key={icon} value={icon}>
+                      {icon}
+                    </option>
+                  ))}
+                </ShellSelect>
+              </div>
+              <div className="flex flex-col gap-2">
+                <NumberField
+                  value={account.balance}
+                  onChange={(balance) => updateOne(account.id, { balance })}
+                  aria-label={`Balance ${account.name}`}
+                />
+                <div className="flex gap-2">
+                  {showHidden ? (
+                    <label className="flex items-center gap-2 text-xs text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={!account.hidden}
+                        onChange={(e) => updateOne(account.id, { hidden: !e.target.checked })}
+                      />
+                      Show in app
+                    </label>
+                  ) : null}
+                  <GhostButton
+                    className="ml-auto"
+                    onClick={() => requestRemove(account)}
+                    aria-label={`Delete ${account.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </GhostButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+
+      <div
+        className={cn(
+          "rounded-2xl border border-dashed p-4",
+          isLight ? "border-slate-300" : "border-slate-600"
+        )}
+      >
+        <p className="mb-3 text-xs font-medium text-slate-400">Add wallet</p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_140px_120px_auto]">
+          <ShellInput
+            placeholder="Wallet name"
+            value={draft.name}
+            onChange={(e) => setDraft((s) => ({ ...s, name: e.target.value }))}
+          />
+          <ShellSelect
+            value={draft.kind}
+            onChange={(e) => setDraft((s) => ({ ...s, kind: e.target.value as AccountKind }))}
+          >
+            {ACCOUNT_KINDS.map((k) => (
+              <option key={k.value} value={k.value}>
+                {k.label}
+              </option>
+            ))}
+          </ShellSelect>
+          <NumberField value={draft.balance} onChange={(balance) => setDraft((s) => ({ ...s, balance }))} />
+          <PrimaryButton onClick={addAccount}>
+            <Plus className="mr-1 inline h-4 w-4" />
+            Add
+          </PrimaryButton>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+        title={pendingDelete ? `Delete "${pendingDelete.name}"?` : "Delete wallet?"}
+        description="This wallet will be removed from your plan. This action cannot be undone."
+        warning={
+          pendingTxCount > 0
+            ? `This wallet has ${pendingTxCount} linked transaction${pendingTxCount === 1 ? "" : "s"}. Move them to another wallet before deleting, or they will keep the old account name in history.`
+            : undefined
+        }
+        confirmLabel="Delete wallet"
+        loading={deleting}
+        onConfirm={confirmDelete}
+      >
+        {pendingTxCount > 0 && otherAccounts.length > 0 && onReassignTransactions ? (
+          <div className="grid gap-2">
+            <FieldLabel htmlFor="move-tx-target">Move transactions to</FieldLabel>
+            <ShellSelect
+              id="move-tx-target"
+              value={moveTarget}
+              onChange={(e) => {
+                setMoveTarget(e.target.value);
+                moveTargetRef.current = e.target.value;
+              }}
+            >
+              {otherAccounts.map((a) => (
+                <option key={a.id} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </ShellSelect>
+          </div>
+        ) : null}
+      </ConfirmDialog>
+    </div>
+  );
+}

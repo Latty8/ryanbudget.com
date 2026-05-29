@@ -20,6 +20,9 @@
 # production
 /build
 
+# plaid tokens (server-side only)
+.data/
+
 # misc
 .DS_Store
 *.pem
