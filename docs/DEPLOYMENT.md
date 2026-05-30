@@ -106,3 +106,57 @@ Browser notifications use the Notification API client-side. Full Web Push with V
 3. Extend `public/sw.js` with `push` event handler
 
 Current build supports **local notifications** when the user grants permission from the notification center.
+
+## VPS (PM2 + Nginx)
+
+App listens on **127.0.0.1:3002**. Nginx proxies `ryanbudget.me` → that port.
+
+### Deploy / restart
+
+```bash
+cd /var/www/ryanbudget.me
+git pull
+npm install
+set -a && source .env.production && set +a
+npm run build
+pm2 delete ryanbudget 2>/dev/null || true
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+Verify locally on the server:
+
+```bash
+curl -s http://127.0.0.1:3002/api/health   # expect {"ok":true}
+curl -sI https://ryanbudget.me/api/health    # expect HTTP/1.1 200
+```
+
+### 502 Bad Gateway
+
+Nginx returns **502** when nothing is listening on port 3002 (app crashed or never started). This affects **all** routes, not just `/auth/callback`.
+
+```bash
+pm2 status
+pm2 logs ryanbudget --lines 80
+ss -tlnp | grep 3002
+```
+
+Common fixes:
+
+- **Build failed** after `git pull` (e.g. forgot `npm install` for `@supabase/ssr`) — rerun install + build, then `pm2 restart ryanbudget`
+- **Port in use** — `ss -tlnp | grep 3002`; stop conflicting process or change port in `ecosystem.config.cjs` + Nginx
+- **Missing env at runtime** — PM2 does not auto-load `.env.production`; export vars before `npm run build`, or use `pm2 start ecosystem.config.cjs --update-env` after sourcing env
+- **OOM / crash loop** — check `pm2 logs`; increase VPS RAM or reduce other services on 3000/3001
+
+Nginx site config should include:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3002;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+}
+```
