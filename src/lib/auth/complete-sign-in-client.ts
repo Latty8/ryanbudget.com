@@ -1,20 +1,8 @@
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import type { SessionPayload } from "@/lib/auth/session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
-import {
-  applyRemoteStateToStore,
-  buildLocalRemoteState,
-  countLocalEntities,
-  shouldPreferRemote,
-} from "@/lib/supabase/sync/apply-sync";
-import {
-  bootstrapUserSession,
-  markOnboardingCompletedRemote,
-  pullCloudState,
-  pushLocalStateToCloud,
-} from "@/lib/supabase/sync/client";
-import { markLocalSyncClean, resetLocalSyncTracking } from "@/lib/supabase/sync/sync-dirty";
+import { bootstrapUserSession } from "@/lib/supabase/sync/client";
+import { resetLocalSyncTracking } from "@/lib/supabase/sync/sync-dirty";
 import { setPersistUserId } from "@/lib/storage/user-persist";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
@@ -31,7 +19,7 @@ export async function applyOnboardingFromServer(onboardingCompleted: boolean) {
   });
 }
 
-/** After OAuth or email login — sync auth user to persisted app data and cloud. */
+/** After OAuth or email login — scope persisted app data to the signed-in user. Cloud sync runs in CloudSyncProvider. */
 export async function completeSignInClient(user: SessionPayload) {
   if (lastCompletedUserId === user.userId) return;
   lastCompletedUserId = user.userId;
@@ -50,33 +38,17 @@ export async function completeSignInClient(user: SessionPayload) {
   if (bootstrap.onboardingCompleted || storeComplete) {
     await applyOnboardingFromServer(true);
   }
-
-  if (!hasSupabaseDataSync) return;
-
-  const remote = await pullCloudState();
-  const local = buildLocalRemoteState();
-
-  if (remote && shouldPreferRemote(local, remote)) {
-    applyRemoteStateToStore(remote);
-    if (remote.onboardingCompleted) {
-      await applyOnboardingFromServer(true);
-    }
-    markLocalSyncClean(remote);
-  } else if (countLocalEntities() > 0) {
-    const merged = buildLocalRemoteState();
-    merged.onboardingCompleted =
-      merged.onboardingCompleted || bootstrap.onboardingCompleted || storeComplete;
-    const pushed = await pushLocalStateToCloud(merged);
-    if (pushed) markLocalSyncClean(merged);
-  } else if (remote) {
-    markLocalSyncClean(remote);
-  }
 }
 
 /** Clear sign-in dedupe when session ends (call from sign-out). */
 export function resetSignInClientState() {
   lastCompletedUserId = null;
   resetLocalSyncTracking();
+}
+
+/** Force re-sync on next sign-in (e.g. after user switch). */
+export function resetSignInDedupe() {
+  lastCompletedUserId = null;
 }
 
 /** Mark onboarding complete locally and in Supabase profile (once per user). */
@@ -88,8 +60,13 @@ export async function completeOnboardingForUser() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ onboarded: true }),
   });
+  const { markOnboardingCompletedRemote } = await import("@/lib/supabase/sync/client");
   await markOnboardingCompletedRemote();
+  const { hasSupabaseDataSync } = await import("@/lib/supabase/client");
   if (hasSupabaseDataSync) {
+    const { buildLocalRemoteState } = await import("@/lib/supabase/sync/apply-sync");
+    const { pushLocalStateToCloud } = await import("@/lib/supabase/sync/client");
+    const { markLocalSyncClean } = await import("@/lib/supabase/sync/sync-dirty");
     const state = buildLocalRemoteState();
     const pushed = await pushLocalStateToCloud(state);
     if (pushed) markLocalSyncClean(state);

@@ -1,4 +1,5 @@
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
+import { stateFingerprint, stateFingerprintsDiffer } from "@/lib/supabase/sync/sync-fingerprint";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
 let applyingRemote = false;
@@ -69,5 +70,9 @@ export function shouldPreferRemote(local: RemoteAppState, remote: RemoteAppState
   if (remote.onboardingCompleted && !local.onboardingCompleted) return true;
   if (local.onboardingCompleted && !remote.onboardingCompleted) return false;
 
-  return remoteCount > 0;
+  if (remoteCount === 0) return false;
+
+  return stateFingerprintsDiffer(local, remote);
 }
+
+export { stateFingerprint, stateFingerprintsDiffer };

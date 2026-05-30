@@ -3,24 +3,42 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+let browserClient: SupabaseClient | null = null;
+
 /** Browser Supabase client — PKCE verifier stored in cookies via @supabase/ssr. */
 export function getSupabaseBrowserClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
 
-  return createBrowserClient(url, key, {
-    auth: {
-      // We exchange the OAuth code manually on /auth/callback — auto-detect would run twice.
-      detectSessionInUrl: false,
-      flowType: "pkce",
-    },
-    cookieOptions: {
-      path: "/",
-      sameSite: "lax",
-      secure: typeof window !== "undefined" && window.location.protocol === "https:",
-    },
-  });
+  if (!browserClient) {
+    browserClient = createBrowserClient(url, key, {
+      auth: {
+        // We exchange the OAuth code manually on /auth/callback — auto-detect would run twice.
+        detectSessionInUrl: false,
+        flowType: "pkce",
+      },
+      cookieOptions: {
+        path: "/",
+        sameSite: "lax",
+        secure: typeof window !== "undefined" && window.location.protocol === "https:",
+      },
+    });
+  }
+
+  return browserClient;
+}
+
+/** Realtime requires a valid Supabase JWT in the browser (separate from the app session cookie). */
+export async function ensureSupabaseAuthSession(): Promise<boolean> {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return false;
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData.session) return true;
+
+  const { data: refreshed } = await supabase.auth.refreshSession();
+  return Boolean(refreshed.session);
 }
 
 export function hasSupabaseBrowserEnv(): boolean {

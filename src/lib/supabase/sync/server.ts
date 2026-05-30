@@ -132,7 +132,7 @@ export async function pushRemoteState(userId: string, state: RemoteAppState): Pr
     const existing = await admin.from(table.name).select("id").eq("profile_id", profileId);
     if (existing.error) {
       console.error(`[sync] push list ${table.name}`, existing.error.message);
-      continue;
+      return false;
     }
 
     const remoteIds = new Set((existing.data ?? []).map((r) => r.id as string));
@@ -141,12 +141,18 @@ export async function pushRemoteState(userId: string, state: RemoteAppState): Pr
 
     if (toDelete.length > 0) {
       const del = await admin.from(table.name).delete().in("id", toDelete);
-      if (del.error) console.error(`[sync] push delete ${table.name}`, del.error.message);
+      if (del.error) {
+        console.error(`[sync] push delete ${table.name}`, del.error.message);
+        return false;
+      }
     }
 
     if (table.rows.length > 0) {
       const upsert = await admin.from(table.name).upsert(table.rows, { onConflict: "id" });
-      if (upsert.error) console.error(`[sync] push upsert ${table.name}`, upsert.error.message);
+      if (upsert.error) {
+        console.error(`[sync] push upsert ${table.name}`, upsert.error.message);
+        return false;
+      }
     }
   }
 

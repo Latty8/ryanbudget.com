@@ -20,7 +20,7 @@ import {
   pushLocalStateToCloud,
   subscribeToCloudChanges,
 } from "@/lib/supabase/sync/client";
-import { markLocalSyncClean, markLocalSyncDirty, resetLocalSyncTracking, hasCompletedInitialSync } from "@/lib/supabase/sync/sync-dirty";
+import { markLocalSyncClean, markLocalSyncDirty, resetLocalSyncTracking } from "@/lib/supabase/sync/sync-dirty";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 
@@ -42,19 +42,12 @@ export function CloudSyncProvider() {
     let unsubscribeRealtime: (() => void) | null = null;
 
     const runInitialSync = async () => {
-      if (lastUserId.current === user.userId && initialSyncDone.current) return;
+      const userChanged = lastUserId.current !== user.userId;
+      if (!userChanged && initialSyncDone.current) return;
       lastUserId.current = user.userId;
       initialSyncDone.current = false;
 
-      if (hasCompletedInitialSync()) {
-        initialSyncDone.current = true;
-        unsubscribeRealtime = subscribeToCloudChanges(user.userId);
-        setIdle();
-        return;
-      }
-
       resetLocalSyncTracking();
-
       setSyncing("Loading your data…");
 
       try {
@@ -87,6 +80,8 @@ export function CloudSyncProvider() {
               setError("Could not upload");
               toast.error("Could not sync to the cloud. Changes are saved on this device.");
             }
+          } else {
+            markLocalSyncClean(remote);
           }
         } else if (countLocalEntities() > 0) {
           const pushed = await pushLocalStateToCloud(local);
@@ -99,7 +94,7 @@ export function CloudSyncProvider() {
         }
 
         initialSyncDone.current = true;
-        unsubscribeRealtime = subscribeToCloudChanges(user.userId);
+        unsubscribeRealtime = subscribeToCloudChanges(user.userId, () => setSyncing("Syncing…"));
         setIdle();
 
         if (loadedFromCloud) {

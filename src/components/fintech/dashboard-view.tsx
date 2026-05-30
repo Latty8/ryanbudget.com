@@ -23,6 +23,7 @@ import {
 } from "@/components/fintech/ui";
 import { computeDashboardSummary } from "@/lib/dashboard/compute-summary";
 import { useMounted } from "@/components/use-mounted";
+import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import type { RecurringFrequency } from "@/types/finance";
@@ -84,6 +85,7 @@ function UpcomingList({
 }
 
 export function DashboardView() {
+  usePageCloudSync();
   const mounted = useMounted();
   const { accounts, categories, transactions, recurring, preferences, onboardingComplete } =
     useAppDataStore(

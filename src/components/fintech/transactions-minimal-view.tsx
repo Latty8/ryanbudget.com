@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import { startOfMonth } from "date-fns";
@@ -16,9 +15,8 @@ import {
 } from "@/components/fintech/ui";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { useDeleteTransaction, useTransactionSubmit } from "@/hooks/use-transaction-mutations";
+import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { groupTransactionsByDate } from "@/lib/transactions/group-by-date";
-import { getTransactions } from "@/lib/supabase/queries/transactions";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { formatMoneyWithSource, useAppDataStore } from "@/store/useAppDataStore";
 import type { TransactionRecord } from "@/types/finance";
@@ -41,10 +39,11 @@ function mapStoreTransactions(
 }
 
 export function TransactionsMinimalView() {
+  usePageCloudSync();
+
   const confirm = useConfirm();
   const submitTransaction = useTransactionSubmit();
   const deleteTransaction = useDeleteTransaction();
-  const queryClient = useQueryClient();
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "this-month" | "expenses" | "income">("all");
@@ -54,16 +53,7 @@ export function TransactionsMinimalView() {
   const storeTransactions = useAppDataStore((s) => s.demoTransactions);
   const primaryCurrency = useAppDataStore((s) => s.preferences.currency);
 
-  const { data: remoteData, isLoading } = useQuery({
-    queryKey: ["transactions"],
-    queryFn: () => getTransactions(),
-    enabled: hasSupabaseDataSync,
-  });
-
-  const data = useMemo(
-    () => (hasSupabaseDataSync ? remoteData : mapStoreTransactions(storeTransactions)),
-    [remoteData, storeTransactions]
-  );
+  const data = useMemo(() => mapStoreTransactions(storeTransactions), [storeTransactions]);
 
   const filtered = useMemo(() => {
     const rows = data ?? [];
@@ -98,11 +88,6 @@ export function TransactionsMinimalView() {
       variant: "destructive",
       onConfirm: async () => {
         await deleteTransaction(row.id);
-        if (hasSupabaseDataSync) {
-          queryClient.setQueryData<TransactionRecord[]>(["transactions"], (prev = []) =>
-            prev.filter((r) => r.id !== row.id)
-          );
-        }
       },
     });
   };
@@ -161,7 +146,7 @@ export function TransactionsMinimalView() {
         </div>
       </div>
 
-      {filtered.length === 0 && !isLoading ? (
+      {filtered.length === 0 ? (
         <div className={cn(fintechGlass, "border-dashed py-16 text-center")}>
           <p className={cn("text-sm font-medium", fintechForeground)}>No transactions yet</p>
           <p className={cn("mt-1 text-xs", fintechMuted)}>Use the + button below to add one</p>
