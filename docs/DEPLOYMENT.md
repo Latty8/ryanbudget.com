@@ -116,12 +116,30 @@ App listens on **127.0.0.1:3002**. Nginx proxies `ryanbudget.me` → that port.
 ```bash
 cd /var/www/ryanbudget.me
 git pull
-npm install
+bash scripts/vps-deploy.sh
+```
+
+Or manually (**install before sourcing env** — `.env.production` sets `NODE_ENV=production`, which skips Tailwind/TypeScript if you install too early):
+
+```bash
+cd /var/www/ryanbudget.me
+git pull
+npm install --include=dev
 set -a && source .env.production && set +a
 npm run build
+
 pm2 delete ryanbudget 2>/dev/null || true
-pm2 start ecosystem.config.cjs
+pm2 start ecosystem.config.cjs --update-env
 pm2 save
+```
+
+**Important:** use `exec_mode: fork` (already in `ecosystem.config.cjs`). Do not run Next.js in PM2 cluster mode — it will not bind port 3002.
+
+If health check fails, run in foreground to see the error:
+
+```bash
+set -a && source .env.production && set +a
+npm run start:prod
 ```
 
 Verify locally on the server:
