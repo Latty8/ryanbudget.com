@@ -1,4 +1,10 @@
 import { addWeeks, differenceInCalendarDays, format, parseISO, startOfMonth } from "date-fns";
+import {
+  computeCategoryBudgetRows,
+  sumBudgetTotals,
+  transactionInBudgetPeriod,
+  type BudgetPeriod,
+} from "@/lib/budget/period";
 import { buildPaycheckProjections } from "@/lib/recurring/build-paychecks";
 import { generateInsights, computeDaysUntilBroke, computeDaysUntilPaycheck } from "@/lib/insights/generate-insights";
 import type { AppAccount, AppCategory } from "@/types/app-settings";
@@ -51,36 +57,38 @@ export function computeDashboardSummary(input: {
   categories: AppCategory[];
   transactions: DemoTransaction[];
   recurring: RecurringRule[];
+  budgetPeriod?: BudgetPeriod;
 }): DashboardSummary {
+  const budgetPeriod = input.budgetPeriod ?? "bi-weekly";
   const totalBalance = input.accounts.reduce((sum, account) => sum + account.balance, 0);
   const monthPrefix = format(new Date(), "yyyy-MM");
   const monthTransactions = input.transactions.filter((t) => t.date.startsWith(monthPrefix));
+  const periodTransactions = input.transactions.filter((t) =>
+    transactionInBudgetPeriod(t.date, budgetPeriod)
+  );
   const incomeThisMonth = monthTransactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const expensesThisMonth = Math.abs(
     monthTransactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0)
   );
 
-  const categoryProgress = input.categories
-    .filter((c) => c.name !== "Income")
-    .slice(0, 8)
-    .map((category) => {
-      const spent = Math.abs(
-        monthTransactions
-          .filter((t) => t.category === category.name && t.amount < 0)
-          .reduce((s, t) => s + t.amount, 0)
-      );
-      return {
-        id: category.id,
-        name: category.name,
-        group: category.group,
-        budgeted: category.budgeted,
-        spent,
-        rolloverEnabled: true,
-      };
-    });
+  const budgetRows = computeCategoryBudgetRows(
+    input.categories,
+    input.transactions,
+    budgetPeriod
+  );
+  const categoryProgress = budgetRows.slice(0, 8).map((row) => ({
+    id: row.id,
+    name: row.name,
+    group: row.group,
+    budgeted: row.budgeted,
+    spent: row.spent,
+    rolloverEnabled: true,
+  }));
 
-  const totalBudgeted = categoryProgress.reduce((s, c) => s + c.budgeted, 0);
-  const totalSpent = categoryProgress.reduce((s, c) => s + c.spent, 0);
+  const { totalBudgeted, totalSpent } = sumBudgetTotals(budgetRows);
+  const periodExpenses = Math.abs(
+    periodTransactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0)
+  );
   const upcomingPaychecks = buildPaycheckProjections(input.recurring);
   const upcomingBills = buildBills(input.recurring);
   const daysUntilNextPaycheck = computeDaysUntilPaycheck(upcomingPaychecks);
@@ -94,9 +102,10 @@ export function computeDashboardSummary(input: {
     : 0;
 
   const diningSpent = categoryProgress.find((c) => c.name === "Dining")?.spent ?? 0;
+  const moneyLeftToSpend = Math.max(0, totalBudgeted - totalSpent);
   const insights = generateInsights({
-    moneyLeftToSpend: Math.max(0, totalBudgeted - totalSpent),
-    expensesThisMonth,
+    moneyLeftToSpend,
+    expensesThisMonth: budgetPeriod === "monthly" ? expensesThisMonth : periodExpenses,
     incomeThisMonth,
     diningSpent,
     diningLastMonth: diningSpent * 0.78,
@@ -109,7 +118,7 @@ export function computeDashboardSummary(input: {
     incomeThisMonth: incomeThisMonth || 3650,
     expensesThisMonth: expensesThisMonth || totalSpent,
     projectedEndOfMonthBalance: totalBalance + (incomeThisMonth || 3650) - (totalBudgeted || expensesThisMonth),
-    moneyLeftToSpend: Math.max(0, totalBudgeted - totalSpent),
+    moneyLeftToSpend,
     daysUntilNextPaycheck,
     daysUntilBroke,
     billsBeforeNextPaycheck,

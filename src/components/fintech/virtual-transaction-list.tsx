@@ -8,14 +8,12 @@ const ROW_HEIGHT = 72;
 
 type VirtualTransactionListProps<T extends { id: string }> = {
   rows: T[];
-  isLight: boolean;
   renderRow: (row: T) => React.ReactNode;
   className?: string;
 };
 
 export function VirtualTransactionList<T extends { id: string }>({
   rows,
-  isLight,
   renderRow,
   className,
 }: VirtualTransactionListProps<T>) {
@@ -61,10 +59,7 @@ export function VirtualTransactionList<T extends { id: string }>({
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
-              className={cn(
-                "flex items-center gap-3 border-b px-3",
-                isLight ? "border-slate-200" : "border-slate-700/60"
-              )}
+              className="flex items-center gap-3 border-b border-[var(--border-subtle)] px-3"
             >
               {renderRow(row)}
             </div>

@@ -1,19 +1,30 @@
 "use client";
 
 import { useMemo } from "react";
-import { PageFrame } from "@/components/fintech/ui";
+import {
+  fintechDivide,
+  fintechForeground,
+  fintechGlass,
+  fintechLabel,
+  fintechMuted,
+  fintechSurface,
+  PageFrame,
+} from "@/components/fintech/ui";
 import { DashboardCashflowMinimal } from "@/components/fintech/dashboard-cashflow-minimal";
+import { getEffectiveBudgetPeriod, reportCadenceFromBudgetPeriod } from "@/lib/budget/period";
 import { computeReportData, resolveReportRange } from "@/lib/reports/compute-report-data";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import { useShallow } from "zustand/react/shallow";
+import { cn } from "@/lib/utils";
 
 export function ReportsMinimalView() {
-  const { accounts, categories, transactions, currency } = useAppDataStore(
+  const { accounts, categories, transactions, currency, budgetPeriod } = useAppDataStore(
     useShallow((s) => ({
       accounts: s.accounts,
       categories: s.categories,
       transactions: s.demoTransactions,
       currency: s.preferences.currency,
+      budgetPeriod: getEffectiveBudgetPeriod(s.preferences.budgetPeriod, s.demoRecurring),
     }))
   );
 
@@ -23,13 +34,13 @@ export function ReportsMinimalView() {
     () =>
       computeReportData({
         range,
-        cadence: "monthly",
+        cadence: reportCadenceFromBudgetPeriod(budgetPeriod),
         accounts,
         categories,
         transactions,
         primaryCurrency: currency,
       }),
-    [range, accounts, categories, transactions, currency]
+    [range, accounts, categories, transactions, currency, budgetPeriod]
   );
 
   const chartData = useMemo(
@@ -45,30 +56,36 @@ export function ReportsMinimalView() {
 
   return (
     <PageFrame title="Reports" description="This month at a glance.">
-      <div className="mb-10 grid grid-cols-2 gap-8 text-center">
-        <div>
-          <p className="text-xs text-slate-500">Income</p>
-          <p className="mt-1 text-2xl font-medium text-emerald-600">{formatMoney(report.income, currency)}</p>
+      <div className="mb-8 grid grid-cols-2 gap-4">
+        <div className={cn(fintechGlass, "p-5 text-center")}>
+          <p className={fintechLabel}>Income</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--positive)]">
+            {formatMoney(report.income, currency)}
+          </p>
         </div>
-        <div>
-          <p className="text-xs text-slate-500">Spent</p>
-          <p className="mt-1 text-2xl font-medium text-slate-900">{formatMoney(report.expenses, currency)}</p>
+        <div className={cn(fintechGlass, "p-5 text-center")}>
+          <p className={fintechLabel}>Spent</p>
+          <p className={cn("mt-2 text-2xl font-semibold", fintechForeground)}>
+            {formatMoney(report.expenses, currency)}
+          </p>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-sm font-medium text-slate-900">Cash flow</h2>
+      <section className={cn(fintechSurface, "p-5")}>
+        <h2 className={cn("mb-4 text-sm font-medium", fintechForeground)}>Cash flow</h2>
         <DashboardCashflowMinimal data={chartData} currency={currency} />
       </section>
 
       {report.spendingByCategory.length > 0 ? (
         <section className="mt-10">
-          <h2 className="mb-4 text-sm font-medium text-slate-700">Top categories</h2>
-          <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <h2 className={cn("mb-4 text-sm font-medium", fintechForeground)}>Top categories</h2>
+          <ul className={cn(fintechSurface, fintechDivide, "divide-y")}>
             {report.spendingByCategory.slice(0, 5).map((row) => (
               <li key={row.name} className="flex items-center justify-between px-5 py-3.5">
-                <span className="text-sm text-slate-800">{row.name}</span>
-                <span className="text-sm font-medium">{formatMoney(row.value, currency)}</span>
+                <span className={cn("text-sm", fintechForeground)}>{row.name}</span>
+                <span className={cn("text-sm font-medium", fintechForeground)}>
+                  {formatMoney(row.value, currency)}
+                </span>
               </li>
             ))}
           </ul>

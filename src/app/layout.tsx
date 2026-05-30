@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DM_Sans } from "next/font/google";
 import { AppShell } from "@/components/fintech/app-shell";
 import { ChangelogModal } from "@/components/fintech/lazy-overlays";
 import { FintechErrorBoundary } from "@/components/fintech/error-boundary";
@@ -16,9 +17,17 @@ import { AnalyticsProvider } from "@/components/providers/analytics-provider";
 import { I18nProvider } from "@/components/providers/i18n-provider";
 import { SubscriptionProvider } from "@/components/providers/subscription-provider";
 import { readSession } from "@/lib/auth/read-session";
+import { cn } from "@/lib/utils";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://paycheckplanner.app";
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -58,13 +67,13 @@ export default async function RootLayout({
   const session = await readSession();
 
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className={cn("h-full", dmSans.variable)} data-theme="light" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#0ea5e9" />
+        <meta name="theme-color" content="#0d9488" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
-      <body className="min-h-full touch-manipulation bg-slate-950 text-slate-100 antialiased">
+      <body className="min-h-full touch-manipulation bg-[var(--background)] text-[var(--foreground)] antialiased">
         <FintechThemeProvider>
           <AuthProvider initialUser={session}>
             <AuthDataSync />
@@ -90,6 +99,7 @@ export default async function RootLayout({
             </DemoModeProvider>
           </AuthProvider>
         </FintechThemeProvider>
+        <div id="modal-root" aria-hidden="true" />
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Loader2, Mic, Plus, Sparkles, X } from "lucide-react";
 
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 
 import { NumberField } from "@/components/fintech/number-field";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 import { NlpTransactionPreview } from "@/components/fintech/nlp-transaction-preview";
 
@@ -38,7 +39,8 @@ import { useAppDataStore } from "@/store/useAppDataStore";
 
 import type { CurrencyCode } from "@/types/app-settings";
 
-import type { RecurringFrequency, SplitLine, TransactionInput, TransactionTag } from "@/types/finance";
+import { transactionRecordToInput } from "@/lib/transactions/store-mapper";
+import type { RecurringFrequency, SplitLine, TransactionInput, TransactionRecord, TransactionTag } from "@/types/finance";
 
 import type { TransactionReceipt } from "@/types/receipts";
 
@@ -66,6 +68,23 @@ function resolveCategoryId(name: string, options: string[]): string {
 
 
 
+function defaultTransactionInput(
+  categoryOptions: string[],
+  accountOptions: { id: string }[]
+): TransactionInput {
+  return {
+    amount: 0,
+    date: new Date().toISOString().slice(0, 10),
+    description: "",
+    categoryId: categoryOptions[0] ?? "",
+    accountId: accountOptions[0]?.id ?? "",
+    tags: [],
+    recurring: false,
+    recurringFrequency: "monthly",
+    splits: [],
+  };
+}
+
 export function TransactionEntryModal({
 
   open,
@@ -76,6 +95,8 @@ export function TransactionEntryModal({
 
   onSubmit,
 
+  editTransaction,
+
 }: {
 
   open: boolean;
@@ -84,7 +105,9 @@ export function TransactionEntryModal({
 
   onCreated?: () => void;
 
-  onSubmit?: (input: TransactionInput) => Promise<{ ok: boolean; message: string }>;
+  onSubmit?: (input: TransactionInput, editId?: string) => Promise<{ ok: boolean; message: string }>;
+
+  editTransaction?: TransactionRecord | null;
 
 }) {
 
@@ -94,27 +117,7 @@ export function TransactionEntryModal({
 
 
 
-  const [input, setInput] = useState<TransactionInput>({
-
-    amount: 0,
-
-    date: new Date().toISOString().slice(0, 10),
-
-    description: "",
-
-    categoryId: demoBudgets[0]?.category ?? "",
-
-    accountId: demoAccounts[0]?.id ?? "",
-
-    tags: [],
-
-    recurring: false,
-
-    recurringFrequency: "monthly",
-
-    splits: [],
-
-  });
+  const [input, setInput] = useState<TransactionInput>(defaultTransactionInput([], []));
 
   const [showSplit, setShowSplit] = useState(false);
 
@@ -148,8 +151,6 @@ export function TransactionEntryModal({
 
   const accountOptions = storeAccounts.length > 0 ? storeAccounts : demoAccounts.map((a) => ({ ...a, kind: "checking" as const, color: "#38bdf8", icon: "Wallet" }));
 
-
-
   const categoryOptions = useMemo(() => {
 
     if (storeCategories.length > 0) return storeCategories.map((c) => c.name);
@@ -157,6 +158,37 @@ export function TransactionEntryModal({
     return demoBudgets.map((b) => b.category);
 
   }, [storeCategories]);
+
+  const categoryEntities = useMemo(
+    () =>
+      storeCategories.length > 0
+        ? storeCategories
+        : demoBudgets.map((b, i) => ({
+            id: `demo-cat-${i}`,
+            name: b.category,
+            group: "General",
+            icon: "Wallet",
+            color: "#38bdf8",
+            budgeted: b.budgeted,
+          })),
+    [storeCategories]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    if (editTransaction) {
+      setInput(transactionRecordToInput(editTransaction, accountOptions, categoryEntities));
+      setReceipts(editTransaction.receipts ?? []);
+    } else {
+      setInput(defaultTransactionInput(categoryOptions, accountOptions));
+      setReceipts([]);
+    }
+    setShowSplit(false);
+    setNlpText("");
+    setNlpPreview(null);
+    setMessage(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening or switching edit target
+  }, [open, editTransaction?.id]);
 
 
 
@@ -336,11 +368,18 @@ export function TransactionEntryModal({
 
   return (
 
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 backdrop-blur-sm md:items-center">
+    <ModalPortal open={open} layer="modal">
+
+        <button
+          type="button"
+          aria-label="Close"
+          className="absolute inset-0 bg-[var(--overlay)]"
+          onClick={() => onOpenChange(false)}
+        />
 
       <div
 
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-700 bg-neutral-900 p-4 text-slate-100 shadow-2xl"
+        className="relative z-10 mx-auto max-h-[92vh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--modal-solid)] p-4 text-[var(--foreground)] shadow-[var(--shadow-modal)]"
 
         role="dialog"
 
@@ -354,11 +393,11 @@ export function TransactionEntryModal({
 
           <div>
 
-            <p className="text-sm text-slate-400">Quick transaction</p>
+            <p className="text-sm text-slate-400">{editTransaction ? "Edit" : "Quick transaction"}</p>
 
             <h2 id="tx-modal-title" className="text-lg font-semibold">
 
-              Add expense in seconds
+              {editTransaction ? "Edit transaction" : "Add expense in seconds"}
 
             </h2>
 
@@ -1005,7 +1044,9 @@ export function TransactionEntryModal({
                   return;
                 }
 
-                const result = onSubmit ? await onSubmit(payload) : await createTransaction(payload);
+                const result = onSubmit
+                  ? await onSubmit(payload, editTransaction?.id)
+                  : await createTransaction(payload);
 
                 setSaving(false);
 
@@ -1071,7 +1112,7 @@ export function TransactionEntryModal({
 
             >
 
-              {saving ? "Saving..." : "Save transaction"}
+              {saving ? "Saving..." : editTransaction ? "Save changes" : "Save transaction"}
 
             </button>
 
@@ -1081,7 +1122,7 @@ export function TransactionEntryModal({
 
       </div>
 
-    </div>
+    </ModalPortal>
 
   );
 

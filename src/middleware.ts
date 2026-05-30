@@ -54,7 +54,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 
-  if (onboarded && pathname.startsWith("/onboarding")) {
+  const restartSetup = request.nextUrl.searchParams.get("setup") === "1";
+  if (onboarded && pathname.startsWith("/onboarding") && !restartSetup) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

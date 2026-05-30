@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { PiggyBank, RefreshCw, Settings, Users, Wallet } from "lucide-react";
-import { PageFrame } from "@/components/fintech/ui";
+import {
+  fintechDivide,
+  fintechForeground,
+  fintechGlass,
+  fintechMuted,
+  PageFrame,
+} from "@/components/fintech/ui";
+import { cn } from "@/lib/utils";
 
 const moreLinks = [
   { href: "/recurring", label: "Recurring bills", desc: "Paycheck, rent, subscriptions", icon: RefreshCw },
@@ -15,21 +22,21 @@ const moreLinks = [
 export function MoreView() {
   return (
     <PageFrame title="More" description="Extra tools when you need them.">
-      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <ul className={cn(fintechGlass, fintechDivide, "divide-y overflow-hidden")}>
         {moreLinks.map((item) => {
           const Icon = item.icon;
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50"
+                className="group flex items-center gap-4 px-5 py-4 transition-all duration-200 hover:bg-[var(--surface-hover)] active:scale-[0.995]"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-                  <Icon className="h-5 w-5 text-slate-600" />
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] shadow-[var(--shadow-inner)] transition group-hover:border-[var(--accent)]/30 group-hover:text-[var(--accent)]">
+                  <Icon className="h-5 w-5 text-[var(--muted)] transition group-hover:text-[var(--accent)]" strokeWidth={1.75} />
                 </span>
                 <span>
-                  <p className="font-medium text-slate-900">{item.label}</p>
-                  <p className="text-sm text-slate-500">{item.desc}</p>
+                  <p className={cn("font-medium", fintechForeground)}>{item.label}</p>
+                  <p className={cn("text-sm", fintechMuted)}>{item.desc}</p>
                 </span>
               </Link>
             </li>

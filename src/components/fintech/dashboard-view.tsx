@@ -1,16 +1,37 @@
 "use client";
 
 import Link from "next/link";
+import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
+import { motion } from "framer-motion";
+import { DashboardAiInsights } from "@/components/fintech/dashboard-ai-insights";
+import { DashboardBudgetProgress } from "@/components/fintech/dashboard-budget-progress";
 import { DashboardCashflowMinimal } from "@/components/fintech/dashboard-cashflow-minimal";
-import { Skeleton } from "@/components/fintech/ui";
+import { getEffectiveBudgetPeriod, periodLabel, periodSpentLabel } from "@/lib/budget/period";
+import {
+  fintechDivide,
+  fintechDisplay,
+  fintechForeground,
+  fintechGlass,
+  fintechHero,
+  fintechLabel,
+  fintechLink,
+  fintechMuted,
+  fintechSurface,
+  Skeleton,
+} from "@/components/fintech/ui";
 import { computeDashboardSummary } from "@/lib/dashboard/compute-summary";
 import { useMounted } from "@/components/use-mounted";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import type { RecurringFrequency } from "@/types/finance";
 import { useShallow } from "zustand/react/shallow";
+
+const fadeUp = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+};
 
 function UpcomingList({
   paychecks,
@@ -28,27 +49,31 @@ function UpcomingList({
 
   if (items.length === 0) {
     return (
-      <p className="text-sm text-slate-500">
-        Add recurring bills in{" "}
-        <Link href="/recurring" className="text-slate-700 underline">
+      <p className={cn("text-sm", fintechMuted)}>
+        Add recurring in{" "}
+        <Link href="/recurring" className={fintechLink}>
           Recurring
-        </Link>{" "}
-        to see what&apos;s coming up.
+        </Link>
       </p>
     );
   }
 
   return (
-    <ul className="divide-y divide-slate-100">
+    <ul className={cn("divide-y", fintechDivide)}>
       {items.map((item) => (
         <li key={`${item.kind}-${item.name}-${item.date}`} className="flex items-center justify-between py-3.5">
           <div>
-            <p className="text-sm font-medium text-slate-900">{item.name}</p>
-            <p className="text-xs text-slate-500">
+            <p className={cn("text-sm font-medium", fintechForeground)}>{item.name}</p>
+            <p className={cn("text-xs", fintechMuted)}>
               {item.kind} · {format(parseISO(item.date), "MMM d")}
             </p>
           </div>
-          <p className={cn("text-sm font-medium", item.kind === "Paycheck" ? "text-emerald-600" : "text-slate-700")}>
+          <p
+            className={cn(
+              "text-sm font-semibold tabular-nums",
+              item.kind === "Paycheck" ? "text-[var(--positive)]" : fintechForeground
+            )}
+          >
             {item.kind === "Paycheck" ? "+" : "−"}
             {formatMoney(Math.abs(item.amount), currency)}
           </p>
@@ -72,115 +97,172 @@ export function DashboardView() {
       }))
     );
 
+  const budgetPeriod = useMemo(
+    () => getEffectiveBudgetPeriod(preferences.budgetPeriod, recurring),
+    [preferences.budgetPeriod, recurring]
+  );
+
   const data = useMemo(
     () =>
       computeDashboardSummary({
         accounts,
         categories,
         transactions,
-        recurring: recurring.map((r) => ({
-          id: r.id,
-          name: r.name,
-          amount: r.amount,
-          cadence: r.cadence as RecurringFrequency,
-          nextDate: r.nextDate,
-        })),
+        budgetPeriod,
+        recurring: recurring
+          .filter((r) => !r.paused)
+          .map((r) => ({
+            id: r.id,
+            name: r.name,
+            amount: r.amount,
+            cadence: r.cadence as RecurringFrequency,
+            nextDate: r.nextDate,
+          })),
       }),
-    [accounts, categories, transactions, recurring]
+    [accounts, categories, transactions, recurring, budgetPeriod]
   );
 
   const needsSetup = !onboardingComplete || accounts.length === 0;
+  const underBudget = Math.max(0, data.moneyLeftToSpend);
 
   if (!mounted) {
     return (
-      <div className="space-y-10">
-        <Skeleton className="h-32 rounded-2xl" />
-        <Skeleton className="h-48 rounded-2xl" />
+      <div className="space-y-8">
+        <Skeleton className="h-28 rounded-[var(--radius-card)]" />
+        <Skeleton className="h-40 rounded-[var(--radius-card)]" />
+        <Skeleton className="h-56 rounded-[var(--radius-card)]" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-12 pb-24 md:pb-0">
+    <div className="space-y-8 pb-24 md:space-y-10 md:pb-0">
       {needsSetup ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-lg font-medium text-slate-900">Welcome — start with your paycheck</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
-            Tell us when you get paid and which bills repeat each month. We&apos;ll show how much is safe to spend.
+        <motion.section {...fadeUp} className={cn(fintechGlass, "p-8 text-center")}>
+          <p className={cn("text-lg font-semibold", fintechForeground)}>Welcome — start with your paycheck</p>
+          <p className={cn("mx-auto mt-2 max-w-sm text-sm leading-relaxed", fintechMuted)}>
+            Tell us when you get paid and which bills repeat each month.
           </p>
-          <Link
-            href="/onboarding"
-            className="mt-6 inline-flex rounded-full bg-slate-900 px-6 py-2.5 text-sm font-medium text-white"
-          >
+          <SetupOnboardingLink className="mt-6 inline-flex rounded-full bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:brightness-110">
             Set up in 2 minutes
-          </Link>
-        </section>
+          </SetupOnboardingLink>
+        </motion.section>
       ) : null}
 
-      <header className="space-y-1">
-        <p className="text-sm text-slate-500">Current balance</p>
-        <p className="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
+      <motion.header {...fadeUp} transition={{ delay: 0.05 }} className="space-y-2">
+        <p className={fintechLabel}>Current balance</p>
+        <p className={cn("text-4xl md:text-5xl", fintechDisplay)}>
           {formatMoney(data.totalBalance, preferences.currency)}
         </p>
-      </header>
+      </motion.header>
 
-      <section className="grid grid-cols-2 gap-8 border-y border-slate-200 py-8">
-        <div>
-          <p className="text-sm text-slate-500">Income this month</p>
-          <p className="mt-1 text-2xl font-medium text-emerald-600">
-            {formatMoney(data.incomeThisMonth, preferences.currency)}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm text-slate-500">Expenses this month</p>
-          <p className="mt-1 text-2xl font-medium text-slate-800">
-            {formatMoney(data.expensesThisMonth, preferences.currency)}
-          </p>
-        </div>
-      </section>
-
-      <section className="rounded-2xl bg-slate-900 px-8 py-10 text-white">
-        <p className="text-sm font-medium text-slate-300">Money left to spend</p>
-        <p className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">
+      <motion.section
+        {...fadeUp}
+        transition={{ delay: 0.1 }}
+        className={cn(fintechHero, "relative overflow-hidden px-8 py-10")}
+      >
+        <div
+          className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"
+          aria-hidden
+        />
+        <p className="text-sm font-medium text-white/70">Money left to spend</p>
+        <p className="mt-2 text-4xl font-bold tracking-tight md:text-5xl">
           {formatMoney(data.moneyLeftToSpend, preferences.currency)}
         </p>
-        <p className="mt-3 max-w-md text-sm text-slate-400">
+        <p className="mt-3 max-w-md text-sm text-white/60">
           {data.daysUntilNextPaycheck != null
             ? `Before your next paycheck in ${data.daysUntilNextPaycheck} days.`
             : "Based on your budgets and spending this month."}
+          {underBudget > 0 && data.daysUntilNextPaycheck != null
+            ? ` You're about ${formatMoney(underBudget, preferences.currency)} under budget.`
+            : null}
         </p>
-      </section>
+      </motion.section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-        <h2 className="text-sm font-medium text-slate-900">Coming up</h2>
-        <div className="mt-4">
-          <UpcomingList
-            paychecks={data.upcomingPaychecks}
-            bills={data.upcomingBills}
+      <motion.div
+        {...fadeUp}
+        transition={{ delay: 0.15 }}
+        className="grid grid-cols-2 gap-4 md:gap-6"
+      >
+        <div className={cn(fintechGlass, "p-5")}>
+          <p className={fintechLabel}>Income</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--positive)]">
+            {formatMoney(data.incomeThisMonth, preferences.currency)}
+          </p>
+          <p className={cn("mt-1 text-xs", fintechMuted)}>This month</p>
+        </div>
+        <div className={cn(fintechGlass, "p-5")}>
+          <p className={fintechLabel}>Expenses</p>
+          <p className={cn("mt-2 text-2xl font-semibold", fintechForeground)}>
+            {formatMoney(data.expensesThisMonth, preferences.currency)}
+          </p>
+          <p className={cn("mt-1 text-xs", fintechMuted)}>This month</p>
+        </div>
+      </motion.div>
+
+      {!needsSetup && data.categoryProgress.length > 0 ? (
+        <motion.div {...fadeUp} transition={{ delay: 0.18 }}>
+          <DashboardBudgetProgress
+            categories={data.categoryProgress}
             currency={preferences.currency}
+            budgetPeriod={budgetPeriod}
           />
-        </div>
-      </section>
+        </motion.div>
+      ) : null}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-        <h2 className="text-sm font-medium text-slate-900">Cash flow</h2>
-        <p className="mt-1 text-xs text-slate-500">Income vs expenses over recent months</p>
-        <div className="mt-6">
-          <DashboardCashflowMinimal data={data.cashflow} currency={preferences.currency} />
-        </div>
-      </section>
+      <div className="grid gap-6 md:grid-cols-5 md:gap-8">
+        <motion.section
+          {...fadeUp}
+          transition={{ delay: 0.2 }}
+          className={cn(fintechSurface, "p-6 md:col-span-3 md:p-8")}
+        >
+          <h2 className={cn("text-sm font-semibold", fintechForeground)}>Cash flow</h2>
+          <p className={cn("mt-1 text-xs", fintechMuted)}>Income vs expenses</p>
+          <div className="mt-6">
+            <DashboardCashflowMinimal data={data.cashflow} currency={preferences.currency} />
+          </div>
+        </motion.section>
 
-      <p className="text-center text-xs text-slate-400">
-        <Link href="/recurring" className="underline hover:text-slate-600">
-          Recurring bills
+        <motion.section
+          {...fadeUp}
+          transition={{ delay: 0.25 }}
+          className={cn(fintechSurface, "p-6 md:col-span-2 md:p-7")}
+        >
+          <h2 className={cn("text-sm font-semibold", fintechForeground)}>Coming up</h2>
+          <p className={cn("mt-1 text-xs", fintechMuted)}>Paycheck & bills</p>
+          <div className="mt-4">
+            <UpcomingList
+              paychecks={data.upcomingPaychecks}
+              bills={data.upcomingBills}
+              currency={preferences.currency}
+            />
+          </div>
+        </motion.section>
+      </div>
+
+      {!needsSetup ? (
+        <motion.div {...fadeUp} transition={{ delay: 0.3 }}>
+          <DashboardAiInsights
+            summary={data}
+            categories={categories}
+            transactions={transactions}
+            currency={preferences.currency}
+            baselineInsights={data.insights}
+          />
+        </motion.div>
+      ) : null}
+
+      <p className={cn("text-center text-xs", fintechMuted)}>
+        <Link href="/recurring" className={fintechLink}>
+          Recurring
         </Link>
         {" · "}
-        <Link href="/accounts" className="underline hover:text-slate-600">
+        <Link href="/accounts" className={fintechLink}>
           Accounts
         </Link>
         {" · "}
-        <Link href="/more" className="underline hover:text-slate-600">
-          More tools
+        <Link href="/more" className={fintechLink}>
+          More
         </Link>
       </p>
     </div>

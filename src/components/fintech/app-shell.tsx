@@ -39,17 +39,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const shellClass = "min-h-screen bg-[var(--background)] text-[var(--foreground)]";
+
   if (minimalChrome) {
-    return <div className="min-h-screen bg-[#fafafa] text-slate-900">{children}</div>;
+    return <div className={shellClass}>{children}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-slate-900">
+    <div className={shellClass}>
       <DemoModeBanner />
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#fafafa]/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-6 px-4 md:px-8">
-          <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
+      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--nav-bg)] shadow-[var(--shadow-nav)] backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between gap-6 px-4 md:px-8">
+          <Link href="/dashboard" className="group flex shrink-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] text-white shadow-[var(--shadow-glow)] transition group-hover:scale-105">
               <CalendarClock className="h-4 w-4" />
             </span>
             <span className="hidden text-sm font-semibold tracking-tight sm:inline">Paycheck Planner</span>
@@ -63,8 +65,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "rounded-lg px-3.5 py-2 text-sm transition",
-                    active ? "bg-white font-medium text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    "rounded-xl px-3.5 py-2 text-sm transition-all duration-200",
+                    active
+                      ? "bg-[var(--surface)] font-medium text-[var(--foreground)] shadow-[var(--shadow-card)]"
+                      : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                   )}
                 >
                   {item.label}
@@ -76,8 +80,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link
             href="/settings"
             className={cn(
-              "rounded-lg p-2 text-slate-500 transition hover:bg-white hover:text-slate-900 hover:shadow-sm",
-              pathname.startsWith("/settings") && "bg-white text-slate-900 shadow-sm"
+              "rounded-xl p-2 text-[var(--muted)] transition-all duration-200 hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]",
+              pathname.startsWith("/settings") && "bg-[var(--surface)] text-[var(--foreground)] shadow-[var(--shadow-card)]"
             )}
             aria-label="Settings"
           >
@@ -86,10 +90,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-10 md:px-8 md:py-14">{children}</main>
+      <main key={pathname} className="mx-auto max-w-4xl px-4 py-10 md:px-8 md:py-12">
+        {children}
+      </main>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/90 bg-white/95 backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--nav-bg)] shadow-[var(--shadow-nav)] backdrop-blur-xl md:hidden"
         aria-label="Mobile"
       >
         <div className="mx-auto grid max-w-lg grid-cols-4 px-2 py-2">
@@ -101,8 +107,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 rounded-lg py-2 text-[10px] font-medium",
-                  active ? "text-slate-900" : "text-slate-400"
+                  "flex flex-col items-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition-colors",
+                  active ? "text-[var(--accent)]" : "text-[var(--muted)]"
                 )}
               >
                 <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />

@@ -354,7 +354,6 @@ export function TransactionsView() {
         {!isLoading && useVirtualList ? (
           <VirtualTransactionList
             rows={paginatedRows}
-            isLight={isLight}
             renderRow={(row) =>
               canEdit ? (
                 <SwipeTransactionRow isLight={isLight} onDelete={() => void deleteOne(row.id)}>
@@ -405,7 +404,11 @@ export function TransactionsView() {
         </button>
       ) : null}
       {canEdit ? (
-        <TransactionEntryModal open={openQuickAdd} onOpenChange={setOpenQuickAdd} onSubmit={createMutation.mutateAsync} />
+        <TransactionEntryModal
+          open={openQuickAdd}
+          onOpenChange={setOpenQuickAdd}
+          onSubmit={(input) => createMutation.mutateAsync(input)}
+        />
       ) : null}
     </div>
   );

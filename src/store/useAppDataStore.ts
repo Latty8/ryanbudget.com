@@ -13,11 +13,13 @@ import {
 import { convertAmount } from "@/lib/currency/exchange-rates";
 import { clearRecurringProjectionCache } from "@/lib/recurring/project-runs";
 import { demoGoals } from "@/lib/demo/sample-data";
+import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
 import type {
   AppAccount,
   AppCategory,
   AppExportBundle,
   AppGoal,
+  AppRecurringRule,
   AppPreferences,
   CurrencyCode,
   DateFormatPreference,
@@ -25,6 +27,7 @@ import type {
   UserProfile,
   WeekStartPreference,
 } from "@/types/app-settings";
+import type { TransactionInput } from "@/types/finance";
 
 type AppDataState = {
   profile: UserProfile;
@@ -33,7 +36,7 @@ type AppDataState = {
   preferences: AppPreferences;
   onboardingComplete: boolean;
   demoTransactions: typeof enrichedTransactions;
-  demoRecurring: typeof enrichedRecurring;
+  demoRecurring: AppRecurringRule[];
   goals: AppGoal[];
   onboardingProgress: OnboardingProgress;
   setProfile: (patch: Partial<UserProfile>) => void;
@@ -50,9 +53,14 @@ type AppDataState = {
   contributeToGoal: (id: string, amount: number) => void;
   setAccounts: (accounts: AppAccount[]) => void;
   setCategories: (categories: AppCategory[]) => void;
-  setRecurring: (recurring: AppDataState["demoRecurring"]) => void;
+  setRecurring: (recurring: AppRecurringRule[]) => void;
+  addRecurring: (rule: Omit<AppRecurringRule, "id">) => void;
+  updateRecurring: (id: string, patch: Partial<Omit<AppRecurringRule, "id">>) => void;
+  deleteRecurring: (id: string) => void;
+  toggleRecurringPaused: (id: string) => void;
   setOnboardingProgress: (patch: Partial<OnboardingProgress>) => void;
   completeOnboarding: () => void;
+  restartOnboarding: () => void;
   loadDemoData: () => void;
   loadFromPublicTemplate: (payload: {
     accounts: AppAccount[];
@@ -63,12 +71,15 @@ type AppDataState = {
   exportBundle: () => AppExportBundle;
   importBundle: (bundle: AppExportBundle) => void;
   deleteAllData: () => void;
+  updateTransaction: (id: string, input: TransactionInput) => void;
+  deleteTransaction: (id: string) => void;
 };
 
 const defaultPreferences: AppPreferences = {
   currency: "USD",
   dateFormat: "MDY",
   weekStart: "sunday",
+  budgetPeriod: "bi-weekly",
   locale: "en",
 };
 
@@ -79,7 +90,7 @@ const initialState = {
   preferences: defaultPreferences,
   onboardingComplete: false,
   demoTransactions: [] as typeof enrichedTransactions,
-  demoRecurring: [] as typeof enrichedRecurring,
+  demoRecurring: [] as AppRecurringRule[],
   goals: [] as AppGoal[],
   onboardingProgress: { step: 0, skippedSteps: [] as number[] },
 };
@@ -130,11 +141,65 @@ export const useAppDataStore = create<AppDataState>()(
           categories: state.categories.map((row) => (row.id === id ? { ...row, ...patch } : row)),
         })),
       deleteCategory: (id) =>
-        set((state) => ({ categories: state.categories.filter((row) => row.id !== id) })),
+        set((state) => {
+          const removed = state.categories.find((row) => row.id === id);
+          const categories = state.categories.filter((row) => row.id !== id);
+          const hasUncategorized = categories.some((c) => c.name === "Uncategorized");
+          const nextCategories =
+            removed && !hasUncategorized
+              ? [
+                  ...categories,
+                  {
+                    id: nanoid(),
+                    name: "Uncategorized",
+                    group: "Other",
+                    icon: "CircleDollarSign",
+                    color: "#64748b",
+                    budgeted: 0,
+                  },
+                ]
+              : categories;
+          return {
+            categories: nextCategories,
+            demoTransactions: removed
+              ? state.demoTransactions.map((tx) =>
+                  tx.category === removed.name ? { ...tx, category: "Uncategorized" } : tx
+                )
+              : state.demoTransactions,
+          };
+        }),
       setCategories: (categories) => set({ categories }),
       setRecurring: (demoRecurring) => {
         clearRecurringProjectionCache();
         set({ demoRecurring });
+      },
+      addRecurring: (rule) => {
+        clearRecurringProjectionCache();
+        set((state) => ({
+          demoRecurring: [...state.demoRecurring, { ...rule, id: nanoid() }],
+        }));
+      },
+      updateRecurring: (id, patch) => {
+        clearRecurringProjectionCache();
+        set((state) => ({
+          demoRecurring: state.demoRecurring.map((row) =>
+            row.id === id ? { ...row, ...patch } : row
+          ),
+        }));
+      },
+      deleteRecurring: (id) => {
+        clearRecurringProjectionCache();
+        set((state) => ({
+          demoRecurring: state.demoRecurring.filter((row) => row.id !== id),
+        }));
+      },
+      toggleRecurringPaused: (id) => {
+        clearRecurringProjectionCache();
+        set((state) => ({
+          demoRecurring: state.demoRecurring.map((row) =>
+            row.id === id ? { ...row, paused: !row.paused } : row
+          ),
+        }));
       },
       addGoal: (goal) =>
         set((state) => ({ goals: [...state.goals, { ...goal, id: nanoid() }] })),
@@ -157,6 +222,11 @@ export const useAppDataStore = create<AppDataState>()(
           onboardingProgress: { ...state.onboardingProgress, ...patch },
         })),
       completeOnboarding: () => set({ onboardingComplete: true }),
+      restartOnboarding: () =>
+        set({
+          onboardingComplete: false,
+          onboardingProgress: { step: 0, skippedSteps: [] },
+        }),
       loadDemoData: () =>
         set({
           accounts: enrichedAccounts,
@@ -208,6 +278,26 @@ export const useAppDataStore = create<AppDataState>()(
           goals: [],
           onboardingProgress: { step: 0, skippedSteps: [] },
         }),
+      updateTransaction: (id, input) => {
+        const state = get();
+        const existing = state.demoTransactions.find((t) => t.id === id);
+        if (!existing) return;
+        const row = transactionInputToStoreRow(
+          input,
+          id,
+          state.accounts,
+          state.categories,
+          state.preferences,
+          existing
+        );
+        set({
+          demoTransactions: state.demoTransactions.map((t) => (t.id === id ? row : t)),
+        });
+      },
+      deleteTransaction: (id) =>
+        set((state) => ({
+          demoTransactions: state.demoTransactions.filter((t) => t.id !== id),
+        })),
     }),
     {
       name: PERSIST_STORE_NAME,

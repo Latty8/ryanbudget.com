@@ -9,4 +9,5 @@ export async function completeSignInClient(user: SessionPayload) {
   setPersistUserId(user.userId);
   await useAppDataStore.persist.rehydrate();
   useAppDataStore.getState().setProfile({ name: user.name, email: user.email });
+  // Zustand persist middleware auto-saves transactions, recurring, accounts on every store update.
 }

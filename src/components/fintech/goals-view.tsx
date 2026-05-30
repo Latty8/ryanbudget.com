@@ -2,7 +2,7 @@
 
 import { format, parseISO } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, Plus, Target, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { toast } from "sonner";
@@ -11,13 +11,20 @@ import {
   FieldLabel,
   GhostButton,
   EmptyState,
+  fintechForeground,
+  fintechGlass,
+  fintechLabel,
+  fintechMuted,
+  ModalOverlay,
+  MotionSection,
   PageFrame,
   PrimaryButton,
+  ProgressBar,
+  ProgressRing,
   ShellCard,
   ShellInput,
   ShellSelect,
 } from "@/components/fintech/ui";
-import { useFintechTheme } from "@/components/fintech/theme";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { usePremium } from "@/hooks/use-premium";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
@@ -37,30 +44,37 @@ const emptyGoal = (): Omit<AppGoal, "id"> => ({
   color: GOAL_COLORS[0],
 });
 
-function GoalProgressRing({ pct, color, isLight }: { pct: number; color: string; isLight: boolean }) {
-  const dash = Math.round((pct / 100) * 151);
+const MILESTONES = [25, 50, 75, 100] as const;
+
+function GoalMilestones({ pct }: { pct: number }) {
   return (
-    <div className="relative grid h-16 w-16 place-items-center">
-      <svg className="h-16 w-16 -rotate-90" aria-hidden>
-        <circle cx="32" cy="32" r="24" strokeWidth="6" className={isLight ? "fill-none stroke-slate-200" : "fill-none stroke-slate-700"} />
-        <circle
-          cx="32"
-          cy="32"
-          r="24"
-          strokeWidth="6"
-          className="fill-none transition-all duration-500"
-          stroke={color}
-          strokeDasharray={`${dash} 151`}
-        />
-      </svg>
-      <span className="absolute text-xs font-semibold">{Math.round(pct)}%</span>
+    <div className="mt-4 flex justify-between gap-1">
+      {MILESTONES.map((m) => {
+        const reached = pct >= m;
+        return (
+          <div key={m} className="flex flex-1 flex-col items-center gap-1">
+            <div
+              className={cn(
+                "h-1.5 w-full rounded-full transition-colors duration-500",
+                reached ? "bg-[var(--accent)]" : "bg-[var(--surface-elevated)]"
+              )}
+            />
+            <span
+              className={cn(
+                "text-[9px] font-semibold uppercase tracking-wide",
+                reached ? "text-[var(--accent)]" : "text-[var(--muted)]"
+              )}
+            >
+              {m}%
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 export function GoalsView() {
-  const { theme } = useFintechTheme();
-  const isLight = theme === "light";
   const confirm = useConfirm();
   const { canAddGoal, demoMode } = usePremium();
   const goals = useAppDataStore((s) => s.goals);
@@ -130,19 +144,17 @@ export function GoalsView() {
   );
 
   return (
-    <PageFrame title="Goals">
+    <PageFrame title="Goals" description="Savings goals with clear progress and milestones.">
       <ConfettiBurst active={showConfetti} onComplete={() => setShowConfetti(false)} />
-      <div className="-mt-2 mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className={cn("text-sm", isLight ? "text-slate-500" : "text-slate-400")}>
-          Track savings with live progress rings
-        </p>
+      <MotionSection className="flex flex-wrap items-center justify-between gap-4">
+        <p className={cn("text-sm", fintechMuted)}>Track progress toward what matters</p>
         {(canAddGoal(goals.length) || demoMode) && (
           <PrimaryButton onClick={openCreate}>
             <Plus className="mr-1 inline h-4 w-4" />
             New goal
           </PrimaryButton>
         )}
-      </div>
+      </MotionSection>
       {!canAddGoal(goals.length) && !demoMode && goals.length >= 1 ? (
         <div className="mb-4">
           <UpgradePrompt
@@ -171,6 +183,7 @@ export function GoalsView() {
           <AnimatePresence mode="popLayout">
             {sortedGoals.map((g) => {
               const pct = Math.min(100, g.target > 0 ? (g.current / g.target) * 100 : 0);
+              const remaining = Math.max(0, g.target - g.current);
               return (
                 <motion.div
                   key={g.id}
@@ -178,32 +191,32 @@ export function GoalsView() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className={cn(
-                    "rounded-2xl border p-4",
-                    isLight ? "border-slate-300 bg-white" : "border-slate-700 bg-neutral-800/95"
-                  )}
+                  className={cn(fintechGlass, "p-5 transition-all duration-200 hover:shadow-[var(--shadow-card-hover)]")}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{g.name}</p>
-                      <p className={cn("text-sm", isLight ? "text-slate-500" : "text-slate-400")}>
-                        {formatMoney(g.current, preferences.currency)} / {formatMoney(g.target, preferences.currency)}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("font-semibold", fintechForeground)}>{g.name}</p>
+                      <p className={cn("mt-1 text-sm tabular-nums", fintechMuted)}>
+                        {formatMoney(g.current, preferences.currency)} saved
                       </p>
-                      <p className={cn("text-xs", isLight ? "text-slate-500" : "text-slate-400")}>
-                        Target: {format(parseISO(g.targetDate), "MMM d, yyyy")}
+                      <p className="mt-0.5 text-sm font-medium text-[var(--positive)] tabular-nums">
+                        {remaining > 0
+                          ? `${formatMoney(remaining, preferences.currency)} to go`
+                          : "Goal reached!"}
+                      </p>
+                      <p className={cn(fintechLabel, "mt-2 normal-case tracking-normal")}>
+                        By {format(parseISO(g.targetDate), "MMM d, yyyy")}
                       </p>
                     </div>
-                    <GoalProgressRing pct={pct} color={g.color} isLight={isLight} />
-                  </div>
-                  <div className={cn("mt-3 h-2 overflow-hidden rounded-full", isLight ? "bg-slate-100" : "bg-neutral-900")}>
-                    <motion.div
-                      className="h-2 rounded-full"
-                      style={{ backgroundColor: g.color }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
+                    <ProgressRing
+                      pct={pct}
+                      color={g.color}
+                      size={72}
+                      label={`${Math.round(pct)}%`}
                     />
                   </div>
+                  <ProgressBar pct={pct} className="mt-4" />
+                  <GoalMilestones pct={pct} />
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <NumberField
                       value={contribution[g.id] ?? 0}
@@ -212,9 +225,9 @@ export function GoalsView() {
                       className="w-28 px-2 py-1 text-sm"
                       aria-label={`Add to ${g.name}`}
                     />
-                    <button
+                    <PrimaryButton
                       type="button"
-                      className="rounded-lg bg-sky-500 px-2 py-1 text-xs font-medium text-slate-950"
+                      className="!px-3 !py-1.5 !text-xs"
                       onClick={() => {
                         const amount = contribution[g.id] ?? 0;
                         if (amount <= 0) return;
@@ -231,7 +244,7 @@ export function GoalsView() {
                       }}
                     >
                       Add money
-                    </button>
+                    </PrimaryButton>
                     <GhostButton onClick={() => openEdit(g)} aria-label={`Edit ${g.name}`}>
                       <Pencil className="h-4 w-4" />
                     </GhostButton>
@@ -246,18 +259,11 @@ export function GoalsView() {
         </div>
       )}
 
-      {modalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <ShellCard className="w-full max-w-md">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="inline-flex items-center gap-2 font-semibold">
-                <Target className="h-4 w-4 text-sky-400" />
-                {editingId ? "Edit goal" : "New savings goal"}
-              </p>
-              <button type="button" onClick={() => setModalOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-neutral-800">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      <ModalOverlay
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editingId ? "Edit goal" : "New savings goal"}
+      >
             <div className="grid gap-3">
               <label className="grid gap-1">
                 <FieldLabel>Name</FieldLabel>
@@ -308,9 +314,7 @@ export function GoalsView() {
               <GhostButton onClick={() => setModalOpen(false)}>Cancel</GhostButton>
               <PrimaryButton onClick={saveGoal}>{editingId ? "Save changes" : "Create goal"}</PrimaryButton>
             </div>
-          </ShellCard>
-        </div>
-      ) : null}
+      </ModalOverlay>
     </PageFrame>
   );
 }

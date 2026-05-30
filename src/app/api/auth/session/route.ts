@@ -140,20 +140,15 @@ export async function PATCH(request: Request) {
 
   const response = NextResponse.json({ ok: true });
 
-  if (body.onboarded) {
-
+  if (body.onboarded === true) {
     response.cookies.set(ONBOARDED_COOKIE, "true", {
-
       httpOnly: true,
-
       sameSite: "lax",
-
       path: "/",
-
       maxAge: 60 * 60 * 24 * 365,
-
     });
-
+  } else if (body.onboarded === false) {
+    response.cookies.delete(ONBOARDED_COOKIE);
   }
 
   return response;

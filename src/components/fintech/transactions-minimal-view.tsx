@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
+import { Pencil, Search, Trash2 } from "lucide-react";
 import { startOfMonth } from "date-fns";
-import { PageFrame } from "@/components/fintech/ui";
-import { VirtualTransactionList } from "@/components/fintech/virtual-transaction-list";
+import { TransactionEntryModal } from "@/components/fintech/transaction-entry-modal";
+import {
+  FilterChip,
+  fintechForeground,
+  fintechGlass,
+  fintechLabel,
+  fintechMuted,
+  PageFrame,
+} from "@/components/fintech/ui";
+import { useConfirm } from "@/components/providers/confirm-dialog-provider";
+import { useDeleteTransaction, useTransactionSubmit } from "@/hooks/use-transaction-mutations";
+import { groupTransactionsByDate } from "@/lib/transactions/group-by-date";
 import { getTransactions } from "@/lib/supabase/queries/transactions";
 import { hasSupabaseDataSync } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -30,8 +41,16 @@ function mapStoreTransactions(
 }
 
 export function TransactionsMinimalView() {
+  const confirm = useConfirm();
+  const submitTransaction = useTransactionSubmit();
+  const deleteTransaction = useDeleteTransaction();
+  const queryClient = useQueryClient();
+
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "this-month" | "expenses">("all");
+  const [filter, setFilter] = useState<"all" | "this-month" | "expenses" | "income">("all");
+  const [editTransaction, setEditTransaction] = useState<TransactionRecord | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
   const storeTransactions = useAppDataStore((s) => s.demoTransactions);
   const primaryCurrency = useAppDataStore((s) => s.preferences.currency);
 
@@ -49,11 +68,11 @@ export function TransactionsMinimalView() {
   const filtered = useMemo(() => {
     const rows = data ?? [];
     const q = query.trim().toLowerCase();
-    const now = new Date();
-    const thisMonth = startOfMonth(now).toISOString().slice(0, 7);
+    const thisMonth = startOfMonth(new Date()).toISOString().slice(0, 7);
     return rows.filter((row) => {
       if (filter === "this-month" && !row.date.startsWith(thisMonth)) return false;
       if (filter === "expenses" && row.amount >= 0) return false;
+      if (filter === "income" && row.amount < 0) return false;
       if (!q) return true;
       return (
         row.description.toLowerCase().includes(q) ||
@@ -62,6 +81,36 @@ export function TransactionsMinimalView() {
       );
     });
   }, [data, query, filter]);
+
+  const groups = useMemo(() => groupTransactionsByDate(filtered), [filtered]);
+
+  const openEdit = (row: TransactionRecord) => {
+    setEditTransaction(row);
+    setModalOpen(true);
+  };
+
+  const handleDelete = (row: TransactionRecord) => {
+    void confirm({
+      title: "Delete this transaction?",
+      description: `"${row.description}" will be permanently removed from your records.`,
+      warning: "This action cannot be undone.",
+      confirmLabel: "Delete transaction",
+      variant: "destructive",
+      onConfirm: async () => {
+        await deleteTransaction(row.id);
+        if (hasSupabaseDataSync) {
+          queryClient.setQueryData<TransactionRecord[]>(["transactions"], (prev = []) =>
+            prev.filter((r) => r.id !== row.id)
+          );
+        }
+      },
+    });
+  };
+
+  const closeModal = (open: boolean) => {
+    setModalOpen(open);
+    if (!open) setEditTransaction(null);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -74,71 +123,132 @@ export function TransactionsMinimalView() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const filters = [
+    ["all", "All"],
+    ["this-month", "This month"],
+    ["expenses", "Expenses"],
+    ["income", "Income"],
+  ] as const;
+
   return (
     <PageFrame
       title="Transactions"
-      description="Tap + to log spending. Everything saves automatically on this device."
+      description="Grouped by date · tap a row to edit"
     >
-      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={cn(fintechGlass, "space-y-4 p-4 md:p-5")}>
         <label className="relative block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search
+            className={cn(
+              "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2",
+              fintechMuted
+            )}
+            strokeWidth={1.75}
+          />
           <input
             id="tx-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search…"
-            className="w-full rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none ring-1 ring-slate-200 focus:ring-slate-400"
+            placeholder="Search merchants, categories…"
+            className="w-full rounded-[var(--radius-field)] border border-[var(--border)] bg-[var(--surface-elevated)] py-2.5 pl-10 pr-3 text-sm text-[var(--foreground)] shadow-[var(--shadow-inner)] outline-none transition-all placeholder:text-[var(--muted)] focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
           />
         </label>
-        <div className="flex gap-2">
-          {(
-            [
-              ["all", "All"],
-              ["this-month", "This month"],
-              ["expenses", "Expenses"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition",
-                filter === key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
-              )}
-              onClick={() => setFilter(key)}
-            >
+        <div className="flex flex-wrap gap-2">
+          {filters.map(([key, label]) => (
+            <FilterChip key={key} active={filter === key} onClick={() => setFilter(key)}>
               {label}
-            </button>
+            </FilterChip>
           ))}
         </div>
       </div>
 
       {filtered.length === 0 && !isLoading ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
-          <p className="text-sm text-slate-500">No transactions yet.</p>
-          <p className="mt-1 text-xs text-slate-400">Use the + button to add your first one.</p>
+        <div className={cn(fintechGlass, "border-dashed py-16 text-center")}>
+          <p className={cn("text-sm font-medium", fintechForeground)}>No transactions yet</p>
+          <p className={cn("mt-1 text-xs", fintechMuted)}>Use the + button below to add one</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <VirtualTransactionList
-            rows={filtered}
-            isLight
-            renderRow={(row) => (
-              <>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">{row.description}</p>
-                  <p className="text-xs text-slate-500">
-                    {row.date} · {row.category}
-                  </p>
-                </div>
-                <p className={cn("shrink-0 text-sm font-medium", row.amount >= 0 ? "text-emerald-600" : "text-slate-800")}>
-                  {formatMoneyWithSource(row.amount, primaryCurrency, row.currency)}
-                </p>
-              </>
-            )}
-          />
+        <div className="space-y-8">
+          <AnimatePresence initial={false}>
+            {groups.map((group) => (
+              <motion.section
+                key={group.key}
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <h2
+                  className={cn(
+                    "sticky top-16 z-10 -mx-1 mb-3 rounded-lg px-2 py-2 backdrop-blur-md",
+                    fintechLabel,
+                    "bg-[var(--background)]/90"
+                  )}
+                >
+                  {group.label}
+                </h2>
+                <ul className={cn(fintechGlass, "divide-y divide-[var(--border-subtle)] overflow-hidden")}>
+                  {group.rows.map((row) => (
+                    <li key={row.id}>
+                      <div className="group flex items-center gap-3 px-4 py-4 transition-colors duration-200 hover:bg-[var(--surface-hover)]">
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() => openEdit(row)}
+                        >
+                          <p className={cn("truncate text-[15px] font-semibold leading-snug", fintechForeground)}>
+                            {row.description}
+                          </p>
+                          <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>
+                            {row.category}
+                            {row.account ? ` · ${row.account}` : ""}
+                          </p>
+                        </button>
+                        <p
+                          className={cn(
+                            "shrink-0 text-right text-[15px] font-semibold tabular-nums tracking-tight",
+                            row.amount >= 0 ? "text-[var(--positive)]" : fintechForeground
+                          )}
+                        >
+                          {formatMoneyWithSource(row.amount, primaryCurrency, row.currency)}
+                        </p>
+                        <div
+                          className="flex shrink-0 gap-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`Edit ${row.description}`}
+                            className="rounded-lg p-2.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]"
+                            onClick={() => openEdit(row)}
+                          >
+                            <Pencil className="h-4 w-4" strokeWidth={1.75} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Delete ${row.description}`}
+                            className="rounded-lg p-2.5 text-[var(--muted)] transition-colors hover:bg-rose-500/12 hover:text-rose-500"
+                            onClick={() => handleDelete(row)}
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </motion.section>
+            ))}
+          </AnimatePresence>
         </div>
       )}
+
+      <TransactionEntryModal
+        open={modalOpen}
+        onOpenChange={closeModal}
+        editTransaction={editTransaction}
+        onSubmit={(input, editId) => submitTransaction(input, editId)}
+      />
     </PageFrame>
   );
 }

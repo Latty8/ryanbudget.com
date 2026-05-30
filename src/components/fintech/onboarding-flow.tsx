@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { addDays, format } from "date-fns";
@@ -35,11 +35,13 @@ const STEP_COUNT = ONBOARDING_STEP_LABELS.length;
 
 export function OnboardingFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const { isLight } = useShellTheme();
   const { t } = useTranslations();
 
   const onboardingProgress = useAppDataStore((s) => s.onboardingProgress);
+  const restartOnboarding = useAppDataStore((s) => s.restartOnboarding);
   const setOnboardingProgress = useAppDataStore((s) => s.setOnboardingProgress);
   const setAccounts = useAppDataStore((s) => s.setAccounts);
   const setCategories = useAppDataStore((s) => s.setCategories);
@@ -56,6 +58,12 @@ export function OnboardingFlow() {
   const [paycheckAmount, setPaycheckAmount] = useState(1825);
   const [paycheckDate, setPaycheckDate] = useState(format(addDays(new Date(), 14), "yyyy-MM-dd"));
   const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([]);
+
+  useEffect(() => {
+    if (searchParams.get("setup") === "1") {
+      restartOnboarding();
+    }
+  }, [searchParams, restartOnboarding]);
 
   useEffect(() => {
     setRecurringTemplates(buildRecurringTemplates(paycheckAmount, paycheckDate));
@@ -144,9 +152,9 @@ export function OnboardingFlow() {
 
   return (
     <PageFrame title="Quick setup">
-      <p className="mb-4 text-sm text-slate-500">About 2 minutes — paycheck, bills, done.</p>
+      <p className="mb-4 text-sm text-[var(--muted)]">About 2 minutes — paycheck, bills, done.</p>
       <ShellCard className="overflow-hidden p-6 md:p-8">
-        <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+        <div className="mb-2 flex items-center justify-between text-xs text-[var(--muted)]">
           <span>
             Step {step + 1} of {STEP_COUNT} · {ONBOARDING_STEP_LABELS[step]}
           </span>

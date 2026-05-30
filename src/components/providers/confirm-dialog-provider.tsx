@@ -34,10 +34,9 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const close = useCallback((result: boolean) => {
-    setState((prev) => (prev ? { ...prev, open: false } : null));
     resolverRef.current?.(result);
     resolverRef.current = null;
-    window.setTimeout(() => setState(null), 200);
+    setState(null);
   }, []);
 
   const value = useMemo(() => ({ confirm }), [confirm]);
