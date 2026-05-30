@@ -18,3 +18,13 @@ export function readOAuthReturnPath(
     return fallback;
   }
 }
+
+export function consumeOAuthReturnPath(fallback = "/dashboard"): string {
+  if (typeof document === "undefined") return fallback;
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${OAUTH_NEXT_COOKIE}=([^;]+)`)
+  );
+  const next = readOAuthReturnPath(match?.[1], fallback);
+  document.cookie = `${OAUTH_NEXT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  return next;
+}
