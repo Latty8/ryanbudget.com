@@ -95,9 +95,7 @@ export const SUGGESTED_GOALS: Omit<AppGoal, "id" | "current">[] = [
 
 export const ONBOARDING_STEP_LABELS = [
   "Welcome",
-  "Wallets",
-  "Categories",
-  "Recurring",
-  "Goals",
-  "Finish",
+  "Your paycheck",
+  "Main bills",
+  "You're set",
 ] as const;

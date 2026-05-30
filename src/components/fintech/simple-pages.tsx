@@ -5,7 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Plus, ReceiptText, Search, Trash2 } from "lucide-react";
 import { addDays, addMonths, addWeeks, format, isAfter, isBefore, parseISO, startOfMonth, subMonths } from "date-fns";
 import { toast } from "sonner";
-import { createTransaction, getTransactions } from "@/lib/supabase/queries/transactions";
+import { useSaveTransaction } from "@/hooks/use-save-transaction";
+import { getTransactions } from "@/lib/supabase/queries/transactions";
 import { NumberField } from "@/components/fintech/number-field";
 import { SwipeTransactionRow } from "@/components/fintech/swipe-transaction-row";
 import { TransactionEntryModal } from "@/components/fintech/transaction-entry-modal";
@@ -57,10 +58,10 @@ export function TransactionsView() {
   const [openQuickAdd, setOpenQuickAdd] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
+  const saveTransaction = useSaveTransaction();
   const storeTransactions = useAppDataStore((s) => s.demoTransactions);
   const storeAccounts = useAppDataStore((s) => s.accounts);
   const primaryCurrency = useAppDataStore((s) => s.preferences.currency);
-  const appendStoreTransaction = useAppDataStore.setState;
   const { data: remoteData, isLoading } = useQuery({
     queryKey: ["transactions"],
     queryFn: () => getTransactions(),
@@ -72,44 +73,28 @@ export function TransactionsView() {
   );
 
   const createMutation = useMutation({
-    mutationFn: (input: TransactionInput) => createTransaction(input),
+    mutationFn: (input: TransactionInput) => saveTransaction(input),
     onMutate: async (input) => {
+      if (!hasSupabaseEnv) return undefined;
       await queryClient.cancelQueries({ queryKey: ["transactions"] });
       const previous = queryClient.getQueryData<TransactionRecord[]>(["transactions"]) ?? [];
       const optimisticRow = buildOptimisticTransaction(
         input,
-        demoAccounts.find((a) => a.id === input.accountId)?.name ?? "Manual"
+        storeAccounts.find((a) => a.id === input.accountId)?.name ?? "Manual"
       );
       queryClient.setQueryData<TransactionRecord[]>(["transactions"], [optimisticRow, ...previous]);
       return { previous };
     },
     onError: (_error, _variables, context) => {
-      rollbackTransactions(context?.previous, (rows) =>
+      if (!context?.previous) return;
+      rollbackTransactions(context.previous, (rows) =>
         queryClient.setQueryData(["transactions"], rows)
       );
     },
-    onSuccess: (_result, input) => {
-      const account = storeAccounts.find((a) => a.id === input.accountId);
-      appendStoreTransaction((state) => ({
-        demoTransactions: [
-          {
-            id: `local-${Date.now()}`,
-            date: input.date,
-            merchant: input.description,
-            category: input.categoryId,
-            account: account?.name ?? demoAccounts.find((a) => a.id === input.accountId)?.name ?? "Manual",
-            amount: -Math.abs(input.amount),
-            recurring: input.recurring,
-            currency: input.currency ?? account?.currency ?? state.preferences.currency,
-            receipts: input.receipts,
-          },
-          ...state.demoTransactions,
-        ],
-      }));
-      toast.success("Transaction saved");
-    },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      if (hasSupabaseEnv) {
+        await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
     },
   });
 

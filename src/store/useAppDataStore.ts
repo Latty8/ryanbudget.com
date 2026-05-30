@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { createDebouncedStorage } from "@/lib/storage/debounced-storage";
+import { PERSIST_STORE_NAME, userPersistStorage } from "@/lib/storage/user-persist";
 import { nanoid } from "nanoid";
 import {
   enrichedAccounts,
@@ -73,20 +73,15 @@ const defaultPreferences: AppPreferences = {
 };
 
 const initialState = {
-  profile: { name: "Demo User", email: "demo@paycheckplanner.app" },
-  accounts: enrichedAccounts,
-  categories: enrichedCategories,
+  profile: { name: "", email: "" },
+  accounts: [] as AppAccount[],
+  categories: [] as AppCategory[],
   preferences: defaultPreferences,
   onboardingComplete: false,
-  demoTransactions: enrichedTransactions,
-  demoRecurring: enrichedRecurring,
-  goals: demoGoals.map((g) => ({
-    ...g,
-    targetDate: new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10),
-    icon: "Target",
-    color: "#22c55e",
-  })),
-  onboardingProgress: { step: 0, skippedSteps: [] },
+  demoTransactions: [] as typeof enrichedTransactions,
+  demoRecurring: [] as typeof enrichedRecurring,
+  goals: [] as AppGoal[],
+  onboardingProgress: { step: 0, skippedSteps: [] as number[] },
 };
 
 export const useAppDataStore = create<AppDataState>()(
@@ -215,10 +210,13 @@ export const useAppDataStore = create<AppDataState>()(
         }),
     }),
     {
-      name: "paycheck-planner-app-data",
-      storage: createJSONStorage(() => createDebouncedStorage(400)),
+      name: PERSIST_STORE_NAME,
+      storage: createJSONStorage(() => userPersistStorage),
       merge: (persisted, current) => {
         const p = persisted as Partial<typeof current> | undefined;
+        if (!p || (typeof p === "object" && Object.keys(p).length === 0)) {
+          return current;
+        }
         return {
           ...current,
           ...p,

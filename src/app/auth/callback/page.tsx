@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
+import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
 import { consumeOAuthReturnPath } from "@/lib/auth/oauth-return-path";
 import { getSupabaseBrowserClient, hasSupabaseBrowserEnv, resetSupabaseOAuthState } from "@/lib/supabase/browser";
 
@@ -78,6 +79,13 @@ function AuthCallbackInner() {
         );
         return;
       }
+
+      await completeSignInClient({
+        userId: result.user.userId,
+        email: result.user.email,
+        name: result.user.name,
+        isDemo: false,
+      });
 
       const next = consumeOAuthReturnPath(searchParams.get("next") ?? "/dashboard");
       const onboarded = document.cookie.includes("planner-onboarded=true");

@@ -3,6 +3,7 @@ import { AppShell } from "@/components/fintech/app-shell";
 import { ChangelogModal } from "@/components/fintech/lazy-overlays";
 import { FintechErrorBoundary } from "@/components/fintech/error-boundary";
 import { FintechThemeProvider } from "@/components/fintech/theme";
+import { AuthDataSync } from "@/components/providers/auth-data-sync";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog-provider";
 import { DemoModeProvider } from "@/components/providers/demo-mode-provider";
@@ -66,6 +67,7 @@ export default async function RootLayout({
       <body className="min-h-full touch-manipulation bg-slate-950 text-slate-100 antialiased">
         <FintechThemeProvider>
           <AuthProvider initialUser={session}>
+            <AuthDataSync />
             <DemoModeProvider>
               <ConfirmDialogProvider>
               <QueryProvider>

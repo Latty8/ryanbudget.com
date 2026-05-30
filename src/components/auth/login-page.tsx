@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { CalendarClock, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
+import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import { startDemoSession } from "@/lib/auth/start-demo";
 import { setOAuthReturnPath } from "@/lib/auth/oauth-return-path";
@@ -90,6 +91,7 @@ export function LoginPage() {
 
     setUser(result.user);
     setProfile({ email: result.user.email, name: result.user.name });
+    await completeSignInClient(result.user);
 
     if (result.user.isDemo || result.mode === "demo") {
       setClientDemoMode(true);

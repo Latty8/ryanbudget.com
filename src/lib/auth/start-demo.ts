@@ -1,11 +1,9 @@
+import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
+import type { SessionPayload } from "@/lib/auth/session";
+import { useAppDataStore } from "@/store/useAppDataStore";
 
-export type DemoSessionUser = {
-  userId: string;
-  email: string;
-  name: string;
-  isDemo?: boolean;
-};
+export type DemoSessionUser = SessionPayload;
 
 /** Creates demo session cookies and marks onboarding complete (for instant app access). */
 export async function startDemoSession(): Promise<DemoSessionUser> {
@@ -28,6 +26,8 @@ export async function startDemoSession(): Promise<DemoSessionUser> {
   }
 
   setClientDemoMode(true);
+  await completeSignInClient({ ...result.user, isDemo: true });
+  useAppDataStore.getState().loadDemoData();
 
   await fetch("/api/auth/session", {
     method: "PATCH",

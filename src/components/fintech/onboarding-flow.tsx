@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { addDays, format } from "date-fns";
 import { CalendarClock, CheckCircle2, ChevronRight, Sparkles, SkipForward } from "lucide-react";
 import { nanoid } from "nanoid";
-import { AccountWalletList } from "@/components/fintech/account-wallet-list";
 import { NumberField } from "@/components/fintech/number-field";
 import {
   FieldLabel,
@@ -23,15 +22,13 @@ import { useAuth } from "@/components/providers/auth-provider";
 import {
   buildRecurringTemplates,
   ONBOARDING_STEP_LABELS,
-  SUGGESTED_ACCOUNTS,
   SUGGESTED_CATEGORIES,
-  SUGGESTED_GOALS,
   type RecurringTemplate,
 } from "@/lib/onboarding/defaults";
 import { CURRENCY_OPTIONS } from "@/lib/currency/exchange-rates";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useAppDataStore } from "@/store/useAppDataStore";
-import type { AppAccount, AppCategory, AppGoal, CurrencyCode } from "@/types/app-settings";
+import type { CurrencyCode } from "@/types/app-settings";
 import { cn } from "@/lib/utils";
 
 const STEP_COUNT = ONBOARDING_STEP_LABELS.length;
@@ -47,8 +44,6 @@ export function OnboardingFlow() {
   const setAccounts = useAppDataStore((s) => s.setAccounts);
   const setCategories = useAppDataStore((s) => s.setCategories);
   const setRecurring = useAppDataStore((s) => s.setRecurring);
-  const addGoal = useAppDataStore((s) => s.addGoal);
-  const addCategory = useAppDataStore((s) => s.addCategory);
   const loadDemoData = useAppDataStore((s) => s.loadDemoData);
   const completeOnboarding = useAppDataStore((s) => s.completeOnboarding);
   const setProfile = useAppDataStore((s) => s.setProfile);
@@ -58,20 +53,9 @@ export function OnboardingFlow() {
   const step = onboardingProgress.step;
   const skippedSteps = onboardingProgress.skippedSteps;
 
-  const [draftAccounts, setDraftAccounts] = useState<AppAccount[]>([]);
-  const [draftCategories, setDraftCategories] = useState<AppCategory[]>([]);
-  const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([]);
-  const [draftGoals, setDraftGoals] = useState<Omit<AppGoal, "id">[]>([]);
   const [paycheckAmount, setPaycheckAmount] = useState(1825);
   const [paycheckDate, setPaycheckDate] = useState(format(addDays(new Date(), 14), "yyyy-MM-dd"));
-
-  useEffect(() => {
-    if (draftAccounts.length === 0) {
-      setDraftAccounts(
-        SUGGESTED_ACCOUNTS.filter((a) => !a.hidden).map((a) => ({ ...a, id: nanoid() }))
-      );
-    }
-  }, [draftAccounts.length]);
+  const [recurringTemplates, setRecurringTemplates] = useState<RecurringTemplate[]>([]);
 
   useEffect(() => {
     setRecurringTemplates(buildRecurringTemplates(paycheckAmount, paycheckDate));
@@ -81,7 +65,6 @@ export function OnboardingFlow() {
 
   const goTo = (next: number) => {
     setOnboardingProgress({ step: next });
-    toast.message("Progress saved — pick up anytime", { duration: 2000 });
   };
 
   const skipStep = () => {
@@ -92,70 +75,60 @@ export function OnboardingFlow() {
     });
   };
 
-  const applyAccounts = () => {
-    const visible = draftAccounts.filter((a) => !a.hidden);
-    if (visible.length === 0) {
-      toast.error("Add at least one wallet to continue");
-      return false;
-    }
-    setAccounts(visible);
-    return true;
+  const applyPaycheckStep = () => {
+    setAccounts([
+      {
+        id: nanoid(),
+        name: "Main Checking",
+        kind: "checking",
+        balance: 0,
+        color: "#38bdf8",
+        icon: "Wallet",
+      },
+    ]);
+    setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
+    setRecurring([
+      {
+        id: "rec-payroll",
+        name: "Payroll",
+        amount: paycheckAmount,
+        cadence: "bi-weekly",
+        nextDate: paycheckDate,
+      },
+    ]);
   };
 
-  const applyCategories = () => {
-    if (draftCategories.length === 0) {
-      for (const c of SUGGESTED_CATEGORIES) {
-        addCategory(c);
-      }
-    } else {
-      setCategories(draftCategories);
-    }
-    return true;
-  };
-
-  const applyRecurring = () => {
-    const enabled = recurringTemplates.filter((t) => t.enabled);
-    setRecurring(
-      enabled.map((t) => ({
+  const applyBillsStep = () => {
+    const enabled = recurringTemplates.filter((t) => t.enabled && t.id !== "payroll");
+    const payroll = {
+      id: "rec-payroll",
+      name: "Payroll",
+      amount: paycheckAmount,
+      cadence: "bi-weekly" as const,
+      nextDate: paycheckDate,
+    };
+    setRecurring([
+      payroll,
+      ...enabled.map((t) => ({
         id: `rec-${t.id}`,
         name: t.name,
         amount: t.amount,
         cadence: t.cadence as "bi-weekly" | "monthly" | "weekly",
-        nextDate: t.id === "payroll" ? paycheckDate : format(addDays(new Date(), 7), "yyyy-MM-dd"),
-      }))
-    );
-  };
-
-  const applyGoals = () => {
-    for (const g of draftGoals) {
-      addGoal(g);
-    }
+        nextDate: format(addDays(new Date(), 7), "yyyy-MM-dd"),
+      })),
+    ]);
   };
 
   const finishOnboarding = async (withDemo: boolean) => {
     if (withDemo) {
       loadDemoData();
     } else {
-      if (!skippedSteps.includes(1)) {
-        applyAccounts();
-      } else if (useAppDataStore.getState().accounts.length === 0) {
-        setAccounts([
-          {
-            id: nanoid(),
-            name: "Main Checking",
-            kind: "checking",
-            balance: 0,
-            color: "#38bdf8",
-            icon: "Wallet",
-          },
-        ]);
+      if (!skippedSteps.includes(1)) applyPaycheckStep();
+      if (!skippedSteps.includes(2)) applyBillsStep();
+      if (useAppDataStore.getState().accounts.length === 0) applyPaycheckStep();
+      if (useAppDataStore.getState().categories.length === 0) {
+        setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
       }
-      if (!skippedSteps.includes(2)) {
-        if (draftCategories.length > 0) setCategories(draftCategories);
-        else applyCategories();
-      }
-      if (!skippedSteps.includes(3)) applyRecurring();
-      if (!skippedSteps.includes(4)) applyGoals();
     }
     completeOnboarding();
     setOnboardingProgress({ step: 0, skippedSteps: [] });
@@ -165,33 +138,26 @@ export function OnboardingFlow() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ onboarded: true }),
     });
-    toast.success(withDemo ? "Demo loaded — explore freely" : "You're ready to plan");
+    toast.success(withDemo ? "Demo loaded" : "You're ready — tap + to log spending");
     router.push("/dashboard");
   };
 
-  const addSuggestedCategory = () => {
-    const template = SUGGESTED_CATEGORIES.find(
-      (c) => !draftCategories.some((d) => d.name === c.name)
-    );
-    if (!template) return;
-    setDraftCategories((prev) => [...prev, { ...template, id: nanoid() }]);
-  };
-
   return (
-    <PageFrame title="Set up Paycheck Planner">
-      <ShellCard className="overflow-hidden">
+    <PageFrame title="Quick setup">
+      <p className="mb-4 text-sm text-slate-500">About 2 minutes — paycheck, bills, done.</p>
+      <ShellCard className="overflow-hidden p-6 md:p-8">
         <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
           <span>
             Step {step + 1} of {STEP_COUNT} · {ONBOARDING_STEP_LABELS[step]}
           </span>
-          <button type="button" className="inline-flex items-center gap-1 hover:text-sky-300" onClick={skipStep}>
+          <button type="button" className="inline-flex items-center gap-1 hover:text-sky-500" onClick={skipStep}>
             <SkipForward className="h-3 w-3" />
-            {t("common.skip")}
+            Skip step
           </button>
         </div>
-        <div className="mb-6 h-2 rounded-full bg-slate-700/40">
+        <div className="mb-8 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
           <motion.div
-            className="h-2 rounded-full bg-gradient-to-r from-sky-500 to-emerald-400"
+            className="h-1.5 rounded-full bg-sky-500"
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: 0.35 }}
           />
@@ -200,37 +166,36 @@ export function OnboardingFlow() {
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -12 }}
-            transition={{ duration: 0.25 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-5"
           >
             {step === 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl bg-sky-500/20 p-3">
-                    <CalendarClock className="h-6 w-6 text-sky-400" />
+              <>
+                <div className="flex items-start gap-4">
+                  <div className="rounded-2xl bg-sky-100 p-3 dark:bg-sky-500/20">
+                    <CalendarClock className="h-7 w-7 text-sky-600 dark:text-sky-400" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold">{t("onboarding.welcomeTitle")}</h2>
-                    <p className="text-sm text-slate-400">{t("onboarding.welcomeSubtitle")}</p>
+                    <h2 className="text-xl font-semibold">Plan around your paycheck</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      We&apos;ll learn your pay schedule and main bills so you always know what&apos;s safe to spend.
+                    </p>
                   </div>
                 </div>
-                <ul className="space-y-2 text-sm text-slate-300">
-                  <li>· Wallets you actually use (remove our suggestions freely)</li>
-                  <li>· Budget categories you care about</li>
-                  <li>· Bi-weekly paycheck + bill templates</li>
-                  <li>· Optional savings goals</li>
-                </ul>
-                <div className="grid max-w-xs gap-1 text-left">
-                  <FieldLabel htmlFor="onboard-currency">{t("onboarding.primaryCurrency")}</FieldLabel>
+                <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+                  <li>Add your bi-weekly paycheck</li>
+                  <li>Turn on the bills you pay every month</li>
+                  <li>See &quot;safe to spend&quot; on your dashboard</li>
+                </ol>
+                <div className="max-w-xs">
+                  <FieldLabel htmlFor="onboard-currency">Currency</FieldLabel>
                   <ShellSelect
                     id="onboard-currency"
                     value={preferences.currency}
-                    onChange={(e) => {
-                      setPreferences({ currency: e.target.value as CurrencyCode });
-                      toast.success("Primary currency set");
-                    }}
+                    onChange={(e) => setPreferences({ currency: e.target.value as CurrencyCode })}
                   >
                     {CURRENCY_OPTIONS.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -240,99 +205,21 @@ export function OnboardingFlow() {
                   </ShellSelect>
                 </div>
                 <PrimaryButton onClick={() => goTo(1)}>
-                  {t("onboarding.startSetup")}
+                  Get started
                   <ChevronRight className="ml-1 inline h-4 w-4" />
                 </PrimaryButton>
-              </div>
+              </>
             ) : null}
 
             {step === 1 ? (
-              <div className="space-y-4">
-                <p className="text-sm font-medium text-slate-200">{t("onboarding.walletsTitle")}</p>
-                <p className="text-sm text-slate-400">{t("onboarding.walletsHint")}</p>
-                <AccountWalletList
-                  accounts={draftAccounts}
-                  onChange={setDraftAccounts}
-                  showHidden
-                  allowReorder
-                  compact
-                />
-                <div className="flex flex-wrap gap-2">
-                  <GhostButton onClick={() => goTo(0)}>{t("common.back")}</GhostButton>
-                  <PrimaryButton
-                    onClick={() => {
-                      if (applyAccounts()) goTo(2);
-                    }}
-                  >
-                    {t("common.continue")}
-                  </PrimaryButton>
-                </div>
-              </div>
-            ) : null}
-
-            {step === 2 ? (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-400">
-                  Starter categories for needs and wants — edit amounts or skip to use defaults later.
+              <>
+                <h2 className="text-lg font-semibold">Your paycheck</h2>
+                <p className="text-sm text-slate-500">
+                  Most people here are paid every two weeks. You can change this later.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {draftCategories.length === 0
-                    ? SUGGESTED_CATEGORIES.map((c) => (
-                        <span key={c.name} className="rounded-full border border-slate-600 px-3 py-1 text-xs">
-                          {c.name} · ${c.budgeted}
-                        </span>
-                      ))
-                    : draftCategories.map((c) => (
-                        <span
-                          key={c.id}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-600 px-3 py-1 text-xs"
-                        >
-                          {c.name}
-                          <button
-                            type="button"
-                            className="text-slate-500 hover:text-rose-400"
-                            onClick={() => setDraftCategories((prev) => prev.filter((x) => x.id !== c.id))}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                </div>
-                <GhostButton onClick={addSuggestedCategory}>Add suggested category</GhostButton>
-                <PrimaryButton
-                  className="ml-2"
-                  onClick={() => {
-                    if (draftCategories.length === 0) {
-                      setDraftCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
-                    }
-                  }}
-                >
-                  Use all suggested
-                </PrimaryButton>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <GhostButton onClick={() => goTo(1)}>Back</GhostButton>
-                  <PrimaryButton
-                    onClick={() => {
-                      if (draftCategories.length === 0) {
-                        setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
-                      } else {
-                        setCategories(draftCategories);
-                      }
-                      goTo(3);
-                    }}
-                  >
-                    Continue
-                  </PrimaryButton>
-                </div>
-              </div>
-            ) : null}
-
-            {step === 3 ? (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-400">Toggle templates that match your life — bi-weekly pay is on by default.</p>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="grid gap-1">
-                    <FieldLabel>Bi-weekly paycheck</FieldLabel>
+                    <FieldLabel>Amount per paycheck (after tax)</FieldLabel>
                     <NumberField value={paycheckAmount} onChange={setPaycheckAmount} aria-label="Paycheck amount" />
                   </label>
                   <label className="grid gap-1">
@@ -340,90 +227,86 @@ export function OnboardingFlow() {
                     <ShellInput type="date" value={paycheckDate} onChange={(e) => setPaycheckDate(e.target.value)} />
                   </label>
                 </div>
+                <div className="flex gap-2">
+                  <GhostButton onClick={() => goTo(0)}>Back</GhostButton>
+                  <PrimaryButton
+                    onClick={() => {
+                      applyPaycheckStep();
+                      goTo(2);
+                    }}
+                  >
+                    Continue
+                  </PrimaryButton>
+                </div>
+              </>
+            ) : null}
+
+            {step === 2 ? (
+              <>
+                <h2 className="text-lg font-semibold">Main bills</h2>
+                <p className="text-sm text-slate-500">Toggle what you pay regularly — we&apos;ll remind you before payday.</p>
                 <ul className="space-y-2">
-                  {recurringTemplates.map((t) => (
-                    <li
-                      key={t.id}
-                      className={cn(
-                        "flex items-center justify-between rounded-xl border px-3 py-2 text-sm",
-                        isLight ? "border-slate-200" : "border-slate-700",
-                        t.enabled && "border-sky-500/40 bg-sky-500/5"
-                      )}
-                    >
-                      <div>
-                        <p className="font-medium">{t.name}</p>
-                        <p className="text-xs text-slate-400">{t.description}</p>
-                      </div>
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={t.enabled}
-                          onChange={(e) =>
-                            setRecurringTemplates((prev) =>
-                              prev.map((row) => (row.id === t.id ? { ...row, enabled: e.target.checked } : row))
-                            )
-                          }
-                        />
-                        ${t.amount} · {t.cadence}
-                      </label>
-                    </li>
-                  ))}
+                  {recurringTemplates
+                    .filter((t) => t.id !== "payroll")
+                    .map((t) => (
+                      <li
+                        key={t.id}
+                        className={cn(
+                          "flex items-center justify-between rounded-xl border px-4 py-3 text-sm",
+                          isLight ? "border-slate-200" : "border-slate-700",
+                          t.enabled && "border-sky-300 bg-sky-50/50 dark:border-sky-700 dark:bg-sky-950/20"
+                        )}
+                      >
+                        <div>
+                          <p className="font-medium">{t.name}</p>
+                          <p className="text-xs text-slate-500">{t.description}</p>
+                        </div>
+                        <label className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={t.enabled}
+                            onChange={(e) =>
+                              setRecurringTemplates((prev) =>
+                                prev.map((row) => (row.id === t.id ? { ...row, enabled: e.target.checked } : row))
+                              )
+                            }
+                          />
+                          ${t.amount}
+                        </label>
+                      </li>
+                    ))}
                 </ul>
-                <div className="flex flex-wrap gap-2">
-                  <GhostButton onClick={() => goTo(2)}>Back</GhostButton>
-                  <PrimaryButton onClick={() => goTo(4)}>Continue</PrimaryButton>
+                <div className="flex gap-2">
+                  <GhostButton onClick={() => goTo(1)}>Back</GhostButton>
+                  <PrimaryButton
+                    onClick={() => {
+                      applyBillsStep();
+                      goTo(3);
+                    }}
+                  >
+                    Continue
+                  </PrimaryButton>
                 </div>
-              </div>
+              </>
             ) : null}
 
-            {step === 4 ? (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-400">Optional — add a savings goal or skip to finish.</p>
-                <div className="flex flex-wrap gap-2">
-                  {SUGGESTED_GOALS.map((g) => (
-                    <button
-                      key={g.name}
-                      type="button"
-                      className="rounded-xl border border-slate-600 px-3 py-2 text-left text-sm hover:border-sky-500/50"
-                      onClick={() =>
-                        setDraftGoals((prev) =>
-                          prev.some((x) => x.name === g.name) ? prev : [...prev, { ...g, current: 0 }]
-                        )
-                      }
-                    >
-                      <p className="font-medium">{g.name}</p>
-                      <p className="text-xs text-slate-400">Target ${g.target}</p>
-                    </button>
-                  ))}
+            {step === 3 ? (
+              <>
+                <div className="flex items-center gap-2 text-emerald-600">
+                  <CheckCircle2 className="h-6 w-6" />
+                  <h2 className="text-lg font-semibold">You&apos;re set</h2>
                 </div>
-                {draftGoals.length > 0 ? (
-                  <p className="text-xs text-emerald-400">{draftGoals.length} goal(s) selected</p>
-                ) : null}
-                <div className="flex flex-wrap gap-2">
-                  <GhostButton onClick={() => goTo(3)}>Back</GhostButton>
-                  <GhostButton onClick={() => goTo(5)}>Skip goals</GhostButton>
-                  <PrimaryButton onClick={() => goTo(5)}>Continue</PrimaryButton>
-                </div>
-              </div>
-            ) : null}
-
-            {step === 5 ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <p className="text-lg font-semibold">{t("onboarding.finishTitle")}</p>
-                </div>
-                <p className="text-sm text-slate-400">
-                  Open your dashboard or load our realistic bi-weekly demo (Premium unlocked in demo).
+                <p className="text-sm text-slate-500">
+                  Your dashboard shows safe-to-spend. Use the + button anytime to log a purchase.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <PrimaryButton onClick={() => void finishOnboarding(false)}>{t("common.continue")}</PrimaryButton>
+                  <PrimaryButton onClick={() => void finishOnboarding(false)}>Open dashboard</PrimaryButton>
                   <GhostButton onClick={() => void finishOnboarding(true)}>
                     <Sparkles className="mr-1 inline h-4 w-4" />
-                    {t("onboarding.finishDemo")}
+                    Try demo data instead
                   </GhostButton>
                 </div>
-              </div>
+              </>
             ) : null}
           </motion.div>
         </AnimatePresence>

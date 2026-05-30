@@ -30,6 +30,14 @@ export function attachSessionCookies(
       maxAge: 60 * 60 * 24 * 30,
       secure: process.env.NODE_ENV === "production",
     });
+  } else {
+    response.cookies.set(DEMO_MODE_COOKIE, "", {
+      httpOnly: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+      secure: process.env.NODE_ENV === "production",
+    });
   }
 
   return response;

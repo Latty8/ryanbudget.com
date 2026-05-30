@@ -12,7 +12,7 @@ const PUBLIC_EXACT = new Set([
 ]);
 
 /** Prefixes that allow nested routes (e.g. /help/faq). */
-const PUBLIC_PREFIXES = ["/templates", "/help", "/resources", "/login", "/share", "/auth"];
+const PUBLIC_PREFIXES = ["/templates", "/help", "/resources", "/login", "/share", "/auth", "/more"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
