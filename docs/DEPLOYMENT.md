@@ -111,80 +111,36 @@ Current build supports **local notifications** when the user grants permission f
 
 App listens on **127.0.0.1:3002**. Nginx proxies `ryanbudget.me` → that port.
 
-### Deploy / restart
+### One-command deploy
 
 ```bash
 cd /var/www/ryanbudget.me
-git pull
-bash scripts/vps-deploy.sh
+bash deploy.sh
 ```
 
-Or manually (**install before sourcing env** — `.env.production` sets `NODE_ENV=production`, which skips Tailwind/TypeScript if you install too early):
+That's it — pulls code, installs deps, builds, restarts PM2, and checks health.
+
+**Restart only** (no rebuild, e.g. after editing `.env.production`):
+
+```bash
+bash deploy.sh quick
+```
+
+PM2 loads `.env.production` automatically via `scripts/start-prod.sh`.
+
+### First-time setup (once)
 
 ```bash
 cd /var/www/ryanbudget.me
-git pull
-npm install --include=dev
-set -a && source .env.production && set +a
-npm run build
-
-pm2 delete ryanbudget 2>/dev/null || true
-pm2 start ecosystem.config.cjs --update-env
-pm2 save
+cp .env.example .env.production   # edit with real values
+bash deploy.sh
+pm2 startup && pm2 save            # survive reboots
 ```
 
-**Important:** use `exec_mode: fork` (already in `ecosystem.config.cjs`). Do not run Next.js in PM2 cluster mode — it will not bind port 3002.
+Nginx must proxy to port **3002** — see `deploy/nginx/ryanbudget.me.conf`.
 
-If health check fails, run in foreground to see the error:
+### Troubleshooting
 
-```bash
-set -a && source .env.production && set +a
-npm run start:prod
-```
+Site down? Run `bash deploy.sh` again. Still broken? `pm2 logs ryanbudget --lines 30`
 
-Verify locally on the server:
-
-```bash
-curl -s http://127.0.0.1:3002/api/health   # expect {"ok":true}
-curl -sI https://ryanbudget.me/api/health    # expect HTTP/1.1 200
-```
-
-### 502 Bad Gateway
-
-Nginx returns **502** when nothing is listening on port 3002 (app crashed or never started). This affects **all** routes, not just `/auth/callback`.
-
-**During deploy:** `vps-deploy.sh` stops PM2 before rebuilding — the site will 502 for ~1–2 minutes. That is expected.
-
-**Verify you deployed the latest OAuth fix:** after deploy, this must return **HTTP 200** (HTML spinner page), not 307:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3002/auth/callback
-```
-
-If you see **307**, the old server callback route is still active — run `git pull`, `npm run build`, and restart PM2.
-
-```bash
-pm2 status
-pm2 logs ryanbudget --lines 80
-ss -tlnp | grep 3002
-```
-
-Common fixes:
-
-- **Build failed** after `git pull` (e.g. forgot `npm install` for `@supabase/ssr`) — rerun install + build, then `pm2 restart ryanbudget`
-- **Port in use** — `ss -tlnp | grep 3002`; stop conflicting process or change port in `ecosystem.config.cjs` + Nginx
-- **Missing env at runtime** — PM2 does not auto-load `.env.production`; export vars before `npm run build`, or use `pm2 start ecosystem.config.cjs --update-env` after sourcing env
-- **OOM / crash loop** — check `pm2 logs`; increase VPS RAM or reduce other services on 3000/3001
-
-Nginx site config should include:
-
-```nginx
-location / {
-    proxy_pass http://127.0.0.1:3002;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-Host $host;
-}
-```
+502 but PM2 shows Ready? Nginx is pointing at the wrong port — check `grep proxy_pass /etc/nginx/sites-enabled/`
