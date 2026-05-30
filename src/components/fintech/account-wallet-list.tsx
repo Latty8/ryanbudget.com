@@ -12,7 +12,7 @@ import {
   ShellSelect,
   useShellTheme,
 } from "@/components/fintech/ui";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { cn } from "@/lib/utils";
 import type { AppAccount } from "@/types/app-settings";
 import type { AccountKind } from "@/types/finance";
@@ -47,6 +47,7 @@ export function AccountWalletList({
   compact = false,
   allowReorder = true,
 }: AccountWalletListProps) {
+  const confirm = useConfirm();
   const { isLight } = useShellTheme();
   const [draft, setDraft] = useState<Omit<AppAccount, "id">>({
     name: "",
@@ -55,9 +56,7 @@ export function AccountWalletList({
     color: COLOR_SWATCHES[0],
     icon: "Wallet",
   });
-  const [pendingDelete, setPendingDelete] = useState<AppAccount | null>(null);
   const [moveTarget, setMoveTarget] = useState<string>("");
-  const [deleting, setDeleting] = useState(false);
   const moveTargetRef = useRef("");
 
   const visible = showHidden ? accounts : accounts.filter((a) => !a.hidden);
@@ -80,28 +79,46 @@ export function AccountWalletList({
     const others = accounts.filter((a) => a.id !== account.id);
     moveTargetRef.current = others[0]?.name ?? "";
     setMoveTarget(others[0]?.name ?? "");
-    setPendingDelete(account);
-    if (txCount === 0) {
-      // Simple path: no extra UI needed
-    }
-  };
 
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-    setDeleting(true);
-    try {
-      const txCount = transactionCountByAccount?.(pendingDelete.name) ?? 0;
-      const target = moveTargetRef.current || moveTarget;
-      if (txCount > 0 && target && onReassignTransactions) {
-        onReassignTransactions(pendingDelete.name, target);
-        toast.success(`Moved ${txCount} transaction${txCount === 1 ? "" : "s"} to ${target}`);
-      }
-      onChange(accounts.filter((a) => a.id !== pendingDelete.id));
-      toast.success("Wallet removed");
-      setPendingDelete(null);
-    } finally {
-      setDeleting(false);
-    }
+    void confirm({
+      title: "Delete Wallet?",
+      description: `"${account.name}" will be removed from your plan.`,
+      warning:
+        txCount > 0
+          ? `This wallet has ${txCount} linked transaction${txCount === 1 ? "" : "s"}. Choose where to move them below.`
+          : "This action cannot be undone.",
+      confirmLabel: "Delete",
+      variant: "destructive",
+      onConfirm: async () => {
+        const target = moveTargetRef.current || moveTarget;
+        if (txCount > 0 && target && onReassignTransactions) {
+          onReassignTransactions(account.name, target);
+          toast.success(`Moved ${txCount} transaction${txCount === 1 ? "" : "s"} to ${target}`);
+        }
+        onChange(accounts.filter((a) => a.id !== account.id));
+        toast.success("Wallet deleted");
+      },
+      children:
+        txCount > 0 && others.length > 0 && onReassignTransactions ? (
+          <div className="grid gap-2">
+            <FieldLabel htmlFor="move-tx-target">Move transactions to</FieldLabel>
+            <ShellSelect
+              id="move-tx-target"
+              value={moveTarget}
+              onChange={(e) => {
+                setMoveTarget(e.target.value);
+                moveTargetRef.current = e.target.value;
+              }}
+            >
+              {others.map((a) => (
+                <option key={a.id} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </ShellSelect>
+          </div>
+        ) : undefined,
+    });
   };
 
   const addAccount = () => {
@@ -121,9 +138,6 @@ export function AccountWalletList({
     toast.success("Wallet added");
   };
 
-  const pendingTxCount = pendingDelete ? (transactionCountByAccount?.(pendingDelete.name) ?? 0) : 0;
-  const otherAccounts = pendingDelete ? accounts.filter((a) => a.id !== pendingDelete.id) : [];
-
   return (
     <div className="space-y-3">
       {visible.length === 0 ? (
@@ -134,10 +148,7 @@ export function AccountWalletList({
         visible.map((account, index) => (
           <div
             key={account.id}
-            className={cn(
-              "rounded-2xl border p-4 transition",
-              isLight ? "border-slate-200 bg-slate-50" : "border-slate-700 bg-neutral-900/80"
-            )}
+            className="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition hover:border-[var(--border-strong)]"
           >
             <div className={cn("grid gap-3", compact ? "sm:grid-cols-2" : "lg:grid-cols-[auto_1fr_140px_auto]")}>
               {allowReorder ? (
@@ -226,8 +237,12 @@ export function AccountWalletList({
                     </label>
                   ) : null}
                   <GhostButton
-                    className="ml-auto"
-                    onClick={() => requestRemove(account)}
+                    type="button"
+                    className="ml-auto text-rose-400 hover:bg-rose-500/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestRemove(account);
+                    }}
                     aria-label={`Delete ${account.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -239,13 +254,8 @@ export function AccountWalletList({
         ))
       )}
 
-      <div
-        className={cn(
-          "rounded-2xl border border-dashed p-4",
-          isLight ? "border-slate-300" : "border-slate-600"
-        )}
-      >
-        <p className="mb-3 text-xs font-medium text-slate-400">Add wallet</p>
+      <div className="rounded-2xl border border-dashed border-[var(--border-strong)] p-4">
+        <p className="mb-3 text-xs font-medium text-[var(--muted)]">Add wallet</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_140px_120px_auto]">
           <ShellInput
             placeholder="Wallet name"
@@ -269,43 +279,6 @@ export function AccountWalletList({
           </PrimaryButton>
         </div>
       </div>
-
-      <ConfirmDialog
-        open={!!pendingDelete}
-        onOpenChange={(open) => {
-          if (!open && !deleting) setPendingDelete(null);
-        }}
-        title={pendingDelete ? `Delete "${pendingDelete.name}"?` : "Delete wallet?"}
-        description="This wallet will be removed from your plan. This action cannot be undone."
-        warning={
-          pendingTxCount > 0
-            ? `This wallet has ${pendingTxCount} linked transaction${pendingTxCount === 1 ? "" : "s"}. Move them to another wallet before deleting, or they will keep the old account name in history.`
-            : undefined
-        }
-        confirmLabel="Delete wallet"
-        loading={deleting}
-        onConfirm={confirmDelete}
-      >
-        {pendingTxCount > 0 && otherAccounts.length > 0 && onReassignTransactions ? (
-          <div className="grid gap-2">
-            <FieldLabel htmlFor="move-tx-target">Move transactions to</FieldLabel>
-            <ShellSelect
-              id="move-tx-target"
-              value={moveTarget}
-              onChange={(e) => {
-                setMoveTarget(e.target.value);
-                moveTargetRef.current = e.target.value;
-              }}
-            >
-              {otherAccounts.map((a) => (
-                <option key={a.id} value={a.name}>
-                  {a.name}
-                </option>
-              ))}
-            </ShellSelect>
-          </div>
-        ) : null}
-      </ConfirmDialog>
     </div>
   );
 }

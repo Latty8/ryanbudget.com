@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { DialogPortal } from "@/components/ui/dialog-portal";
 import { GhostButton, fintechModalPanel, fintechForeground, fintechMuted } from "@/components/fintech/ui";
@@ -32,12 +33,26 @@ export function ConfirmDialog({
   children,
   onConfirm,
 }: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !loading) {
+        event.preventDefault();
+        onOpenChange(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, loading, onOpenChange]);
+
+  if (!open) return null;
+
   return (
     <DialogPortal open={open} layer="confirm">
       <button
         type="button"
         aria-label="Close dialog backdrop"
-        className="absolute inset-0 z-0 cursor-default bg-[var(--overlay)]"
+        className="absolute inset-0 z-0 cursor-default bg-black/50 backdrop-blur-[2px]"
         disabled={loading}
         onClick={() => onOpenChange(false)}
       />
@@ -48,43 +63,38 @@ export function ConfirmDialog({
         aria-describedby="confirm-dialog-description"
         className={cn(
           fintechModalPanel,
-          "relative z-10 mx-auto w-full max-w-md p-6 shadow-[var(--shadow-modal)]",
-          "pointer-events-auto"
+          "relative z-10 mx-auto w-[min(100%,26rem)] max-h-[min(85dvh,32rem)] overflow-y-auto p-5 shadow-[var(--shadow-modal)] sm:p-6"
         )}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2.5">
           <div
             className={cn(
-              "shrink-0 rounded-xl p-2",
+              "shrink-0 rounded-lg p-1.5",
               variant === "destructive"
                 ? "bg-rose-500/15 text-rose-400"
                 : "bg-[var(--accent-muted)] text-[var(--accent)]"
             )}
           >
-            <AlertTriangle className="h-5 w-5" aria-hidden strokeWidth={1.75} />
+            <AlertTriangle className="h-4 w-4" aria-hidden strokeWidth={1.75} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 id="confirm-dialog-title" className={cn("text-lg font-semibold", fintechForeground)}>
+            <h2 id="confirm-dialog-title" className={cn("text-base font-semibold leading-snug", fintechForeground)}>
               {title}
             </h2>
-            <p id="confirm-dialog-description" className={cn("mt-2 text-sm leading-relaxed", fintechMuted)}>
+            <p id="confirm-dialog-description" className={cn("mt-1.5 text-sm leading-relaxed", fintechMuted)}>
               {description}
             </p>
             {warning ? (
-              <p
-                className={cn(
-                  "mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-medium leading-relaxed text-amber-800 dark:text-amber-100"
-                )}
-              >
+              <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs font-medium leading-relaxed text-amber-800 dark:text-amber-100">
                 {warning}
               </p>
             ) : null}
-            {children ? <div className="mt-4">{children}</div> : null}
+            {children ? <div className="mt-3">{children}</div> : null}
           </div>
         </div>
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
           <GhostButton type="button" disabled={loading} onClick={() => onOpenChange(false)}>
             {cancelLabel}
           </GhostButton>
@@ -93,7 +103,7 @@ export function ConfirmDialog({
             disabled={loading}
             onClick={() => void onConfirm()}
             className={cn(
-              "inline-flex min-h-[2.75rem] items-center justify-center gap-2 rounded-[var(--radius-field)] px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50",
+              "inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-[var(--radius-field)] px-4 py-2 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50",
               variant === "destructive"
                 ? "bg-rose-600 text-white hover:bg-rose-500"
                 : "bg-[var(--accent)] text-[var(--accent-foreground)] hover:brightness-110"

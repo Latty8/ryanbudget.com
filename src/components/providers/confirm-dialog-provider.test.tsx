@@ -9,6 +9,7 @@ import { ConfirmDialogProvider, useConfirm } from "@/components/providers/confir
 function TestProviders({ children }: { children: ReactNode }) {
   return (
     <FintechThemeProvider>
+      <div id="modal-root" />
       <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
     </FintechThemeProvider>
   );

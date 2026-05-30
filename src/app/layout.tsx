@@ -5,6 +5,7 @@ import { ChangelogModal } from "@/components/fintech/lazy-overlays";
 import { FintechErrorBoundary } from "@/components/fintech/error-boundary";
 import { FintechThemeProvider } from "@/components/fintech/theme";
 import { AuthDataSync } from "@/components/providers/auth-data-sync";
+import { CloudSyncProvider } from "@/components/providers/cloud-sync-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog-provider";
 import { DemoModeProvider } from "@/components/providers/demo-mode-provider";
@@ -77,6 +78,7 @@ export default async function RootLayout({
         <FintechThemeProvider>
           <AuthProvider initialUser={session}>
             <AuthDataSync />
+            <CloudSyncProvider />
             <DemoModeProvider>
               <ConfirmDialogProvider>
               <QueryProvider>

@@ -83,3 +83,21 @@ create policy "recurring_own" on public.recurring_rules for all using (auth.uid(
 ```
 
 After migrations, enable data sync in production env and redeploy.
+
+## Multi-device sync extensions
+
+After the minimal schema above, also run `src/lib/supabase/schema-sync.sql` in the SQL Editor. This adds:
+
+- `profiles.onboarding_completed` — one-time onboarding across devices
+- `profiles.preferences` — JSON preferences sync
+- Extended columns on accounts, categories, transactions, recurring
+- `goals` table
+- Realtime publication for instant cross-device updates
+- Auto-create profile trigger on `auth.users` insert
+
+With `NEXT_PUBLIC_SUPABASE_ENABLE_DATA=true` and `SUPABASE_SERVICE_ROLE_KEY` set, the app will:
+
+1. Pull cloud data on sign-in (remote wins when it has data)
+2. Push local changes debounced (~800ms)
+3. Subscribe to Supabase Realtime for live updates
+

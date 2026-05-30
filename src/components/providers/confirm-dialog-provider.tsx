@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 import { ConfirmDialog, type ConfirmDialogProps } from "@/components/ui/confirm-dialog";
 
 export type ConfirmRequest = Omit<ConfirmDialogProps, "open" | "onOpenChange" | "loading" | "onConfirm"> & {
@@ -21,22 +22,59 @@ type ConfirmDialogContextValue = {
 
 const ConfirmDialogContext = createContext<ConfirmDialogContextValue | null>(null);
 
+function ConfirmDialogHost({
+  state,
+  loading,
+  onClose,
+  onConfirm,
+}: {
+  state: ConfirmRequest;
+  loading: boolean;
+  onClose: (result: boolean) => void;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <ConfirmDialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !loading) onClose(false);
+      }}
+      title={state.title}
+      description={state.description}
+      warning={state.warning}
+      confirmLabel={state.confirmLabel}
+      cancelLabel={state.cancelLabel}
+      variant={state.variant}
+      loading={loading}
+      children={state.children}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
 export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<(ConfirmRequest & { open: boolean }) | null>(null);
+  const [state, setState] = useState<ConfirmRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
+  const openRef = useRef(false);
 
   const confirm = useCallback((request: ConfirmRequest) => {
+    if (openRef.current) {
+      return Promise.resolve(false);
+    }
     return new Promise<boolean>((resolve) => {
+      openRef.current = true;
       resolverRef.current = resolve;
-      setState({ ...request, open: true });
+      setState(request);
     });
   }, []);
 
   const close = useCallback((result: boolean) => {
+    openRef.current = false;
     resolverRef.current?.(result);
     resolverRef.current = null;
     setState(null);
+    setLoading(false);
   }, []);
 
   const value = useMemo(() => ({ confirm }), [confirm]);
@@ -45,25 +83,18 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
     <ConfirmDialogContext.Provider value={value}>
       {children}
       {state ? (
-        <ConfirmDialog
-          open={state.open}
-          onOpenChange={(open) => {
-            if (!open && !loading) close(false);
-          }}
-          title={state.title}
-          description={state.description}
-          warning={state.warning}
-          confirmLabel={state.confirmLabel}
-          cancelLabel={state.cancelLabel}
-          variant={state.variant}
+        <ConfirmDialogHost
+          state={state}
           loading={loading}
-          children={state.children}
+          onClose={close}
           onConfirm={async () => {
             setLoading(true);
             try {
               await state.onConfirm();
               close(true);
-            } catch {
+            } catch (error) {
+              const message = error instanceof Error ? error.message : "Something went wrong";
+              toast.error(message);
               close(false);
             } finally {
               setLoading(false);

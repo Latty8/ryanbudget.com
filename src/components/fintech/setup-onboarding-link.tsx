@@ -25,8 +25,15 @@ export function SetupOnboardingLink({ className, children }: Props) {
         try {
           await fetch("/api/auth/session", {
             method: "PATCH",
+            credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ onboarded: false }),
+          });
+          await fetch("/api/user/profile", {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ onboardingCompleted: false }),
           });
         } catch {
           /* still navigate — ?setup=1 bypasses middleware */

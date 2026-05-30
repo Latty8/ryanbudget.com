@@ -202,18 +202,26 @@ body > *:not(#modal-root):not([data-modal-root]) {
 #modal-root {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 99990;
   pointer-events: none;
   isolation: isolate;
 }
 
-#modal-root > [data-modal-root] {
+#modal-root [data-modal-root] {
   pointer-events: auto;
 }
 
 [data-modal-root] {
   position: fixed;
   isolation: isolate;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+body.modal-open > *:not(#modal-root) {
+  filter: none;
 }
 
 .planner-card {

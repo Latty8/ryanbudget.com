@@ -8,6 +8,7 @@ import { CalendarClock, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
+import { resolvePostLoginPath } from "@/lib/auth/resolve-post-login-path";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import { startDemoSession } from "@/lib/auth/start-demo";
 import { setOAuthReturnPath } from "@/lib/auth/oauth-return-path";
@@ -58,6 +59,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
 
   const nextPath = searchParams.get("next") ?? "/dashboard";
@@ -91,6 +93,12 @@ export function LoginPage() {
 
     setUser(result.user);
     setProfile({ email: result.user.email, name: result.user.name });
+
+    const supabase = getSupabaseBrowserClient();
+    if (supabase && hasSupabaseBrowserEnv()) {
+      await supabase.auth.signInWithPassword({ email: options.email, password: options.password });
+    }
+
     await completeSignInClient(result.user);
 
     if (result.user.isDemo || result.mode === "demo") {
@@ -99,8 +107,8 @@ export function LoginPage() {
       if (options.loadSampleData) loadDemoData();
     }
 
-    const onboarded = document.cookie.includes("planner-onboarded=true");
-    router.push(onboarded ? nextPath : "/onboarding");
+    const destination = await resolvePostLoginPath(nextPath);
+    router.push(destination);
   };
 
   const signIn = async () => {
@@ -151,39 +159,40 @@ export function LoginPage() {
   }, [searchParams]);
 
   const googleOAuthStarted = useRef(false);
+  const appleOAuthStarted = useRef(false);
 
-  const signInWithGoogle = async () => {
-    if (googleOAuthStarted.current || googleLoading) return;
+  const signInWithOAuthProvider = async (provider: "google" | "apple") => {
+    const startedRef = provider === "google" ? googleOAuthStarted : appleOAuthStarted;
+    const setLoading = provider === "google" ? setGoogleLoading : setAppleLoading;
+    if (startedRef.current || (provider === "google" ? googleLoading : appleLoading)) return;
+
     if (!hasSupabaseBrowserEnv()) {
-      toast.error("Google sign-in requires Supabase. Add NEXT_PUBLIC_SUPABASE_URL and keys on the server.");
+      toast.error(`${provider === "apple" ? "Apple" : "Google"} sign-in requires Supabase configuration.`);
       return;
     }
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
-    googleOAuthStarted.current = true;
-    setGoogleLoading(true);
+    startedRef.current = true;
+    setLoading(true);
     try {
       await resetSupabaseOAuthState(supabase);
       setOAuthReturnPath(nextPath);
       const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-        },
+        provider,
+        options: { redirectTo },
       });
       if (error) throw error;
     } catch (error) {
-      googleOAuthStarted.current = false;
-      toast.error(error instanceof Error ? error.message : "Google sign-in failed");
-      setGoogleLoading(false);
+      startedRef.current = false;
+      toast.error(error instanceof Error ? error.message : `${provider} sign-in failed`);
+      setLoading(false);
     }
   };
 
-  const socialSoon = (provider: string) => {
-    toast.info(`${provider} sign-in is coming soon. Use email, Google, or try the demo.`);
-  };
+  const signInWithGoogle = () => signInWithOAuthProvider("google");
+  const signInWithApple = () => signInWithOAuthProvider("apple");
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0b1220] text-slate-100">
@@ -251,10 +260,15 @@ export function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => socialSoon("Apple")}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:bg-white/10"
+              disabled={appleLoading || demoLoading || googleLoading}
+              onClick={() => void signInWithApple()}
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:bg-white/10 disabled:opacity-60"
             >
-              <AppleIcon />
+              {appleLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <AppleIcon />
+              )}
               Continue with Apple
             </button>
           </div>

@@ -2,13 +2,14 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { acquireModalBodyLock, releaseModalBodyLock } from "@/components/ui/modal-body-lock";
 
 export const MODAL_ROOT_ATTR = "data-modal-root";
 export const MODAL_HOST_ID = "modal-root";
 
 const LAYER_Z: Record<"modal" | "confirm", string> = {
-  modal: "z-[10000]",
-  confirm: "z-[10001]",
+  modal: "z-[99998]",
+  confirm: "z-[99999]",
 };
 
 function subscribe() {
@@ -23,7 +24,6 @@ function getServerSnapshot() {
   return false;
 }
 
-/** True after hydration — avoids SSR mismatch and the one-frame `mounted` flash. */
 export function useIsClient() {
   return useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
 }
@@ -36,23 +36,26 @@ export function getModalHost(): HTMLElement | null {
 type DialogPortalProps = {
   open: boolean;
   children: React.ReactNode;
-  /** confirm dialogs stack above standard modals */
   layer?: "modal" | "confirm";
 };
 
-/**
- * Renders children at document root (shadcn DialogPortal equivalent).
- * Centers content with a full-viewport flex host and locks body scroll while open.
- */
+/** Renders at document root — above nav/FAB, centered on desktop and mobile. */
 export function DialogPortal({ open, children, layer = "modal" }: DialogPortalProps) {
   const isClient = useIsClient();
 
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    acquireModalBodyLock();
+    const host = getModalHost();
+    if (host?.id === MODAL_HOST_ID) {
+      host.removeAttribute("aria-hidden");
+      host.removeAttribute("inert");
+    }
     return () => {
-      document.body.style.overflow = prev;
+      releaseModalBodyLock();
+      if (host?.id === MODAL_HOST_ID && !host.querySelector(`[${MODAL_ROOT_ATTR}]`)) {
+        host.setAttribute("aria-hidden", "true");
+      }
     };
   }, [open]);
 
@@ -64,7 +67,12 @@ export function DialogPortal({ open, children, layer = "modal" }: DialogPortalPr
   return createPortal(
     <div
       {...{ [MODAL_ROOT_ATTR]: "" }}
-      className={`fixed inset-0 ${LAYER_Z[layer]} isolate flex items-center justify-center p-4 sm:p-6`}
+      data-layer={layer}
+      className={`fixed inset-0 ${LAYER_Z[layer]} isolate flex min-h-[100dvh] w-full items-center justify-center overscroll-none ${
+        layer === "confirm"
+          ? "p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]"
+          : "p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:p-6"
+      }`}
       style={{ pointerEvents: "auto" }}
     >
       {children}

@@ -1,4 +1,4 @@
-import { AccountsView } from "@/components/fintech/simple-pages";
+import { AccountsView } from "@/components/fintech/accounts-view";
 
 export default function AccountsPage() {
   return <AccountsView />;

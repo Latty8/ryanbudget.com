@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import { hasSupabaseEnv, supabase } from "@/lib/supabase/client";
+import { setOnboardingCompleted, isSyncAvailable } from "@/lib/supabase/sync/server";
+import { readSession } from "@/lib/auth/read-session";
 import { DEMO_MODE_COOKIE, ONBOARDED_COOKIE, SESSION_COOKIE } from "@/lib/auth/session";
 import type { SessionPayload } from "@/lib/auth/session";
 
@@ -147,8 +149,16 @@ export async function PATCH(request: Request) {
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
     });
+    const session = await readSession();
+    if (session?.userId && isSyncAvailable()) {
+      await setOnboardingCompleted(session.userId, true);
+    }
   } else if (body.onboarded === false) {
     response.cookies.delete(ONBOARDED_COOKIE);
+    const session = await readSession();
+    if (session?.userId && isSyncAvailable()) {
+      await setOnboardingCompleted(session.userId, false);
+    }
   }
 
   return response;

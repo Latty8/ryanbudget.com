@@ -3,13 +3,16 @@
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
+import { useAuth } from "@/components/providers/auth-provider";
 import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
+import { resolvePostLoginPath } from "@/lib/auth/resolve-post-login-path";
 import { consumeOAuthReturnPath } from "@/lib/auth/oauth-return-path";
 import { getSupabaseBrowserClient, hasSupabaseBrowserEnv, resetSupabaseOAuthState } from "@/lib/supabase/browser";
 
 function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setUser } = useAuth();
   const started = useRef(false);
 
   useEffect(() => {
@@ -80,18 +83,21 @@ function AuthCallbackInner() {
         return;
       }
 
-      await completeSignInClient({
+      const sessionUser = {
         userId: result.user.userId,
         email: result.user.email,
         name: result.user.name,
-        isDemo: false,
-      });
+        isDemo: false as const,
+      };
+
+      setUser(sessionUser);
+      await completeSignInClient(sessionUser);
 
       const next = consumeOAuthReturnPath(searchParams.get("next") ?? "/dashboard");
-      const onboarded = document.cookie.includes("planner-onboarded=true");
-      router.replace(onboarded ? next : "/onboarding");
+      const destination = await resolvePostLoginPath(next);
+      router.replace(destination);
     })();
-  }, [router, searchParams]);
+  }, [router, searchParams, setUser]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0b1220] text-slate-300">

@@ -120,47 +120,45 @@ export function DashboardAiInsights({
 
   return (
     <section className={cn(fintechGlass, "overflow-hidden")}>
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-3 p-5 text-left transition-colors hover:bg-[var(--surface-hover)] md:p-6"
-        onClick={toggleExpanded}
-        aria-expanded={expanded}
-      >
-        <div className="min-w-0">
-          <p className={cn("inline-flex items-center gap-2", fintechLabel)}>
-            <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" strokeWidth={2} aria-hidden />
-            AI Insights
-          </p>
-          <p className={cn("mt-1 truncate text-sm", fintechMuted)}>
-            {expanded ? "Personalized for your bi-weekly pay" : `${insights.length} tips · tap to expand`}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            aria-label="Refresh insights"
-            disabled={refreshMutation.isPending}
-            onClick={(e) => {
-              e.stopPropagation();
-              refreshMutation.mutate();
-            }}
-            className="rounded-xl border border-[var(--border)] p-2 text-[var(--muted)] transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50"
-          >
-            {refreshMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
-            )}
-          </button>
+      <div className="flex w-full items-center justify-between gap-3 p-5 md:p-6">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition-colors hover:bg-[var(--surface-hover)] rounded-xl -m-2 p-2"
+          onClick={toggleExpanded}
+          aria-expanded={expanded}
+        >
+          <div className="min-w-0">
+            <p className={cn("inline-flex items-center gap-2", fintechLabel)}>
+              <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" strokeWidth={2} aria-hidden />
+              AI Insights
+            </p>
+            <p className={cn("mt-1 truncate text-sm", fintechMuted)}>
+              {expanded ? "Personalized for your bi-weekly pay" : `${insights.length} tips · tap to expand`}
+            </p>
+          </div>
           <ChevronDown
             className={cn(
-              "h-5 w-5 text-[var(--muted)] transition-transform duration-300",
+              "h-5 w-5 shrink-0 text-[var(--muted)] transition-transform duration-300",
               expanded && "rotate-180"
             )}
             strokeWidth={1.75}
+            aria-hidden
           />
-        </div>
-      </button>
+        </button>
+        <button
+          type="button"
+          aria-label="Refresh insights"
+          disabled={refreshMutation.isPending}
+          onClick={() => refreshMutation.mutate()}
+          className="shrink-0 rounded-xl border border-[var(--border)] p-2 text-[var(--muted)] transition-all duration-200 hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50"
+        >
+          {refreshMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
+          )}
+        </button>
+      </div>
 
       <AnimatePresence initial={false}>
         {expanded ? (

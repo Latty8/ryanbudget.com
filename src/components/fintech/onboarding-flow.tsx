@@ -19,6 +19,7 @@ import {
   useShellTheme,
 } from "@/components/fintech/ui";
 import { useAuth } from "@/components/providers/auth-provider";
+import { completeOnboardingForUser } from "@/lib/auth/complete-sign-in-client";
 import {
   buildRecurringTemplates,
   ONBOARDING_STEP_LABELS,
@@ -47,7 +48,6 @@ export function OnboardingFlow() {
   const setCategories = useAppDataStore((s) => s.setCategories);
   const setRecurring = useAppDataStore((s) => s.setRecurring);
   const loadDemoData = useAppDataStore((s) => s.loadDemoData);
-  const completeOnboarding = useAppDataStore((s) => s.completeOnboarding);
   const setProfile = useAppDataStore((s) => s.setProfile);
   const preferences = useAppDataStore((s) => s.preferences);
   const setPreferences = useAppDataStore((s) => s.setPreferences);
@@ -84,17 +84,22 @@ export function OnboardingFlow() {
   };
 
   const applyPaycheckStep = () => {
-    setAccounts([
-      {
-        id: nanoid(),
-        name: "Main Checking",
-        kind: "checking",
-        balance: 0,
-        color: "#38bdf8",
-        icon: "Wallet",
-      },
-    ]);
-    setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
+    const { accounts, categories } = useAppDataStore.getState();
+    if (accounts.length === 0) {
+      setAccounts([
+        {
+          id: nanoid(),
+          name: "Main Checking",
+          kind: "checking",
+          balance: 0,
+          color: "#38bdf8",
+          icon: "Wallet",
+        },
+      ]);
+    }
+    if (categories.length === 0) {
+      setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
+    }
     setRecurring([
       {
         id: "rec-payroll",
@@ -138,14 +143,9 @@ export function OnboardingFlow() {
         setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
       }
     }
-    completeOnboarding();
+    await completeOnboardingForUser();
     setOnboardingProgress({ step: 0, skippedSteps: [] });
     if (user) setProfile({ name: user.name, email: user.email });
-    await fetch("/api/auth/session", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ onboarded: true }),
-    });
     toast.success(withDemo ? "Demo loaded" : "You're ready — tap + to log spending");
     router.push("/dashboard");
   };

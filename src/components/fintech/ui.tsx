@@ -208,7 +208,7 @@ export function ModalOverlay({
       <button
         type="button"
         aria-label="Close"
-        className="absolute inset-0 bg-[var(--overlay)]"
+        className="absolute inset-0 bg-[#070b12]/95"
         onClick={onClose}
       />
       <motion.div

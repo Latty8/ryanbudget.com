@@ -1,5 +1,5 @@
-import { CategoriesPage as CategoriesScreen } from "@/components/planner/pages/CategoriesPage";
+import { CategoriesView } from "@/components/fintech/categories-view";
 
 export default function CategoriesPage() {
-  return <CategoriesScreen />;
+  return <CategoriesView />;
 }

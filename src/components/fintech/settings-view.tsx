@@ -1,33 +1,24 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { toast } from "sonner";
 import {
-  Car,
   Download,
-  Home,
-  Music,
-  PiggyBank,
-  Plus,
-  ShoppingCart,
   Sparkles,
-  Trash2,
   Upload,
-  Utensils,
-  Wallet,
-  Zap,
-  type LucideIcon,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useFintechTheme } from "@/components/fintech/theme";
 import { useAuth } from "@/components/providers/auth-provider";
-import { AccountWalletList } from "@/components/fintech/account-wallet-list";
+import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useDemoMode } from "@/hooks/use-demo-mode";
 import { usePremium } from "@/hooks/use-premium";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
+import { resetSignInClientState } from "@/lib/auth/complete-sign-in-client";
+import { setPersistUserId } from "@/lib/storage/user-persist";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
 import { useReferralStore } from "@/store/useReferralStore";
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -47,38 +38,14 @@ import {
 import { downloadTextFile, parseCsvTransactions, parseJsonBundle, transactionsToCsv } from "@/lib/data/export-import";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
-import type { AccountKind } from "@/types/finance";
 import { CURRENCY_OPTIONS } from "@/lib/currency/exchange-rates";
 import type { CurrencyCode, DateFormatPreference, WeekStartPreference } from "@/types/app-settings";
-
-const ICON_OPTIONS: { name: string; icon: LucideIcon }[] = [
-  { name: "Wallet", icon: Wallet },
-  { name: "Home", icon: Home },
-  { name: "ShoppingCart", icon: ShoppingCart },
-  { name: "Car", icon: Car },
-  { name: "Utensils", icon: Utensils },
-  { name: "Music", icon: Music },
-  { name: "Zap", icon: Zap },
-  { name: "PiggyBank", icon: PiggyBank },
-];
-
-const COLOR_OPTIONS = ["#38bdf8", "#22c55e", "#fbbf24", "#fb7185", "#a78bfa", "#2dd4bf", "#60a5fa", "#f97316"];
-
-function CategoryIcon({ name, color }: { name: string; color: string }) {
-  const match = ICON_OPTIONS.find((option) => option.name === name);
-  const Icon = match?.icon ?? Wallet;
-  return (
-    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: `${color}22`, color }}>
-      <Icon className="h-4 w-4" aria-hidden />
-    </span>
-  );
-}
 
 export function SettingsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
-  const { premium, canAddAccount, demoMode } = usePremium();
+  const { premium, demoMode } = usePremium();
   const confirm = useConfirm();
   const { exitDemoMode } = useDemoMode();
   const syncFromServer = useSubscriptionStore((s) => s.syncFromServer);
@@ -91,29 +58,15 @@ export function SettingsView() {
   const csvRef = useRef<HTMLInputElement>(null);
 
   const profile = useAppDataStore((s) => s.profile);
-  const accounts = useAppDataStore((s) => s.accounts);
-  const categories = useAppDataStore((s) => s.categories);
   const { t, locale, setLocale } = useTranslations();
   const preferences = useAppDataStore((s) => s.preferences);
   const demoTransactions = useAppDataStore((s) => s.demoTransactions);
   const setProfile = useAppDataStore((s) => s.setProfile);
   const setPreferences = useAppDataStore((s) => s.setPreferences);
-  const setAccounts = useAppDataStore((s) => s.setAccounts);
-  const addCategory = useAppDataStore((s) => s.addCategory);
-  const updateCategory = useAppDataStore((s) => s.updateCategory);
-  const deleteCategory = useAppDataStore((s) => s.deleteCategory);
   const loadDemoData = useAppDataStore((s) => s.loadDemoData);
   const exportBundle = useAppDataStore((s) => s.exportBundle);
   const importBundle = useAppDataStore((s) => s.importBundle);
   const deleteAllData = useAppDataStore((s) => s.deleteAllData);
-
-  const [categoryDraft, setCategoryDraft] = useState({
-    name: "",
-    group: "Spending",
-    icon: "Wallet",
-    color: COLOR_OPTIONS[0],
-    budgeted: 0,
-  });
 
   const saveProfile = () => {
     if (!profile.name.trim()) {
@@ -129,28 +82,6 @@ export function SettingsView() {
       toast.success("Welcome to Premium!");
     }
   }, [searchParams, syncFromServer]);
-
-  const countTransactionsForAccount = (accountName: string) =>
-    demoTransactions.filter((t) => t.account === accountName).length;
-
-  const handleAccountsChange = (next: typeof accounts) => {
-    if (!canAddAccount(next.filter((a) => !a.hidden).length) && next.length > accounts.length) {
-      toast.error("Free plan allows 2 accounts. Upgrade for unlimited.");
-      router.push("/pricing?feature=unlimited_accounts");
-      return;
-    }
-    setAccounts(next);
-  };
-
-  const handleAddCategory = () => {
-    if (!categoryDraft.name.trim() || categoryDraft.budgeted < 0) {
-      toast.error("Category name and valid budget are required");
-      return;
-    }
-    addCategory(categoryDraft);
-    setCategoryDraft({ name: "", group: "Spending", icon: "Wallet", color: COLOR_OPTIONS[0], budgeted: 0 });
-    toast.success("Category added");
-  };
 
   const handleExportJson = () => {
     const bundle = exportBundle();
@@ -309,113 +240,12 @@ export function SettingsView() {
 
       <ShellCard>
         <SectionTitle
-          title="Wallets"
-          description="Rename, recolor, or remove accounts. Deleting warns you about linked transactions."
+          title="Setup"
+          description="Re-run the initial setup wizard. Onboarding only runs once per account across devices."
         />
-        <AccountWalletList
-          accounts={accounts}
-          onChange={handleAccountsChange}
-          transactionCountByAccount={countTransactionsForAccount}
-          onReassignTransactions={(from, to) => {
-            useAppDataStore.setState((state) => ({
-              demoTransactions: state.demoTransactions.map((t) =>
-                t.account === from ? { ...t, account: to } : t
-              ),
-            }));
-          }}
-          showHidden
-        />
-      </ShellCard>
-
-      <ShellCard>
-        <SectionTitle title="Categories" description="Customize icons, colors, and monthly budget targets." />
-        <div className="space-y-2">
-          {categories.map((category) => (
-            <div
-              key={category.id}
-              className={cn(
-                "grid gap-2 rounded-xl border p-3 lg:grid-cols-[auto_1fr_120px_100px_100px_auto]",
-                isLight ? "border-slate-200 bg-slate-50" : "border-slate-700 bg-neutral-900"
-              )}
-            >
-              <CategoryIcon name={category.icon} color={category.color} />
-              <ShellInput
-                value={category.name}
-                onChange={(e) => updateCategory(category.id, { name: e.target.value })}
-                aria-label={`Category ${category.name}`}
-              />
-              <ShellSelect
-                value={category.icon}
-                onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
-                aria-label={`Icon for ${category.name}`}
-              >
-                {ICON_OPTIONS.map((option) => (
-                  <option key={option.name} value={option.name}>
-                    {option.name}
-                  </option>
-                ))}
-              </ShellSelect>
-              <ShellInput
-                type="color"
-                value={category.color}
-                onChange={(e) => updateCategory(category.id, { color: e.target.value })}
-                aria-label={`Color for ${category.name}`}
-                className="h-10 cursor-pointer p-1"
-              />
-              <NumberField
-                value={category.budgeted}
-                onChange={(budgeted) => updateCategory(category.id, { budgeted })}
-                aria-label={`Budget for ${category.name}`}
-              />
-              <GhostButton
-                onClick={() => {
-                  const linked = demoTransactions.filter((t) => t.category === category.name).length;
-                  void confirm({
-                    title: `Delete "${category.name}"?`,
-                    description: "This category will be removed from your budget.",
-                    warning:
-                      linked > 0
-                        ? `${linked} transaction${linked === 1 ? "" : "s"} use this category. They will keep the category name in history.`
-                        : "This action cannot be undone.",
-                    confirmLabel: "Delete category",
-                    onConfirm: () => {
-                      deleteCategory(category.id);
-                      toast.success("Category removed");
-                    },
-                  });
-                }}
-                aria-label={`Delete ${category.name}`}
-              >
-                <Trash2 className="h-4 w-4" />
-              </GhostButton>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
-          <ShellInput
-            placeholder="Category name"
-            value={categoryDraft.name}
-            onChange={(e) => setCategoryDraft((s) => ({ ...s, name: e.target.value }))}
-          />
-          <ShellSelect value={categoryDraft.icon} onChange={(e) => setCategoryDraft((s) => ({ ...s, icon: e.target.value }))}>
-            {ICON_OPTIONS.map((option) => (
-              <option key={option.name} value={option.name}>
-                {option.name}
-              </option>
-            ))}
-          </ShellSelect>
-          <ShellInput
-            type="color"
-            value={categoryDraft.color}
-            onChange={(e) => setCategoryDraft((s) => ({ ...s, color: e.target.value }))}
-          />
-          <NumberField
-            placeholder="Monthly budget"
-            value={categoryDraft.budgeted}
-            onChange={(budgeted) => setCategoryDraft((s) => ({ ...s, budgeted }))}
-          />
-          <PrimaryButton onClick={handleAddCategory}>Add category</PrimaryButton>
-        </div>
+        <SetupOnboardingLink className="inline-flex rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
+          Run setup again
+        </SetupOnboardingLink>
       </ShellCard>
 
       <ShellCard>
@@ -577,6 +407,8 @@ export function SettingsView() {
         <GhostButton
           onClick={async () => {
             await fetch("/api/auth/session", { method: "DELETE" });
+            resetSignInClientState();
+            setPersistUserId(null);
             setClientDemoMode(false);
             exitDemoMode();
             setUser(null);
