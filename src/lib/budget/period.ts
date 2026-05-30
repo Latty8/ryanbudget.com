@@ -143,6 +143,7 @@ export function reportCadenceFromBudgetPeriod(
 export type CategoryBudgetRow = {
   id: string;
   name: string;
+  icon: string;
   color: string;
   group: string;
   monthlyBudgeted: number;
@@ -178,6 +179,7 @@ export function computeCategoryBudgetRows(
       return {
         id: cat.id,
         name: cat.name,
+        icon: cat.icon,
         color: cat.color,
         group: cat.group,
         monthlyBudgeted: cat.budgeted,

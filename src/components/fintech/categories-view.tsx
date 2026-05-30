@@ -1,64 +1,40 @@
 "use client";
 
-import {
-  Car,
-  Home,
-  Music,
-  PiggyBank,
-  Plus,
-  ShoppingCart,
-  Trash2,
-  Utensils,
-  Wallet,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
-import { useMemo, useState } from "react";
+import { ShoppingCart, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 import { toast } from "sonner";
+import { CategoryAddPanel } from "@/components/fintech/category-add-panel";
+import { CategoryIconBadge } from "@/components/fintech/category-icon";
 import { NumberField } from "@/components/fintech/number-field";
 import {
   EmptyState,
   GhostButton,
-  fintechForeground,
-  fintechGlass,
   fintechLabel,
-  fintechMuted,
   PageFrame,
-  PrimaryButton,
+  SectionTitle,
   ShellCard,
   ShellInput,
   ShellSelect,
 } from "@/components/fintech/ui";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
+import {
+  CATEGORY_KIND_LABELS,
+  expenseSubgroupsForSelect,
+  partitionCategoriesByKind,
+} from "@/lib/categories/category-kind";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { cn } from "@/lib/utils";
 
-const ICON_OPTIONS: { name: string; icon: LucideIcon }[] = [
-  { name: "Wallet", icon: Wallet },
-  { name: "Home", icon: Home },
-  { name: "ShoppingCart", icon: ShoppingCart },
-  { name: "Car", icon: Car },
-  { name: "Utensils", icon: Utensils },
-  { name: "Music", icon: Music },
-  { name: "Zap", icon: Zap },
-  { name: "PiggyBank", icon: PiggyBank },
-];
-
-const COLOR_OPTIONS = ["#38bdf8", "#22c55e", "#fbbf24", "#fb7185", "#a78bfa", "#2dd4bf", "#60a5fa", "#f97316"];
-const GROUP_OPTIONS = ["Income", "Needs", "Wants", "Goals", "Custom"] as const;
-
-function CategoryIcon({ name, color }: { name: string; color: string }) {
-  const match = ICON_OPTIONS.find((option) => option.name === name);
-  const Icon = match?.icon ?? Wallet;
-  return (
-    <span
-      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-      style={{ backgroundColor: `${color}22`, color }}
-    >
-      <Icon className="h-5 w-5" aria-hidden />
-    </span>
-  );
-}
+const ICON_OPTIONS = [
+  "Wallet",
+  "Home",
+  "ShoppingCart",
+  "Car",
+  "Utensils",
+  "Music",
+  "Zap",
+  "PiggyBank",
+] as const;
 
 export function CategoriesView() {
   const confirm = useConfirm();
@@ -68,38 +44,34 @@ export function CategoriesView() {
   const updateCategory = useAppDataStore((s) => s.updateCategory);
   const deleteCategory = useAppDataStore((s) => s.deleteCategory);
 
-  const [draft, setDraft] = useState({
-    name: "",
-    group: "Needs" as (typeof GROUP_OPTIONS)[number],
-    icon: "Wallet",
-    color: COLOR_OPTIONS[0],
-    budgeted: 0,
-  });
+  const existingNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const existingGroups = useMemo(() => categories.map((c) => c.group), [categories]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, typeof categories>();
+  const groupOptions = useMemo(() => {
+    const subgroups = expenseSubgroupsForSelect(existingGroups);
+    return ["Income", ...subgroups.filter((g) => g !== "Income")];
+  }, [existingGroups]);
+
+  const { income, expense } = useMemo(() => partitionCategoriesByKind(categories), [categories]);
+
+  const sections = useMemo(
+    () =>
+      (
+        [
+          { kind: "income" as const, items: income },
+          { kind: "expense" as const, items: expense },
+        ] as const
+      ).filter((section) => section.items.length > 0),
+    [income, expense]
+  );
+
+  const iconOptionsForSelect = useMemo(() => {
+    const names = new Set<string>(ICON_OPTIONS);
     for (const cat of categories) {
-      const key = cat.group || "Custom";
-      const list = map.get(key) ?? [];
-      list.push(cat);
-      map.set(key, list);
+      if (cat.icon) names.add(cat.icon);
     }
-    const known = GROUP_OPTIONS.filter((g) => map.has(g));
-    const extra = [...map.keys()].filter(
-      (g) => !GROUP_OPTIONS.includes(g as (typeof GROUP_OPTIONS)[number])
-    );
-    return [...known, ...extra].map((group) => ({ group, items: map.get(group) ?? [] }));
+    return [...names].sort();
   }, [categories]);
-
-  const handleAdd = () => {
-    if (!draft.name.trim() || draft.budgeted < 0) {
-      toast.error("Enter a category name and valid monthly budget");
-      return;
-    }
-    addCategory(draft);
-    setDraft({ name: "", group: "Needs", icon: "Wallet", color: COLOR_OPTIONS[0], budgeted: 0 });
-    toast.success("Category added");
-  };
 
   const handleDelete = (id: string, name: string) => {
     const linked = demoTransactions.filter((t) => t.category === name).length;
@@ -124,22 +96,34 @@ export function CategoriesView() {
       title="Categories"
       description="Organize spending with groups, icons, colors, and monthly targets."
     >
+      <CategoryAddPanel
+        existingCategoryNames={existingNames}
+        existingGroups={existingGroups}
+        onAdd={addCategory}
+      />
+
       {categories.length === 0 ? (
-        <EmptyState
-          icon={ShoppingCart}
-          title="No categories yet"
-          description="Add categories to track spending and set budget targets."
-        />
+        <div className="mt-6">
+          <EmptyState
+            icon={ShoppingCart}
+            title="No categories yet"
+            description="Choose a preset above or switch to Custom to create your first category."
+          />
+        </div>
       ) : (
-        <div className="space-y-6">
-          {grouped.map(({ group, items }) => (
-            <section key={group}>
-              <p className={cn("mb-3", fintechLabel)}>{group}</p>
+        <div className="mt-8 space-y-6 border-t border-[var(--border-subtle)] pt-8">
+          <SectionTitle
+            title="Your categories"
+            description="Grouped by Income and Expenses. Edit details inline below."
+          />
+          {sections.map(({ kind, items }) => (
+            <section key={kind}>
+              <p className={cn("mb-3", fintechLabel)}>{CATEGORY_KIND_LABELS[kind]}</p>
               <div className="space-y-3">
                 {items.map((category) => (
                   <ShellCard key={category.id} className="p-4">
                     <div className="grid gap-3 lg:grid-cols-[auto_1fr_120px_100px_110px_120px_auto] lg:items-center">
-                      <CategoryIcon name={category.icon} color={category.color} />
+                      <CategoryIconBadge name={category.icon} color={category.color} />
                       <ShellInput
                         value={category.name}
                         onChange={(e) => updateCategory(category.id, { name: e.target.value })}
@@ -150,7 +134,7 @@ export function CategoriesView() {
                         onChange={(e) => updateCategory(category.id, { group: e.target.value })}
                         aria-label={`Group for ${category.name}`}
                       >
-                        {GROUP_OPTIONS.map((g) => (
+                        {groupOptions.map((g) => (
                           <option key={g} value={g}>
                             {g}
                           </option>
@@ -161,9 +145,9 @@ export function CategoriesView() {
                         onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
                         aria-label={`Icon for ${category.name}`}
                       >
-                        {ICON_OPTIONS.map((option) => (
-                          <option key={option.name} value={option.name}>
-                            {option.name}
+                        {iconOptionsForSelect.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
                           </option>
                         ))}
                       </ShellSelect>
@@ -198,51 +182,6 @@ export function CategoriesView() {
           ))}
         </div>
       )}
-
-      <div className={cn(fintechGlass, "mt-6 p-5")}>
-        <p className={cn("text-sm font-semibold", fintechForeground)}>Add category</p>
-        <p className={cn("mt-1 text-xs", fintechMuted)}>
-          Groups like Needs and Wants help organize your budget. Monthly targets feed the Budgets page.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <ShellInput
-            placeholder="Category name"
-            value={draft.name}
-            onChange={(e) => setDraft((s) => ({ ...s, name: e.target.value }))}
-          />
-          <ShellSelect
-            value={draft.group}
-            onChange={(e) => setDraft((s) => ({ ...s, group: e.target.value as typeof draft.group }))}
-          >
-            {GROUP_OPTIONS.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </ShellSelect>
-          <ShellSelect value={draft.icon} onChange={(e) => setDraft((s) => ({ ...s, icon: e.target.value }))}>
-            {ICON_OPTIONS.map((option) => (
-              <option key={option.name} value={option.name}>
-                {option.name}
-              </option>
-            ))}
-          </ShellSelect>
-          <ShellInput
-            type="color"
-            value={draft.color}
-            onChange={(e) => setDraft((s) => ({ ...s, color: e.target.value }))}
-          />
-          <NumberField
-            placeholder="Monthly budget"
-            value={draft.budgeted}
-            onChange={(budgeted) => setDraft((s) => ({ ...s, budgeted }))}
-          />
-          <PrimaryButton onClick={handleAdd}>
-            <Plus className="mr-1 inline h-4 w-4" />
-            Add
-          </PrimaryButton>
-        </div>
-      </div>
     </PageFrame>
   );
 }

@@ -3,6 +3,7 @@ import type { AccountKind, RecurringFrequency } from "@/types/finance";
 export type DateFormatPreference = "MDY" | "DMY" | "YMD";
 export type WeekStartPreference = "sunday" | "monday";
 export type BudgetPeriodPreference = "monthly" | "weekly" | "bi-weekly";
+export type BudgetViewDensity = "compact" | "comfortable";
 export type CurrencyCode = "USD" | "CAD" | "EUR" | "GBP";
 export type AppLocale = "en" | "es";
 
@@ -49,13 +50,18 @@ export type AppRecurringRule = {
   paused?: boolean;
 };
 
+export type CategoryBudgetBehavior = "fixed" | "flexible" | "percentage" | "rollover";
+
 export type AppCategory = {
   id: string;
   name: string;
+  /** Budget grouping (Housing, Utilities, Food, etc.) — not wallet/account type */
   group: string;
   icon: string;
   color: string;
   budgeted: number;
+  /** How this category behaves in the budget; defaults to fixed */
+  budgetBehavior?: CategoryBudgetBehavior;
 };
 
 export type AppPreferences = {
@@ -64,6 +70,8 @@ export type AppPreferences = {
   weekStart: WeekStartPreference;
   /** Budget list viewing period (monthly default; bi-weekly available for paycheck cadence) */
   budgetPeriod: BudgetPeriodPreference;
+  /** Budgets page card density */
+  budgetViewDensity?: BudgetViewDensity;
   locale: AppLocale;
 };
 

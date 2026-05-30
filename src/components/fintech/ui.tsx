@@ -154,16 +154,19 @@ export function ProgressBar({
   pct,
   over,
   className,
+  size = "default",
 }: {
   pct: number;
   over?: boolean;
   className?: string;
+  size?: "default" | "slim";
 }) {
   const width = Math.min(100, Math.max(0, pct));
   return (
     <div
       className={cn(
-        "h-2 overflow-hidden rounded-full bg-[var(--surface-elevated)] shadow-[var(--shadow-inner)]",
+        "overflow-hidden rounded-full bg-[var(--surface-elevated)] shadow-[var(--shadow-inner)]",
+        size === "slim" ? "h-1.5" : "h-2",
         className
       )}
     >

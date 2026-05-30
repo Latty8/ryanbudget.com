@@ -11,12 +11,12 @@ export const SUGGESTED_ACCOUNTS: Omit<AppAccount, "id">[] = [
 ];
 
 export const SUGGESTED_CATEGORIES: Omit<AppCategory, "id">[] = [
-  { name: "Income", group: "Income", icon: "Wallet", color: "#22c55e", budgeted: 0 },
-  { name: "Housing", group: "Needs", icon: "Home", color: "#38bdf8", budgeted: 1200 },
-  { name: "Groceries", group: "Needs", icon: "ShoppingCart", color: "#34d399", budgeted: 300 },
-  { name: "Transportation", group: "Needs", icon: "Car", color: "#fbbf24", budgeted: 180 },
-  { name: "Dining", group: "Wants", icon: "Utensils", color: "#fb7185", budgeted: 120 },
-  { name: "Utilities", group: "Needs", icon: "Zap", color: "#60a5fa", budgeted: 140 },
+  { name: "Income", group: "Income", icon: "CircleDollarSign", color: "#22c55e", budgeted: 0, budgetBehavior: "fixed" },
+  { name: "Housing", group: "Housing", icon: "Home", color: "#38bdf8", budgeted: 1200, budgetBehavior: "fixed" },
+  { name: "Utilities", group: "Utilities", icon: "Zap", color: "#60a5fa", budgeted: 140, budgetBehavior: "fixed" },
+  { name: "Groceries", group: "Food", icon: "ShoppingCart", color: "#34d399", budgeted: 300, budgetBehavior: "flexible" },
+  { name: "Transportation", group: "Transportation", icon: "Car", color: "#fbbf24", budgeted: 180, budgetBehavior: "flexible" },
+  { name: "Dining", group: "Food", icon: "Utensils", color: "#fb7185", budgeted: 120, budgetBehavior: "flexible" },
 ];
 
 export type RecurringTemplate = {

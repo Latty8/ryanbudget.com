@@ -65,6 +65,9 @@
   --overlay: rgba(10, 22, 40, 0.82);
   --modal-solid: #f8fafc;
   --sidebar-width: 15.5rem;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(10, 22, 40, 0.2);
+  --scrollbar-thumb-hover: rgba(10, 22, 40, 0.36);
   --bg-mesh:
     radial-gradient(ellipse 90% 60% at 50% -20%, rgba(13, 148, 136, 0.11), transparent 54%),
     radial-gradient(ellipse 50% 42% at 100% 0%, rgba(21, 42, 69, 0.05), transparent 48%),
@@ -138,6 +141,9 @@
   --overlay: rgba(4, 8, 14, 0.88);
   --modal-solid: #141c28;
   --sidebar-width: 15.5rem;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(232, 238, 244, 0.16);
+  --scrollbar-thumb-hover: rgba(232, 238, 244, 0.3);
   --bg-mesh:
     radial-gradient(ellipse 75% 50% at 50% -22%, rgba(45, 212, 191, 0.12), transparent 55%),
     radial-gradient(ellipse 50% 35% at 100% 8%, rgba(13, 148, 136, 0.06), transparent 45%);
@@ -155,6 +161,50 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  scrollbar-gutter: stable;
+}
+
+/* Subtle custom scrollbars — light & dark via theme tokens */
+*,
+html,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    transition: none;
+  }
 }
 
 input,
