@@ -153,6 +153,16 @@ curl -sI https://ryanbudget.me/api/health    # expect HTTP/1.1 200
 
 Nginx returns **502** when nothing is listening on port 3002 (app crashed or never started). This affects **all** routes, not just `/auth/callback`.
 
+**During deploy:** `vps-deploy.sh` stops PM2 before rebuilding — the site will 502 for ~1–2 minutes. That is expected.
+
+**Verify you deployed the latest OAuth fix:** after deploy, this must return **HTTP 200** (HTML spinner page), not 307:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3002/auth/callback
+```
+
+If you see **307**, the old server callback route is still active — run `git pull`, `npm run build`, and restart PM2.
+
 ```bash
 pm2 status
 pm2 logs ryanbudget --lines 80
