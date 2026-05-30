@@ -1,4 +1,4 @@
-import { hasSupabaseEnv, supabase } from "@/lib/supabase/client";
+import { hasSupabaseDataSync, supabase } from "@/lib/supabase/client";
 import { computeDashboardSummary, defaultDemoSummary } from "@/lib/dashboard/compute-summary";
 import { enrichedAccounts } from "@/lib/demo/enriched-demo-data";
 import { demoBudgets, demoRecurring, demoTransactions } from "@/lib/demo/sample-data";
@@ -6,7 +6,7 @@ import type { DashboardSummary } from "@/types/finance";
 
 /** Server-safe fetch; client dashboard prefers live store via hook. */
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  if (hasSupabaseEnv && supabase) {
+  if (hasSupabaseDataSync && supabase) {
     const { data: accounts } = await supabase.from("accounts").select("id,name,type,balance").limit(6);
     const { data: categories } = await supabase.from("categories").select("id,name,group_name,monthly_target").limit(12);
     const totalBalance = (accounts ?? []).reduce((sum, a) => sum + Number(a.balance ?? 0), 0);

@@ -19,7 +19,7 @@ import { useFintechTheme } from "@/components/fintech/theme";
 import { demoAccounts, demoBudgets, demoRecurring } from "@/lib/demo/sample-data";
 import { projectRecurringRuns } from "@/lib/recurring/project-runs";
 import { buildOptimisticTransaction, rollbackTransactions } from "@/lib/transactions/optimistic";
-import { hasSupabaseEnv } from "@/lib/supabase/client";
+import { hasSupabaseDataSync } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { useAppDataStore, formatMoneyWithSource } from "@/store/useAppDataStore";
@@ -65,17 +65,17 @@ export function TransactionsView() {
   const { data: remoteData, isLoading } = useQuery({
     queryKey: ["transactions"],
     queryFn: () => getTransactions(),
-    enabled: hasSupabaseEnv,
+    enabled: hasSupabaseDataSync,
   });
   const data = useMemo(
-    () => (hasSupabaseEnv ? remoteData : mapStoreTransactions(storeTransactions)),
+    () => (hasSupabaseDataSync ? remoteData : mapStoreTransactions(storeTransactions)),
     [remoteData, storeTransactions]
   );
 
   const createMutation = useMutation({
     mutationFn: (input: TransactionInput) => saveTransaction(input),
     onMutate: async (input) => {
-      if (!hasSupabaseEnv) return undefined;
+      if (!hasSupabaseDataSync) return undefined;
       await queryClient.cancelQueries({ queryKey: ["transactions"] });
       const previous = queryClient.getQueryData<TransactionRecord[]>(["transactions"]) ?? [];
       const optimisticRow = buildOptimisticTransaction(
@@ -92,7 +92,7 @@ export function TransactionsView() {
       );
     },
     onSettled: async () => {
-      if (hasSupabaseEnv) {
+      if (hasSupabaseDataSync) {
         await queryClient.invalidateQueries({ queryKey: ["transactions"] });
       }
     },

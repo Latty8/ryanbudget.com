@@ -1,5 +1,5 @@
-import { ReportsView } from "@/components/fintech/reports-view";
+import { ReportsMinimalView } from "@/components/fintech/reports-minimal-view";
 
 export default function Page() {
-  return <ReportsView />;
+  return <ReportsMinimalView />;
 }

@@ -1,5 +1,5 @@
-import { BudgetsView } from "@/components/fintech/simple-pages";
+import { BudgetsMinimalView } from "@/components/fintech/budgets-minimal-view";
 
 export default function BudgetsPage() {
-  return <BudgetsView />;
+  return <BudgetsMinimalView />;
 }

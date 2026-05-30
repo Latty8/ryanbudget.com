@@ -16,12 +16,10 @@ export function ShellCard({
   children: React.ReactNode;
   className?: string;
 }) {
-  const { isLight } = useShellTheme();
   return (
     <div
       className={cn(
-        "rounded-2xl border p-4",
-        isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-700 bg-neutral-800/95 text-slate-100",
+        "rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-sm",
         className
       )}
     >
@@ -178,10 +176,21 @@ export function EmptyState({
   );
 }
 
-export function PageFrame({ title, children }: { title: string; children: React.ReactNode }) {
+export function PageFrame({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="space-y-4 pb-20 md:pb-0">
-      <h1 className="text-2xl font-semibold">{title}</h1>
+    <div className="space-y-10 pb-24 md:pb-0">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">{title}</h1>
+        {description ? <p className="text-sm leading-relaxed text-slate-500">{description}</p> : null}
+      </header>
       {children}
     </div>
   );

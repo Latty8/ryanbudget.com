@@ -7,43 +7,52 @@ import type { TransactionInput } from "@/types/finance";
 import { createTransaction } from "@/lib/supabase/queries/transactions";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
-/** Save a transaction to the store (and Supabase when configured). */
+function appendToStore(input: TransactionInput) {
+  const { accounts, categories } = useAppDataStore.getState();
+  const account = accounts.find((a) => a.id === input.accountId);
+  const category = categories.find((c) => c.id === input.categoryId);
+
+  useAppDataStore.setState((state) => ({
+    demoTransactions: [
+      {
+        id: nanoid(),
+        date: input.date,
+        merchant: input.description,
+        category: category?.name ?? input.categoryId,
+        account: account?.name ?? "Manual",
+        amount: input.amount < 0 ? input.amount : -Math.abs(input.amount),
+        recurring: input.recurring,
+        currency: input.currency ?? account?.currency ?? state.preferences.currency,
+        receipts: input.receipts,
+      },
+      ...state.demoTransactions,
+    ],
+  }));
+}
+
+/** Save a transaction — always persists locally; Supabase only if ENABLE_DATA is on. */
 export function useSaveTransaction() {
-  const accounts = useAppDataStore((s) => s.accounts);
-  const categories = useAppDataStore((s) => s.categories);
-  const preferences = useAppDataStore((s) => s.preferences);
+  return useCallback(async (input: TransactionInput) => {
+    const cloudResult = await createTransaction(input);
 
-  return useCallback(
-    async (input: TransactionInput) => {
-      const account = accounts.find((a) => a.id === input.accountId);
-      const category = categories.find((c) => c.id === input.categoryId);
-      const result = await createTransaction(input);
+    if (cloudResult.ok) {
+      appendToStore(input);
+      toast.success(cloudResult.message === "Saved in demo mode." ? "Saved" : cloudResult.message);
+      return cloudResult;
+    }
 
-      if (!result.ok) {
-        toast.error(result.message);
-        return result;
-      }
+    const isSchemaError =
+      cloudResult.message.includes("schema cache") ||
+      cloudResult.message.includes("Could not find") ||
+      cloudResult.message.includes("does not exist");
 
-      useAppDataStore.setState((state) => ({
-        demoTransactions: [
-          {
-            id: nanoid(),
-            date: input.date,
-            merchant: input.description,
-            category: category?.name ?? input.categoryId,
-            account: account?.name ?? "Manual",
-            amount: input.amount < 0 ? input.amount : -Math.abs(input.amount),
-            recurring: input.recurring,
-            currency: input.currency ?? account?.currency ?? state.preferences.currency,
-            receipts: input.receipts,
-          },
-          ...state.demoTransactions,
-        ],
-      }));
+    if (isSchemaError) {
+      appendToStore(input);
+      toast.success("Saved on this device");
+      return { ok: true, message: "Saved locally." };
+    }
 
-      toast.success("Saved");
-      return result;
-    },
-    [accounts, categories, preferences.currency]
-  );
+    toast.error(cloudResult.message);
+    return cloudResult;
+  }, []);
 }

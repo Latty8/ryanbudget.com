@@ -1,5 +1,5 @@
-import { TransactionsView } from "@/components/fintech/simple-pages";
+import { TransactionsMinimalView } from "@/components/fintech/transactions-minimal-view";
 
 export default function TransactionsPage() {
-  return <TransactionsView />;
+  return <TransactionsMinimalView />;
 }

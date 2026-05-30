@@ -1,5 +1,5 @@
-import { RecurringView } from "@/components/fintech/simple-pages";
+import { RecurringMinimalView } from "@/components/fintech/recurring-minimal-view";
 
 export default function RecurringPage() {
-  return <RecurringView />;
+  return <RecurringMinimalView />;
 }

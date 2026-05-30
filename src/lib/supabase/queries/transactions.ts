@@ -2,7 +2,7 @@ import { addMonths, addWeeks, format } from "date-fns";
 import { nanoid } from "nanoid";
 import { suggestCategoriesFromDescription } from "@/lib/ai/suggest-category";
 import { demoBudgets, demoTransactions } from "@/lib/demo/sample-data";
-import { hasSupabaseEnv, supabase } from "@/lib/supabase/client";
+import { hasSupabaseDataSync, supabase } from "@/lib/supabase/client";
 import type { RecurringFrequency, SplitLine, TransactionInput, TransactionRecord } from "@/types/finance";
 
 type GetTransactionsOptions = {
@@ -13,7 +13,7 @@ type GetTransactionsOptions = {
 export async function getTransactions(options: GetTransactionsOptions = {}): Promise<TransactionRecord[]> {
   const limit = options.limit ?? 100;
   const offset = options.offset ?? 0;
-  if (hasSupabaseEnv && supabase) {
+  if (hasSupabaseDataSync && supabase) {
     await supabase.rpc("generate_recurring_transactions", {
       p_user_id: "demo-user",
       p_until_date: format(addMonths(new Date(), 1), "yyyy-MM-dd"),
@@ -72,7 +72,7 @@ export async function createTransaction(input: TransactionInput): Promise<{ ok: 
   if (input.amount <= 0) return { ok: false, message: "Amount must be greater than 0." };
   if (!validateSplitAmount(input.amount, input.splits)) return { ok: false, message: "Split amounts must match total amount." };
 
-  if (hasSupabaseEnv && supabase) {
+  if (hasSupabaseDataSync && supabase) {
     const { error } = await supabase.from("transactions").insert({
       id: nanoid(),
       merchant: input.description,

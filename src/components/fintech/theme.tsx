@@ -12,7 +12,7 @@ type FintechThemeContextValue = {
 const FintechThemeContext = createContext<FintechThemeContextValue | null>(null);
 
 export function FintechThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<FintechTheme>("dark");
+  const [theme, setThemeState] = useState<FintechTheme>("light");
 
   useEffect(() => {
     const id = window.setTimeout(() => {
