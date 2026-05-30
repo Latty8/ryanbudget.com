@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
 import { consumeOAuthReturnPath } from "@/lib/auth/oauth-return-path";
-import { getSupabaseBrowserClient, hasSupabaseBrowserEnv } from "@/lib/supabase/browser";
+import { getSupabaseBrowserClient, hasSupabaseBrowserEnv, resetSupabaseOAuthState } from "@/lib/supabase/browser";
 
 function AuthCallbackInner() {
   const router = useRouter();
@@ -41,6 +41,14 @@ function AuthCallbackInner() {
 
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
+        if (error.message.toLowerCase().includes("code challenge")) {
+          await resetSupabaseOAuthState(supabase);
+          router.replace(
+            "/login?error=" +
+              encodeURIComponent("Sign-in expired. Clear cookies and try Google again.")
+          );
+          return;
+        }
         router.replace(`/login?error=${encodeURIComponent(error.message)}`);
         return;
       }

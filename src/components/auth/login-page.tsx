@@ -10,7 +10,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import { startDemoSession } from "@/lib/auth/start-demo";
 import { setOAuthReturnPath } from "@/lib/auth/oauth-return-path";
-import { getSupabaseBrowserClient, hasSupabaseBrowserEnv } from "@/lib/supabase/browser";
+import { getSupabaseBrowserClient, hasSupabaseBrowserEnv, resetSupabaseOAuthState } from "@/lib/supabase/browser";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
 
@@ -148,7 +148,10 @@ export function LoginPage() {
     if (error) toast.error(decodeURIComponent(error));
   }, [searchParams]);
 
+  const googleOAuthStarted = useRef(false);
+
   const signInWithGoogle = async () => {
+    if (googleOAuthStarted.current || googleLoading) return;
     if (!hasSupabaseBrowserEnv()) {
       toast.error("Google sign-in requires Supabase. Add NEXT_PUBLIC_SUPABASE_URL and keys on the server.");
       return;
@@ -156,22 +159,21 @@ export function LoginPage() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
+    googleOAuthStarted.current = true;
     setGoogleLoading(true);
     try {
+      await resetSupabaseOAuthState(supabase);
       setOAuthReturnPath(nextPath);
-      const siteOrigin = (
-        process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
-      ).replace(/\/$/, "");
-      const redirectTo = `${siteOrigin}/auth/callback`;
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
-          queryParams: { prompt: "consent" },
         },
       });
       if (error) throw error;
     } catch (error) {
+      googleOAuthStarted.current = false;
       toast.error(error instanceof Error ? error.message : "Google sign-in failed");
       setGoogleLoading(false);
     }
