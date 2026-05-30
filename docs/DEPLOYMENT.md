@@ -63,6 +63,8 @@
    - Use the **exact** path above (no `?next=` query on the allow list)
 6. Redeploy with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set (required; demo-only mode has no Google OAuth).
 
+OAuth uses `@supabase/ssr` so the PKCE code verifier is stored in cookies (required for Next.js). Always start sign-in and complete the callback on the **same host** (e.g. always `https://ryanbudget.me`, not mixing `www` and apex).
+
 ## Security headers
 
 Configure in `next.config.ts` (or Vercel headers):
