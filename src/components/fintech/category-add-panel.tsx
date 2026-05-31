@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Sparkles, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CategoryIconBadge } from "@/components/fintech/category-icon";
@@ -28,6 +28,7 @@ import {
   presetToCategory,
   type CategoryPreset,
 } from "@/lib/categories/category-presets";
+import { SYSTEM_UNCATEGORIZED_NAME } from "@/lib/categories/system-category";
 import { cn } from "@/lib/utils";
 import type { AppCategory } from "@/types/app-settings";
 
@@ -47,9 +48,15 @@ type CategoryAddPanelProps = {
   existingCategoryNames: string[];
   existingGroups: string[];
   onAdd: (category: Omit<AppCategory, "id">) => void;
+  onClose?: () => void;
 };
 
-export function CategoryAddPanel({ existingCategoryNames, existingGroups, onAdd }: CategoryAddPanelProps) {
+export function CategoryAddPanel({
+  existingCategoryNames,
+  existingGroups,
+  onAdd,
+  onClose,
+}: CategoryAddPanelProps) {
   const [mode, setMode] = useState<"preset" | "custom">("preset");
   const [presetFilter, setPresetFilter] = useState<"all" | CategoryKind>("all");
   const [search, setSearch] = useState("");
@@ -81,6 +88,10 @@ export function CategoryAddPanel({ existingCategoryNames, existingGroups, onAdd 
       toast.error("Enter a category name");
       return;
     }
+    if (draft.name.trim().toLowerCase() === SYSTEM_UNCATEGORIZED_NAME.toLowerCase()) {
+      toast.error(`"${SYSTEM_UNCATEGORIZED_NAME}" is reserved for system use`);
+      return;
+    }
     if (existingCategoryNames.some((n) => n.toLowerCase() === draft.name.trim().toLowerCase())) {
       toast.error("A category with this name already exists");
       return;
@@ -100,18 +111,19 @@ export function CategoryAddPanel({ existingCategoryNames, existingGroups, onAdd 
   };
 
   return (
-    <ShellCard className="border-[var(--accent)]/25 bg-[var(--surface)] p-4 shadow-[var(--shadow-card)] sm:p-5">
+    <ShellCard className="border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
       <div id="add-category" className="scroll-mt-24">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <SectionTitle
           title="Create a category"
           description="Choose a preset for common budgets, or build a custom category."
         />
-        <div
-          className="flex shrink-0 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-1"
-          role="tablist"
-          aria-label="Category creation mode"
-        >
+        <div className="flex shrink-0 items-center gap-2">
+          <div
+            className="flex rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-1"
+            role="tablist"
+            aria-label="Category creation mode"
+          >
           <button
             type="button"
             role="tab"
@@ -140,6 +152,17 @@ export function CategoryAddPanel({ existingCategoryNames, existingGroups, onAdd 
           >
             Custom
           </button>
+          </div>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-[var(--border)] p-2 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+              aria-label="Close add category panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
       </div>
 

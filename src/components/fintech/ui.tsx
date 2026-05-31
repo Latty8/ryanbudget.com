@@ -399,21 +399,26 @@ export function EmptyState({
 export function PageFrame({
   title,
   description,
+  action,
   children,
 }: {
   title: string;
   description?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="page-enter space-y-6 md:space-y-10">
-      <header className="space-y-2.5">
-        <h1 className={cn("text-2xl font-bold tracking-tight md:text-[1.875rem]", fintechDisplay)}>
-          {title}
-        </h1>
-        {description ? (
-          <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">{description}</p>
-        ) : null}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2.5">
+          <h1 className={cn("text-2xl font-bold tracking-tight md:text-[1.875rem]", fintechDisplay)}>
+            {title}
+          </h1>
+          {description ? (
+            <p className="max-w-xl text-sm leading-relaxed text-[var(--muted)]">{description}</p>
+          ) : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </header>
       {children}
     </div>

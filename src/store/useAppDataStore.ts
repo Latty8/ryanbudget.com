@@ -5,6 +5,13 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { PERSIST_STORE_NAME, userPersistStorage } from "@/lib/storage/user-persist";
 import { nanoid } from "nanoid";
 import {
+  SYSTEM_UNCATEGORIZED_NAME,
+  createSystemUncategorizedCategory,
+  ensureSystemCategories,
+  isSystemCategory,
+  newCategoryId,
+} from "@/lib/categories/system-category";
+import {
   enrichedAccounts,
   enrichedCategories,
   enrichedRecurring,
@@ -135,40 +142,43 @@ export const useAppDataStore = create<AppDataState>()(
           };
         }),
       addCategory: (category) =>
-        set((state) => ({ categories: [...state.categories, { ...category, id: nanoid() }] })),
+        set((state) => ({
+          categories: [...state.categories, { ...category, id: newCategoryId() }],
+        })),
       updateCategory: (id, patch) =>
         set((state) => ({
-          categories: state.categories.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+          categories: state.categories.map((row) => {
+            if (row.id !== id) return row;
+            if (isSystemCategory(row)) {
+              const { name: _name, ...rest } = patch;
+              return { ...row, ...rest };
+            }
+            return { ...row, ...patch };
+          }),
         })),
       deleteCategory: (id) =>
         set((state) => {
           const removed = state.categories.find((row) => row.id === id);
+          if (!removed || isSystemCategory(removed)) return state;
+
           const categories = state.categories.filter((row) => row.id !== id);
-          const hasUncategorized = categories.some((c) => c.name === "Uncategorized");
+          const reassigning = state.demoTransactions.some((tx) => tx.category === removed.name);
+          const hasUncategorized = categories.some((c) => c.name === SYSTEM_UNCATEGORIZED_NAME);
           const nextCategories =
-            removed && !hasUncategorized
-              ? [
-                  ...categories,
-                  {
-                    id: nanoid(),
-                    name: "Uncategorized",
-                    group: "Other",
-                    icon: "CircleDollarSign",
-                    color: "#64748b",
-                    budgeted: 0,
-                  },
-                ]
+            reassigning && !hasUncategorized
+              ? [...categories, createSystemUncategorizedCategory()]
               : categories;
+
           return {
             categories: nextCategories,
-            demoTransactions: removed
-              ? state.demoTransactions.map((tx) =>
-                  tx.category === removed.name ? { ...tx, category: "Uncategorized" } : tx
-                )
-              : state.demoTransactions,
+            demoTransactions: state.demoTransactions.map((tx) =>
+              tx.category === removed.name
+                ? { ...tx, category: SYSTEM_UNCATEGORIZED_NAME }
+                : tx
+            ),
           };
         }),
-      setCategories: (categories) => set({ categories }),
+      setCategories: (categories) => set({ categories: ensureSystemCategories(categories) }),
       setRecurring: (demoRecurring) => {
         clearRecurringProjectionCache();
         set({ demoRecurring });
@@ -307,10 +317,14 @@ export const useAppDataStore = create<AppDataState>()(
         if (!p || (typeof p === "object" && Object.keys(p).length === 0)) {
           return current;
         }
-        return {
+        const merged = {
           ...current,
           ...p,
           preferences: { ...defaultPreferences, ...current.preferences, ...p?.preferences },
+        };
+        return {
+          ...merged,
+          categories: ensureSystemCategories(merged.categories ?? []),
         };
       },
     }
