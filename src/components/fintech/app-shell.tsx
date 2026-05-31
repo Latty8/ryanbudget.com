@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { AddTransactionFab } from "@/components/fintech/add-transaction-fab";
 import { DemoModeBanner } from "@/components/fintech/demo-mode-banner";
-import { SyncStatusBanner, SyncStatusIndicator } from "@/components/fintech/sync-status-indicator";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -120,8 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="mt-auto space-y-3 border-t border-[var(--border-subtle)] pt-4">
-          <SyncStatusIndicator className="w-full justify-center rounded-xl py-2" />
+        <div className="mt-auto border-t border-[var(--border-subtle)] pt-4">
           <NavLink
             href="/settings"
             label="Settings"
@@ -133,8 +131,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen flex-col xl:pl-[var(--sidebar-width)]">
-        <SyncStatusBanner />
-
         {/* Top bar — tablet + mobile (hidden on xl where sidebar handles nav) */}
         <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--nav-bg)] shadow-[var(--shadow-nav)] backdrop-blur-xl xl:hidden">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 md:px-6">
@@ -163,7 +159,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
 
             <div className="flex items-center gap-2">
-              <SyncStatusIndicator />
               <Link
                 href="/settings"
                 className={cn(

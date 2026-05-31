@@ -65,7 +65,7 @@ export function SignUpPage() {
       setProfile({ email: result.user.email, name: result.user.name });
       await completeSignInClient(result.user);
 
-      toast.success("Account created — syncing your data");
+      toast.success("Account created");
       const destination = await resolvePostLoginPath(nextPath);
       router.push(destination);
     } catch (error) {

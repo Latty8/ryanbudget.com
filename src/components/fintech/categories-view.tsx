@@ -123,30 +123,31 @@ export function CategoriesView() {
               <p className={cn("mb-3", fintechLabel)}>{CATEGORY_KIND_LABELS[kind]}</p>
               <div className="space-y-3">
                 {items.map((category) => (
-                  <ShellCard key={category.id} className="p-4">
-                    {/* Mobile: compact header */}
-                    <div className="mb-3 flex items-center gap-3 lg:hidden">
-                      <CategoryIconBadge name={category.icon} color={category.color} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{category.name}</p>
-                        <p className="text-xs text-[var(--muted)]">{category.group}</p>
+                  <ShellCard key={category.id} className="overflow-hidden p-0">
+                    <div className="border-b border-[var(--border-subtle)] bg-[var(--surface)]/60 px-4 py-3 lg:hidden">
+                      <div className="flex items-center gap-3">
+                        <CategoryIconBadge name={category.icon} color={category.color} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-base font-semibold">{category.name}</p>
+                          <p className="text-xs text-[var(--muted)]">{category.group}</p>
+                        </div>
+                        <GhostButton
+                          type="button"
+                          onClick={() => handleDelete(category.id, category.name)}
+                          aria-label={`Delete ${category.name}`}
+                          className="shrink-0 text-rose-400 hover:bg-rose-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </GhostButton>
                       </div>
-                      <GhostButton
-                        type="button"
-                        onClick={() => handleDelete(category.id, category.name)}
-                        aria-label={`Delete ${category.name}`}
-                        className="shrink-0 text-rose-400 hover:bg-rose-500/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </GhostButton>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_120px_100px_110px_120px_auto] lg:items-center">
+                    <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-[auto_1fr_120px_100px_110px_120px_auto] lg:items-center lg:p-4">
                       <div className="hidden lg:block">
                         <CategoryIconBadge name={category.icon} color={category.color} />
                       </div>
-                      <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Name</span>
+                      <label className="grid gap-1.5 lg:contents">
+                        <span className="text-xs font-medium text-[var(--muted)]">Name</span>
                         <ShellInput
                           value={category.name}
                           onChange={(e) => updateCategory(category.id, { name: e.target.value })}
@@ -154,7 +155,7 @@ export function CategoriesView() {
                         />
                       </label>
                       <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Group</span>
+                        <span className="text-xs font-medium text-[var(--muted)]">Group</span>
                         <ShellSelect
                           value={category.group}
                           onChange={(e) => updateCategory(category.id, { group: e.target.value })}
@@ -168,7 +169,7 @@ export function CategoriesView() {
                         </ShellSelect>
                       </label>
                       <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Icon</span>
+                        <span className="text-xs font-medium text-[var(--muted)]">Icon</span>
                         <ShellSelect
                           value={category.icon}
                           onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
@@ -182,7 +183,7 @@ export function CategoriesView() {
                         </ShellSelect>
                       </label>
                       <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Color</span>
+                        <span className="text-xs font-medium text-[var(--muted)]">Color</span>
                         <ShellInput
                           type="color"
                           value={category.color}
@@ -192,7 +193,7 @@ export function CategoriesView() {
                         />
                       </label>
                       <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Budget</span>
+                        <span className="text-xs font-medium text-[var(--muted)]">Budget</span>
                         <NumberField
                           value={category.budgeted}
                           onChange={(budgeted) => updateCategory(category.id, { budgeted })}

@@ -182,14 +182,14 @@ export function BudgetsMinimalView() {
   };
 
   const viewBar = (
-    <div className={cn(fintechGlass, "flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between")}>
-      <div>
+    <div className={cn(fintechGlass, "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4")}>
+      <div className="min-w-0">
         <p className={fintechLabel}>View as</p>
-        <p className={cn("mt-1 text-xs", fintechMuted)}>
+        <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>
           {periodSpentLabel(viewPeriod)} of spending · {periodLabel(viewPeriod)} limits
         </p>
       </div>
-      <SegmentToggle value={viewPeriod} options={BUDGET_PERIOD_OPTIONS} onChange={setViewPeriod} />
+      <SegmentToggle value={viewPeriod} options={BUDGET_PERIOD_OPTIONS} onChange={setViewPeriod} className="w-full sm:w-auto" />
     </div>
   );
 
@@ -207,7 +207,7 @@ export function BudgetsMinimalView() {
         label={`${Math.round(overallPct)}%`}
         sublabel="used"
       />
-      <div className="grid grid-cols-3 gap-2 sm:gap-6">
+      <div className="grid grid-cols-3 gap-2 text-center sm:gap-6 sm:text-left">
         {(
           [
             ["Budgeted", totalBudgeted, false],
@@ -259,9 +259,9 @@ export function BudgetsMinimalView() {
   return (
     <PageFrame title="Budgets" description="Simple limits per category — calm and clear.">
       <MotionSection className="space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1">{viewBar}</div>
-          <PrimaryButton type="button" onClick={openAdd} className="shrink-0 self-end sm:self-center">
+          <PrimaryButton type="button" onClick={openAdd} className="w-full shrink-0 sm:w-auto">
             <Plus className="mr-1.5 inline h-4 w-4" />
             Add budget
           </PrimaryButton>

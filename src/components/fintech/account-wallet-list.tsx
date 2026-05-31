@@ -148,24 +148,24 @@ export function AccountWalletList({
         visible.map((account, index) => (
           <div
             key={account.id}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition hover:border-[var(--border-strong)]"
+            className="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 shadow-sm transition hover:border-[var(--border-strong)] sm:p-5"
           >
             {/* Mobile header row */}
-            <div className="mb-3 flex items-center gap-3 lg:hidden">
+            <div className="mb-4 flex items-start gap-3 lg:hidden">
               <span
-                className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-subtle)]"
+                className="mt-0.5 h-11 w-11 shrink-0 rounded-2xl border border-[var(--border-subtle)] shadow-inner"
                 style={{ backgroundColor: account.color }}
                 aria-hidden
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-[var(--foreground)]">{account.name}</p>
-                <p className="text-xs capitalize text-[var(--muted)]">{account.kind}</p>
+                <p className="truncate text-base font-semibold text-[var(--foreground)]">{account.name}</p>
+                <p className="text-xs capitalize text-[var(--muted)]">{account.kind.replace("_", " ")}</p>
               </div>
               {allowReorder ? (
                 <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
-                    className="rounded-lg border border-[var(--border)] p-1.5 text-[var(--muted)] disabled:opacity-30"
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--muted)] disabled:opacity-30"
                     disabled={index === 0}
                     onClick={() => reorder(account.id, "up")}
                     aria-label={`Move ${account.name} up`}
@@ -174,7 +174,7 @@ export function AccountWalletList({
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg border border-[var(--border)] p-1.5 text-[var(--muted)] disabled:opacity-30"
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--muted)] disabled:opacity-30"
                     disabled={index === accounts.length - 1}
                     onClick={() => reorder(account.id, "down")}
                     aria-label={`Move ${account.name} down`}
@@ -187,8 +187,8 @@ export function AccountWalletList({
 
             <div
               className={cn(
-                "grid gap-3",
-                compact ? "sm:grid-cols-2" : "grid-cols-1 lg:grid-cols-[auto_1fr_140px_auto]"
+                "grid gap-4",
+                compact ? "sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_140px_auto]"
               )}
             >
               {allowReorder ? (
@@ -214,17 +214,17 @@ export function AccountWalletList({
                 </div>
               ) : null}
 
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                <label className="grid gap-1 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Name</span>
+              <div className="grid gap-3 sm:col-span-2 lg:col-span-1">
+                <label className="grid gap-1.5 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)]">Name</span>
                   <ShellInput
                     value={account.name}
                     onChange={(e) => updateOne(account.id, { name: e.target.value })}
                     aria-label={`Wallet name ${account.name}`}
                   />
                 </label>
-                <label className="grid gap-1 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Balance</span>
+                <label className="grid gap-1.5 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)]">Balance</span>
                   <NumberField
                     value={account.balance}
                     onChange={(balance) => updateOne(account.id, { balance })}
@@ -233,9 +233,9 @@ export function AccountWalletList({
                 </label>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                <label className="grid gap-1 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Type</span>
+              <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2 lg:col-span-1 lg:grid-cols-1">
+                <label className="grid gap-1.5 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)]">Type</span>
                   <ShellSelect
                     value={account.kind}
                     onChange={(e) => updateOne(account.id, { kind: e.target.value as AccountKind })}
@@ -248,8 +248,8 @@ export function AccountWalletList({
                     ))}
                   </ShellSelect>
                 </label>
-                <label className="grid gap-1 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Icon</span>
+                <label className="grid gap-1.5 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)]">Icon</span>
                   <ShellSelect
                     value={account.icon}
                     onChange={(e) => updateOne(account.id, { icon: e.target.value })}
@@ -264,9 +264,9 @@ export function AccountWalletList({
                 </label>
               </div>
 
-              <div className="flex flex-col gap-3 lg:gap-2">
+              <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-3 sm:col-span-2 lg:col-span-1 lg:border-0 lg:pt-0">
                 <div>
-                  <span className="mb-1.5 block text-xs font-medium text-[var(--muted)] lg:sr-only">Color</span>
+                  <span className="mb-2 block text-xs font-medium text-[var(--muted)]">Color</span>
                   <div className="flex flex-wrap gap-1.5">
                     {COLOR_SWATCHES.map((color) => (
                       <button
@@ -296,7 +296,7 @@ export function AccountWalletList({
                   ) : null}
                   <GhostButton
                     type="button"
-                    className="ml-auto text-rose-400 hover:bg-rose-500/10"
+                    className="ml-auto text-rose-400 hover:bg-rose-500/10 lg:inline-flex"
                     onClick={(e) => {
                       e.stopPropagation();
                       requestRemove(account);
@@ -304,6 +304,7 @@ export function AccountWalletList({
                     aria-label={`Delete ${account.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
+                    <span className="ml-1.5 text-xs lg:hidden">Delete</span>
                   </GhostButton>
                 </div>
               </div>
@@ -312,9 +313,9 @@ export function AccountWalletList({
         ))
       )}
 
-      <div className="rounded-2xl border border-dashed border-[var(--border-strong)] p-4">
-        <p className="mb-3 text-xs font-medium text-[var(--muted)]">Add wallet</p>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_140px_120px_auto]">
+      <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)]/40 p-4 sm:p-5">
+        <p className="mb-4 text-sm font-medium text-[var(--foreground)]">Add wallet</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_140px_120px_auto]">
           <ShellInput
             placeholder="Wallet name"
             value={draft.name}

@@ -1,25 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { hasCloudDataSync } from "@/lib/db/client";
 import { pullAndApplyCloudState } from "@/lib/supabase/sync/client";
-import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 
-/** Fresh pull when a data-heavy page mounts (Dashboard, Wallets, Transactions). */
+/** Silent fresh pull when navigating to a data-heavy page. */
 export function usePageCloudSync() {
   const { user } = useAuth();
-  const pulledForPath = useRef(false);
-  const setSyncing = useSyncStatusStore((s) => s.setSyncing);
-  const setIdle = useSyncStatusStore((s) => s.setIdle);
+  const pathname = usePathname();
+  const lastPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user?.userId || isDemoUserId(user.userId) || !hasCloudDataSync) return;
-    if (pulledForPath.current) return;
-    pulledForPath.current = true;
+    if (lastPath.current === pathname) return;
+    lastPath.current = pathname;
 
-    setSyncing("Syncing…");
-    void pullAndApplyCloudState().finally(() => setIdle());
-  }, [user?.userId, setSyncing, setIdle]);
+    void pullAndApplyCloudState();
+  }, [user?.userId, pathname]);
 }

@@ -16,7 +16,6 @@ import {
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { usePremium } from "@/hooks/use-premium";
 import { useAppDataStore } from "@/store/useAppDataStore";
-import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 import { cn } from "@/lib/utils";
 
 export function AccountsView() {
@@ -27,7 +26,6 @@ export function AccountsView() {
   const accounts = useAppDataStore((s) => s.accounts);
   const demoTransactions = useAppDataStore((s) => s.demoTransactions);
   const setAccounts = useAppDataStore((s) => s.setAccounts);
-  const syncStatus = useSyncStatusStore((s) => s.status);
   const [hydrated, setHydrated] = useState(() => useAppDataStore.persist.hasHydrated());
 
   useEffect(() => {
@@ -35,7 +33,7 @@ export function AccountsView() {
     return useAppDataStore.persist.onFinishHydration(() => setHydrated(true));
   }, [hydrated]);
 
-  const loading = !hydrated || syncStatus === "syncing";
+  const loading = !hydrated;
 
   const countTransactionsForAccount = (accountName: string) =>
     demoTransactions.filter((t) => t.account === accountName).length;

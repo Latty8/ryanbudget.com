@@ -70,9 +70,37 @@ export function shouldPreferRemote(local: RemoteAppState, remote: RemoteAppState
   if (remote.onboardingCompleted && !local.onboardingCompleted) return true;
   if (local.onboardingCompleted && !remote.onboardingCompleted) return false;
 
-  if (remoteCount === 0) return false;
+  if (remoteCount === 0 && localCount === 0) return false;
 
   return stateFingerprintsDiffer(local, remote);
+}
+
+/** Merge remote into local, keeping unsynced local edits and adding remote-only entities. */
+export function mergeRemoteWithLocal(local: RemoteAppState, remote: RemoteAppState): RemoteAppState {
+  const mergeLists = <T extends { id: string }>(localItems: T[], remoteItems: T[]): T[] => {
+    const remoteMap = new Map(remoteItems.map((item) => [item.id, item]));
+    const merged = [...remoteItems];
+    for (const item of localItems) {
+      if (!remoteMap.has(item.id)) {
+        merged.push(item);
+        continue;
+      }
+      const index = merged.findIndex((row) => row.id === item.id);
+      if (index >= 0) merged[index] = item;
+    }
+    return merged;
+  };
+
+  return {
+    profile: remote.profile.email ? remote.profile : local.profile,
+    preferences: { ...remote.preferences, ...local.preferences },
+    onboardingCompleted: remote.onboardingCompleted || local.onboardingCompleted,
+    accounts: mergeLists(local.accounts, remote.accounts),
+    categories: mergeLists(local.categories, remote.categories),
+    transactions: mergeLists(local.transactions, remote.transactions),
+    recurring: mergeLists(local.recurring, remote.recurring),
+    goals: mergeLists(local.goals, remote.goals),
+  };
 }
 
 export { stateFingerprint, stateFingerprintsDiffer };

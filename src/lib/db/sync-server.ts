@@ -2,6 +2,7 @@ import { isMongoDBConfigured } from "@/lib/db/config";
 import {
   ensureMongoUserProfile,
   getMongoOnboardingCompleted,
+  getMongoSyncRevision,
   pullMongoState,
   pushMongoState,
   setMongoOnboardingCompleted,
@@ -54,6 +55,13 @@ export async function setOnboardingCompleted(userId: string, completed: boolean)
     return setMongoOnboardingCompleted(userId, completed);
   }
   return setSupabaseOnboardingCompleted(userId, completed);
+}
+
+export async function getSyncRevision(userId: string): Promise<string | null> {
+  if (isMongoDBConfigured()) {
+    return getMongoSyncRevision(userId);
+  }
+  return null;
 }
 
 export async function getOnboardingCompleted(userId: string): Promise<boolean | null> {

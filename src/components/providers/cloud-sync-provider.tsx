@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
-import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { hasCloudDataSync } from "@/lib/db/client";
 import {
@@ -18,23 +16,19 @@ import {
   pullAndApplyCloudState,
   pullCloudState,
   pushLocalStateToCloud,
+  PUSH_DEBOUNCE_MS,
   subscribeToCloudChanges,
 } from "@/lib/supabase/sync/client";
+import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
 import { markLocalSyncClean, markLocalSyncDirty, resetLocalSyncTracking } from "@/lib/supabase/sync/sync-dirty";
 import { useAppDataStore } from "@/store/useAppDataStore";
-import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 
-const PUSH_DELAY_MS = 500;
-
-/** Keeps Zustand data in sync with Supabase across devices when cloud sync is enabled. */
+/** Keeps Zustand data in sync with MongoDB across devices — silent, no UI indicators. */
 export function CloudSyncProvider() {
   const { user } = useAuth();
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUserId = useRef<string | null>(null);
   const initialSyncDone = useRef(false);
-  const setSyncing = useSyncStatusStore((s) => s.setSyncing);
-  const setIdle = useSyncStatusStore((s) => s.setIdle);
-  const setError = useSyncStatusStore((s) => s.setError);
 
   useEffect(() => {
     if (!user?.userId || isDemoUserId(user.userId)) return;
@@ -48,7 +42,6 @@ export function CloudSyncProvider() {
       initialSyncDone.current = false;
 
       resetLocalSyncTracking();
-      setSyncing("Loading your data…");
 
       try {
         const bootstrap = await bootstrapUserSession();
@@ -56,58 +49,36 @@ export function CloudSyncProvider() {
 
         if (!hasCloudDataSync) {
           initialSyncDone.current = true;
-          setIdle();
           return;
         }
 
-        const remote = await pullCloudState();
+        const payload = await pullCloudState();
+        const remote = payload?.state ?? null;
         const local = buildLocalRemoteState();
-        let loadedFromCloud = false;
 
         if (remote) {
           if (shouldPreferRemote(local, remote)) {
             applyRemoteStateToStore(remote);
-            loadedFromCloud = true;
             markLocalSyncClean(remote);
-            if (remote.onboardingCompleted) {
-              await applyOnboardingFromServer(true);
-            }
+            if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
           } else if (countLocalEntities() > 0) {
             const pushed = await pushLocalStateToCloud(local);
-            if (pushed) {
-              markLocalSyncClean(local);
-            } else {
-              setError("Could not upload");
-              toast.error("Could not sync to the cloud. Changes are saved on this device.");
-            }
+            if (pushed) markLocalSyncClean(local);
           } else {
             applyRemoteStateToStore(remote);
             markLocalSyncClean(remote);
-            if (remote.onboardingCompleted) {
-              await applyOnboardingFromServer(true);
-            }
+            if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
           }
         } else if (countLocalEntities() > 0) {
           const pushed = await pushLocalStateToCloud(local);
-          if (pushed) {
-            markLocalSyncClean(local);
-          } else {
-            setError("Could not upload");
-            toast.error("Could not sync to the cloud. Changes are saved on this device.");
-          }
+          if (pushed) markLocalSyncClean(local);
         }
 
         initialSyncDone.current = true;
-        unsubscribeRealtime = subscribeToCloudChanges(user.userId, () => setSyncing("Syncing…"));
-        setIdle();
-
-        if (loadedFromCloud) {
-          toast.success("Your data is synced across devices");
-        }
-      } catch {
-        setError("Sync failed");
-        toast.error("Could not load cloud data. Using data on this device.");
-        setIdle();
+        unsubscribeRealtime = subscribeToCloudChanges(user.userId);
+      } catch (error) {
+        console.error("[cloud-sync] initial sync failed", error);
+        initialSyncDone.current = true;
       }
     };
 
@@ -115,16 +86,14 @@ export function CloudSyncProvider() {
 
     const onVisible = () => {
       if (document.visibilityState !== "visible" || !hasCloudDataSync || !initialSyncDone.current) return;
-      setSyncing("Syncing…");
-      void pullAndApplyCloudState().finally(() => setIdle());
+      void pullAndApplyCloudState();
     };
 
     document.addEventListener("visibilitychange", onVisible);
 
     const onOnline = () => {
       if (!hasCloudDataSync || !initialSyncDone.current) return;
-      setSyncing("Syncing…");
-      void pullAndApplyCloudState().finally(() => setIdle());
+      void pullAndApplyCloudState({ force: true });
     };
 
     window.addEventListener("online", onOnline);
@@ -134,7 +103,7 @@ export function CloudSyncProvider() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onOnline);
     };
-  }, [user?.userId, setSyncing, setIdle, setError]);
+  }, [user?.userId]);
 
   useEffect(() => {
     if (!user?.userId || isDemoUserId(user.userId) || !hasCloudDataSync) return;
@@ -147,15 +116,12 @@ export function CloudSyncProvider() {
         pushTimer.current = null;
         const payload = buildLocalRemoteState();
         void pushLocalStateToCloud(payload).then((ok) => {
-          if (!ok) {
-            setError("Sync failed");
-            toast.error("Could not sync changes. Saved on this device.");
-          } else {
+          if (ok) {
             markLocalSyncClean(payload);
-            setIdle();
+            void pullAndApplyCloudState();
           }
         });
-      }, PUSH_DELAY_MS);
+      }, PUSH_DEBOUNCE_MS);
     };
 
     const unsub = useAppDataStore.subscribe((state, prev) => {
@@ -169,7 +135,6 @@ export function CloudSyncProvider() {
         state.onboardingComplete !== prev.onboardingComplete ||
         state.profile !== prev.profile
       ) {
-        setSyncing("Syncing…");
         schedulePush();
       }
     });
@@ -178,7 +143,7 @@ export function CloudSyncProvider() {
       unsub();
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
-  }, [user?.userId, setSyncing, setIdle, setError]);
+  }, [user?.userId]);
 
   return null;
 }

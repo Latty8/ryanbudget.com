@@ -7,50 +7,78 @@ import {
   applyRemoteStateToStore,
   buildLocalRemoteState,
   isApplyingRemoteSync,
+  mergeRemoteWithLocal,
   shouldPreferRemote,
   stateFingerprintsDiffer,
 } from "@/lib/supabase/sync/apply-sync";
-import { hasUnsyncedLocalChanges, markLocalSyncClean } from "@/lib/supabase/sync/sync-dirty";
+import {
+  getLastAppliedRemoteRevision,
+  hasUnsyncedLocalChanges,
+  markLocalSyncClean,
+  markPushInFlight,
+  markRemoteRevisionApplied,
+} from "@/lib/supabase/sync/sync-dirty";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 3_000;
+const PUSH_DEBOUNCE_MS = 300;
 
 let pullTimer: ReturnType<typeof setTimeout> | null = null;
 let pullInFlight = false;
+let watchSource: EventSource | null = null;
 
 export type PullOptions = {
-  /** Bypass unsynced-local guard (manual sync). */
   force?: boolean;
+};
+
+export type CloudPullPayload = {
+  state: RemoteAppState | null;
+  revision?: string | null;
 };
 
 export async function pullAndApplyCloudState(options?: PullOptions): Promise<boolean> {
   if (pullInFlight || isApplyingRemoteSync()) return false;
-  if (!options?.force && hasUnsyncedLocalChanges()) return false;
 
   pullInFlight = true;
   try {
-    const remote = await pullCloudState();
-    if (!remote) return false;
+    const payload = await pullCloudState();
+    if (!payload?.state) return false;
+
+    const { state: remote, revision } = payload;
+    if (revision && revision === getLastAppliedRemoteRevision() && !options?.force) {
+      return false;
+    }
 
     const local = buildLocalRemoteState();
-    const shouldApply =
-      shouldPreferRemote(local, remote) ||
-      (options?.force && stateFingerprintsDiffer(local, remote));
+    const differs = stateFingerprintsDiffer(local, remote);
+    if (!differs && !options?.force) {
+      markRemoteRevisionApplied(revision);
+      return false;
+    }
 
-    if (!shouldApply) return false;
+    const unsynced = hasUnsyncedLocalChanges();
+    if (unsynced && !options?.force) {
+      if (!shouldPreferRemote(local, remote) && !revision) return false;
+      const merged = mergeRemoteWithLocal(local, remote);
+      applyRemoteStateToStore(merged);
+      markRemoteRevisionApplied(revision);
+      if (merged.onboardingCompleted) await applyOnboardingFromServer(true);
+      return true;
+    }
+
+    if (!shouldPreferRemote(local, remote) && !options?.force) return false;
 
     applyRemoteStateToStore(remote);
     markLocalSyncClean(remote);
-    if (remote.onboardingCompleted) {
-      await applyOnboardingFromServer(true);
-    }
+    markRemoteRevisionApplied(revision);
+    if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
     return true;
   } finally {
     pullInFlight = false;
   }
 }
 
-function schedulePull(delayMs = 200) {
+function schedulePull(delayMs = 150) {
   if (pullTimer) clearTimeout(pullTimer);
   pullTimer = setTimeout(() => {
     pullTimer = null;
@@ -58,46 +86,48 @@ function schedulePull(delayMs = 200) {
   }, delayMs);
 }
 
-/** Push local state, then pull and apply remote changes. */
 export async function forceSyncNow(): Promise<{ ok: boolean; message: string }> {
   if (!hasCloudDataSync) {
     return { ok: false, message: "Cloud sync is not enabled." };
   }
 
   const local = buildLocalRemoteState();
+  markPushInFlight(true);
   const pushed = await pushLocalStateToCloud(local);
+  markPushInFlight(false);
   if (!pushed) {
     return { ok: false, message: "Could not upload your changes." };
   }
   markLocalSyncClean(local);
 
-  const pulled = await pullAndApplyCloudState({ force: true });
-  if (pulled) {
-    return { ok: true, message: "Data synced across devices." };
-  }
-
-  return { ok: true, message: "Already up to date." };
+  await pullAndApplyCloudState({ force: true });
+  return { ok: true, message: "Up to date." };
 }
 
-/** Poll MongoDB-backed API for remote changes (no Supabase Realtime required). */
-export function subscribeToCloudChanges(
-  userId: string,
-  onPull?: () => void
-): () => void {
+/** Silent background sync — SSE revision watch + polling fallback. */
+export function subscribeToCloudChanges(userId: string): () => void {
   if (!hasCloudDataSync) return () => {};
 
   void pullAndApplyCloudState();
 
+  if (typeof EventSource !== "undefined") {
+    watchSource?.close();
+    watchSource = new EventSource("/api/sync/watch", { withCredentials: true });
+    watchSource.onmessage = () => schedulePull(50);
+    watchSource.onerror = () => {
+      watchSource?.close();
+      watchSource = null;
+    };
+  }
+
   const pollTimer = setInterval(() => {
     if (document.visibilityState !== "visible") return;
-    onPull?.();
     void pullAndApplyCloudState();
   }, POLL_INTERVAL_MS);
 
   const onVisible = () => {
     if (document.visibilityState !== "visible") return;
-    onPull?.();
-    schedulePull(100);
+    schedulePull(50);
   };
 
   document.addEventListener("visibilitychange", onVisible);
@@ -109,26 +139,39 @@ export function subscribeToCloudChanges(
     }
     clearInterval(pollTimer);
     document.removeEventListener("visibilitychange", onVisible);
+    watchSource?.close();
+    watchSource = null;
   };
 }
 
 export async function pushLocalStateToCloud(state: RemoteAppState): Promise<boolean> {
-  const res = await fetch("/api/sync/push", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ state }),
-  });
-  if (!res.ok) return false;
-  const body = await parseJsonResponse<{ ok?: boolean; synced?: boolean }>(res);
-  return body?.ok === true && body.synced !== false;
+  markPushInFlight(true);
+  try {
+    const res = await fetch("/api/sync/push", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state }),
+    });
+    if (!res.ok) return false;
+    const body = await parseJsonResponse<{ ok?: boolean; synced?: boolean; revision?: string }>(res);
+    if (body?.revision) markRemoteRevisionApplied(body.revision);
+    return body?.ok === true && body.synced !== false;
+  } finally {
+    markPushInFlight(false);
+  }
 }
 
-export async function pullCloudState(): Promise<RemoteAppState | null> {
+export async function pullCloudState(): Promise<CloudPullPayload | null> {
   const res = await fetch("/api/sync/pull", { credentials: "include", cache: "no-store" });
   if (!res.ok) return null;
-  const body = await parseJsonResponse<{ state?: RemoteAppState | null; syncEnabled?: boolean }>(res);
-  return body?.state ?? null;
+  const body = await parseJsonResponse<{
+    state?: RemoteAppState | null;
+    revision?: string | null;
+    syncEnabled?: boolean;
+  }>(res);
+  if (!body) return null;
+  return { state: body.state ?? null, revision: body.revision ?? null };
 }
 
 export async function bootstrapUserSession(): Promise<{
@@ -156,3 +199,5 @@ export async function markOnboardingCompletedRemote(): Promise<void> {
     body: JSON.stringify({ onboardingCompleted: true }),
   });
 }
+
+export { PUSH_DEBOUNCE_MS };

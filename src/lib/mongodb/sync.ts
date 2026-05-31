@@ -204,12 +204,24 @@ export async function pushMongoState(userId: string, state: RemoteAppState): Pro
     color: goal.color,
   }));
 
-  return replaceUserCollection(
+  const goalsOk = await replaceUserCollection(
     GoalModel as mongoose.Model<unknown>,
     objectId,
     state.goals.map((g) => g.id),
     goalRows
   );
+  if (!goalsOk) return false;
+
+  await UserModel.updateOne({ _id: objectId }, { $currentDate: { updatedAt: true } });
+  return true;
+}
+
+export async function getMongoSyncRevision(userId: string): Promise<string | null> {
+  await connectMongo();
+  if (!mongoose.isValidObjectId(userId)) return null;
+  const user = await UserModel.findById(userId).select("updatedAt").lean();
+  if (!user?.updatedAt) return null;
+  return user.updatedAt.toISOString();
 }
 
 export async function setMongoOnboardingCompleted(userId: string, completed: boolean): Promise<boolean> {

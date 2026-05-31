@@ -3,7 +3,7 @@ import { readSession } from "@/lib/auth/read-session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { hasCloudDataSync } from "@/lib/db/config";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
-import { pushRemoteState, isSyncAvailable } from "@/lib/db/sync-server";
+import { pushRemoteState, isSyncAvailable, getSyncRevision } from "@/lib/db/sync-server";
 
 export async function POST(request: Request) {
   const session = await readSession();
@@ -23,5 +23,6 @@ export async function POST(request: Request) {
   }
 
   const synced = await pushRemoteState(session.userId, body.state);
-  return NextResponse.json({ ok: synced, synced });
+  const revision = synced ? await getSyncRevision(session.userId) : null;
+  return NextResponse.json({ ok: synced, synced, revision });
 }
