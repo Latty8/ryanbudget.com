@@ -2,7 +2,7 @@ import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import type { SessionPayload } from "@/lib/auth/session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { bootstrapUserSession } from "@/lib/supabase/sync/client";
-import { resetLocalSyncTracking } from "@/lib/supabase/sync/sync-dirty";
+import { resetLocalSyncTracking, clearPersistedSyncMetaForUser } from "@/lib/supabase/sync/sync-dirty";
 import { setPersistUserId } from "@/lib/storage/user-persist";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
@@ -43,7 +43,7 @@ export async function completeSignInClient(user: SessionPayload) {
 /** Clear sign-in dedupe and local app state (call from sign-out). */
 export function resetSignInClientState() {
   lastCompletedUserId = null;
-  resetLocalSyncTracking();
+  clearPersistedSyncMetaForUser();
   useAppDataStore.getState().resetAppData();
 }
 

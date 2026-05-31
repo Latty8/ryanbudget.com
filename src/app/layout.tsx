@@ -10,6 +10,7 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { ConfirmDialogProvider } from "@/components/providers/confirm-dialog-provider";
 import { DemoModeProvider } from "@/components/providers/demo-mode-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { SyncQueryBridge } from "@/components/providers/sync-query-bridge";
 import { ToastProvider } from "@/components/providers/toast-provider";
 import { FeedbackButton } from "@/components/fintech/feedback-button";
 import { OfflineBanner } from "@/components/pwa/offline-banner";
@@ -82,6 +83,7 @@ export default async function RootLayout({
             <DemoModeProvider>
               <ConfirmDialogProvider>
               <QueryProvider>
+                <SyncQueryBridge />
                 <I18nProvider>
                 <AnalyticsProvider>
                 <SubscriptionProvider>

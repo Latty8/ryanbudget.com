@@ -1,5 +1,12 @@
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
 import {
+  loadPersistedSyncMeta,
+  savePersistedSyncMeta,
+  clearPersistedSyncMeta,
+  type SyncConflictContext,
+} from "@/lib/supabase/sync/sync-meta-storage";
+import { getPersistUserId } from "@/lib/storage/user-persist";
+import {
   buildLocalRemoteState,
   countLocalEntities,
   mergeRemoteWithLocal,
@@ -29,14 +36,31 @@ export function markLocalSyncClean(state?: RemoteAppState) {
   if (state) {
     lastSyncedEntityCount = countRemoteEntitiesFromState(state);
     lastSyncedFingerprint = stateFingerprint(state);
+    savePersistedSyncMeta({
+      lastSyncedFingerprint,
+      lastAppliedRevision: lastAppliedRemoteRevision,
+      lastSyncedEntityCount,
+      updatedAt: new Date().toISOString(),
+    });
     return;
   }
   lastSyncedEntityCount = countLocalEntities();
   lastSyncedFingerprint = stateFingerprint(buildLocalRemoteState());
+  savePersistedSyncMeta({
+    lastSyncedFingerprint,
+    lastAppliedRevision: lastAppliedRemoteRevision,
+    lastSyncedEntityCount,
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export function markRemoteRevisionApplied(revision: string | null | undefined) {
-  if (revision) lastAppliedRemoteRevision = revision;
+  if (!revision) return;
+  lastAppliedRemoteRevision = revision;
+  const meta = loadPersistedSyncMeta();
+  if (meta) {
+    savePersistedSyncMeta({ ...meta, lastAppliedRevision: revision });
+  }
 }
 
 export function getLastAppliedRemoteRevision() {
@@ -56,9 +80,29 @@ function countRemoteEntitiesFromState(state: RemoteAppState) {
 export function resetLocalSyncTracking() {
   pushPending = false;
   pushInFlight = false;
+  const meta = loadPersistedSyncMeta();
+  if (meta) {
+    lastSyncedEntityCount = meta.lastSyncedEntityCount;
+    lastSyncedFingerprint = meta.lastSyncedFingerprint;
+    lastAppliedRemoteRevision = meta.lastAppliedRevision;
+    return;
+  }
   lastSyncedEntityCount = -1;
   lastSyncedFingerprint = "";
   lastAppliedRemoteRevision = "";
+}
+
+export function clearPersistedSyncMetaForUser(userId?: string) {
+  clearPersistedSyncMeta(userId ?? getPersistUserId());
+  resetLocalSyncTracking();
+}
+
+export function getSyncConflictContext(): SyncConflictContext {
+  const meta = loadPersistedSyncMeta();
+  return {
+    lastSyncedFingerprint: meta?.lastSyncedFingerprint ?? lastSyncedFingerprint,
+    lastAppliedRevision: meta?.lastAppliedRevision ?? lastAppliedRemoteRevision,
+  };
 }
 
 /** True while a debounced push is pending or local state differs from last successful upload. */

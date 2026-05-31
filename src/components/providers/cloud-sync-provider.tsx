@@ -8,22 +8,40 @@ import { isClientCloudSyncEnabled } from "@/lib/db/client";
 import {
   applyRemoteStateToStore,
   buildLocalRemoteState,
-  countLocalEntities,
   isApplyingRemoteSync,
-  shouldPreferRemote,
+  resolveInitialSync,
 } from "@/lib/supabase/sync/apply-sync";
 import {
   bootstrapUserSession,
   flushPendingCloudPush,
   pullAndApplyCloudState,
   pullCloudState,
+  pushLocalStateNow,
   pushLocalStateToCloud,
   PUSH_DEBOUNCE_MS,
   subscribeToCloudChanges,
 } from "@/lib/supabase/sync/client";
 import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
-import { markLocalSyncClean, markLocalSyncDirty, resetLocalSyncTracking } from "@/lib/supabase/sync/sync-dirty";
+import {
+  getSyncConflictContext,
+  markLocalSyncClean,
+  markLocalSyncDirty,
+  resetLocalSyncTracking,
+} from "@/lib/supabase/sync/sync-dirty";
 import { useAppDataStore } from "@/store/useAppDataStore";
+
+function hadEntityDeleted(
+  prev: ReturnType<typeof useAppDataStore.getState>,
+  next: ReturnType<typeof useAppDataStore.getState>
+) {
+  return (
+    prev.accounts.length > next.accounts.length ||
+    prev.categories.length > next.categories.length ||
+    prev.demoTransactions.length > next.demoTransactions.length ||
+    prev.demoRecurring.length > next.demoRecurring.length ||
+    prev.goals.length > next.goals.length
+  );
+}
 
 /** Keeps Zustand data in sync with MongoDB across devices — silent, no UI indicators. */
 export function CloudSyncProvider() {
@@ -46,7 +64,6 @@ export function CloudSyncProvider() {
       resetLocalSyncTracking();
 
       try {
-        // Scope localStorage to this user and rehydrate before reading local state.
         await completeSignInClient(user);
 
         const bootstrap = await bootstrapUserSession();
@@ -60,23 +77,21 @@ export function CloudSyncProvider() {
         const payload = await pullCloudState();
         const remote = payload?.state ?? null;
         const local = buildLocalRemoteState();
+        const action = resolveInitialSync(local, remote, payload?.revision, {
+          ...getSyncConflictContext(),
+          remoteRevision: payload?.revision,
+        });
 
-        if (remote) {
-          if (shouldPreferRemote(local, remote)) {
-            applyRemoteStateToStore(remote);
-            markLocalSyncClean(remote);
-            if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
-          } else if (countLocalEntities() > 0) {
-            const pushed = await pushLocalStateToCloud(local);
-            if (pushed) markLocalSyncClean(local);
-          } else {
-            applyRemoteStateToStore(remote);
-            markLocalSyncClean(remote);
-            if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
-          }
-        } else if (countLocalEntities() > 0) {
+        if (action === "apply-remote" && remote) {
+          applyRemoteStateToStore(remote);
+          markLocalSyncClean(remote);
+          if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
+        } else if (action === "push-local") {
           const pushed = await pushLocalStateToCloud(local);
           if (pushed) markLocalSyncClean(local);
+        } else if (remote) {
+          applyRemoteStateToStore(remote);
+          markLocalSyncClean(remote);
         }
 
         initialSyncDone.current = true;
@@ -93,7 +108,7 @@ export function CloudSyncProvider() {
       if (document.visibilityState !== "visible" || !isClientCloudSyncEnabled() || !initialSyncDone.current) {
         return;
       }
-      void pullAndApplyCloudState();
+      void pullAndApplyCloudState({ force: true });
     };
 
     document.addEventListener("visibilitychange", onVisible);
@@ -127,24 +142,25 @@ export function CloudSyncProvider() {
   useEffect(() => {
     if (!user?.userId || isDemoUserId(user.userId) || !isClientCloudSyncEnabled()) return;
 
-    const schedulePush = () => {
+    const schedulePush = (immediate = false) => {
       if (isApplyingRemoteSync()) return;
       markLocalSyncDirty();
       if (pushTimer.current) clearTimeout(pushTimer.current);
+
+      if (immediate) {
+        pushTimer.current = null;
+        void pushLocalStateNow();
+        return;
+      }
+
       pushTimer.current = setTimeout(() => {
         pushTimer.current = null;
-        const payload = buildLocalRemoteState();
-        void pushLocalStateToCloud(payload).then((ok) => {
-          if (ok) {
-            markLocalSyncClean(payload);
-            void pullAndApplyCloudState();
-          }
-        });
+        void pushLocalStateNow();
       }, PUSH_DEBOUNCE_MS);
     };
 
     const unsub = useAppDataStore.subscribe((state, prev) => {
-      if (
+      const dataChanged =
         state.accounts !== prev.accounts ||
         state.categories !== prev.categories ||
         state.demoTransactions !== prev.demoTransactions ||
@@ -152,10 +168,11 @@ export function CloudSyncProvider() {
         state.goals !== prev.goals ||
         state.preferences !== prev.preferences ||
         state.onboardingComplete !== prev.onboardingComplete ||
-        state.profile !== prev.profile
-      ) {
-        schedulePush();
-      }
+        state.profile !== prev.profile;
+
+      if (!dataChanged) return;
+
+      schedulePush(hadEntityDeleted(prev, state));
     });
 
     return () => {

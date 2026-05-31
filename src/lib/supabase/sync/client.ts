@@ -13,6 +13,7 @@ import {
 } from "@/lib/supabase/sync/apply-sync";
 import {
   getLastAppliedRemoteRevision,
+  getSyncConflictContext,
   hasUnsyncedLocalChanges,
   markLocalSyncClean,
   markPushInFlight,
@@ -56,20 +57,34 @@ export async function pullAndApplyCloudState(options?: PullOptions): Promise<boo
       return false;
     }
 
+    const conflictCtx = {
+      ...getSyncConflictContext(),
+      remoteRevision: revision,
+    };
+
     const unsynced = hasUnsyncedLocalChanges();
     const hasNewRevision = Boolean(revision && revision !== getLastAppliedRemoteRevision());
     if (unsynced && !options?.force) {
-      if (!shouldPreferRemote(local, remote) && !revision) return false;
+      if (shouldPreferRemote(local, remote, conflictCtx)) {
+        applyRemoteStateToStore(remote);
+        markLocalSyncClean(remote);
+        markRemoteRevisionApplied(revision);
+        if (remote.onboardingCompleted) await applyOnboardingFromServer(true);
+        return true;
+      }
+      if (!revision) return false;
       const merged = mergeRemoteWithLocal(local, remote, {
         preferRemoteOnConflict: hasNewRevision,
+        omitLocalOnlyNotOnRemote: false,
       });
       applyRemoteStateToStore(merged);
+      markLocalSyncClean(merged);
       markRemoteRevisionApplied(revision);
       if (merged.onboardingCompleted) await applyOnboardingFromServer(true);
       return true;
     }
 
-    if (!shouldPreferRemote(local, remote) && !options?.force) return false;
+    if (!shouldPreferRemote(local, remote, conflictCtx) && !options?.force) return false;
 
     applyRemoteStateToStore(remote);
     markLocalSyncClean(remote);
@@ -81,11 +96,11 @@ export async function pullAndApplyCloudState(options?: PullOptions): Promise<boo
   }
 }
 
-function schedulePull(delayMs = 150) {
+function schedulePull(delayMs = 150, force = false) {
   if (pullTimer) clearTimeout(pullTimer);
   pullTimer = setTimeout(() => {
     pullTimer = null;
-    void pullAndApplyCloudState();
+    void pullAndApplyCloudState(force ? { force: true } : undefined);
   }, delayMs);
 }
 
@@ -116,7 +131,7 @@ export function subscribeToCloudChanges(userId: string): () => void {
   if (typeof EventSource !== "undefined") {
     watchSource?.close();
     watchSource = new EventSource("/api/sync/watch", { withCredentials: true });
-    watchSource.onmessage = () => schedulePull(50);
+    watchSource.onmessage = () => schedulePull(50, true);
     watchSource.onerror = () => {
       watchSource?.close();
       watchSource = null;
@@ -205,6 +220,20 @@ export async function markOnboardingCompletedRemote(): Promise<void> {
 }
 
 export { PUSH_DEBOUNCE_MS };
+
+/** Push immediately (skip debounce) — use after deletes so other devices get updates quickly. */
+export async function pushLocalStateNow(): Promise<boolean> {
+  if (!isClientCloudSyncEnabled()) return false;
+  const payload = buildLocalRemoteState();
+  markPushInFlight(true);
+  const ok = await pushLocalStateToCloud(payload);
+  markPushInFlight(false);
+  if (ok) {
+    markLocalSyncClean(payload);
+    void pullAndApplyCloudState();
+  }
+  return ok;
+}
 
 /** Push immediately (e.g. before tab close). Best-effort with keepalive. */
 export function flushPendingCloudPush(): void {

@@ -18,6 +18,6 @@ export function usePageCloudSync() {
     if (lastPath.current === pathname) return;
     lastPath.current = pathname;
 
-    void pullAndApplyCloudState();
+    void pullAndApplyCloudState({ force: true });
   }, [user?.userId, pathname]);
 }

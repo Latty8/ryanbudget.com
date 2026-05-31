@@ -1,5 +1,6 @@
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
 import { stateFingerprint, stateFingerprintsDiffer } from "@/lib/supabase/sync/sync-fingerprint";
+import type { SyncConflictContext } from "@/lib/supabase/sync/sync-meta-storage";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
 let applyingRemote = false;
@@ -60,9 +61,57 @@ export function countRemoteEntities(state: RemoteAppState) {
   );
 }
 
-export function shouldPreferRemote(local: RemoteAppState, remote: RemoteAppState) {
+function isIdSuperset<T extends { id: string }>(localItems: T[], remoteItems: T[]): boolean {
+  const localIds = new Set(localItems.map((item) => item.id));
+  return remoteItems.every((item) => localIds.has(item.id));
+}
+
+/** True when local still contains every remote row but has extra rows (likely stale after remote deletes). */
+export function isLocalStaleSuperset(local: RemoteAppState, remote: RemoteAppState): boolean {
   const localCount = countRemoteEntities(local);
   const remoteCount = countRemoteEntities(remote);
+  if (localCount <= remoteCount || remoteCount === 0) return false;
+
+  return (
+    isIdSuperset(local.accounts, remote.accounts) &&
+    isIdSuperset(local.categories, remote.categories) &&
+    isIdSuperset(local.transactions, remote.transactions) &&
+    isIdSuperset(local.recurring, remote.recurring) &&
+    isIdSuperset(local.goals, remote.goals)
+  );
+}
+
+export function shouldPreferRemote(
+  local: RemoteAppState,
+  remote: RemoteAppState,
+  ctx?: SyncConflictContext
+) {
+  const localFp = stateFingerprint(local);
+  const remoteFp = stateFingerprint(remote);
+  if (localFp === remoteFp) return false;
+
+  const localCount = countRemoteEntities(local);
+  const remoteCount = countRemoteEntities(remote);
+  const lastSynced = ctx?.lastSyncedFingerprint ?? "";
+  const remoteRevision = ctx?.remoteRevision;
+  const lastApplied = ctx?.lastAppliedRevision ?? "";
+
+  // Local unchanged since last successful upload — trust server (cross-device deletes/updates).
+  if (lastSynced && localFp === lastSynced) return true;
+
+  // Server revision advanced and local wasn't edited offline.
+  if (
+    remoteRevision &&
+    lastApplied &&
+    remoteRevision !== lastApplied &&
+    lastSynced &&
+    localFp === lastSynced
+  ) {
+    return true;
+  }
+
+  // Stale cache: local is a strict superset of remote ids (deleted elsewhere).
+  if (isLocalStaleSuperset(local, remote)) return true;
 
   if (remoteCount > localCount) return true;
   if (localCount > remoteCount) return false;
@@ -70,23 +119,51 @@ export function shouldPreferRemote(local: RemoteAppState, remote: RemoteAppState
   if (remote.onboardingCompleted && !local.onboardingCompleted) return true;
   if (local.onboardingCompleted && !remote.onboardingCompleted) return false;
 
-  if (remoteCount === 0 && localCount === 0) return false;
+  if (remoteRevision && lastApplied && remoteRevision !== lastApplied) return true;
 
   return stateFingerprintsDiffer(local, remote);
+}
+
+export type InitialSyncAction = "apply-remote" | "push-local" | "noop";
+
+export function resolveInitialSync(
+  local: RemoteAppState,
+  remote: RemoteAppState | null,
+  remoteRevision: string | null | undefined,
+  ctx?: SyncConflictContext
+): InitialSyncAction {
+  if (!remote) {
+    return countRemoteEntities(local) > 0 ? "push-local" : "noop";
+  }
+
+  const remoteCount = countRemoteEntities(remote);
+  const localCount = countRemoteEntities(local);
+
+  if (remoteCount === 0 && localCount === 0) return "noop";
+  if (remoteCount === 0 && localCount > 0) return "push-local";
+
+  if (shouldPreferRemote(local, remote, { ...ctx, remoteRevision })) {
+    return "apply-remote";
+  }
+
+  if (localCount > 0) return "push-local";
+  return "apply-remote";
 }
 
 /** Merge remote into local. When `preferRemoteOnConflict`, server rows win on id collisions (cross-device pull). */
 export function mergeRemoteWithLocal(
   local: RemoteAppState,
   remote: RemoteAppState,
-  options?: { preferRemoteOnConflict?: boolean }
+  options?: { preferRemoteOnConflict?: boolean; omitLocalOnlyNotOnRemote?: boolean }
 ): RemoteAppState {
   const preferRemote = options?.preferRemoteOnConflict ?? false;
+  const omitLocalOnly = options?.omitLocalOnlyNotOnRemote ?? false;
   const mergeLists = <T extends { id: string }>(localItems: T[], remoteItems: T[]): T[] => {
     const remoteMap = new Map(remoteItems.map((item) => [item.id, item]));
     const merged = [...remoteItems];
     for (const item of localItems) {
       if (!remoteMap.has(item.id)) {
+        if (omitLocalOnly) continue;
         merged.push(item);
         continue;
       }
