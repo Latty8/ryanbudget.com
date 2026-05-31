@@ -56,8 +56,8 @@ export default function ForgotPasswordPage() {
     >
       {sent ? (
         <p className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-200">
-          If <strong>{email}</strong> is registered, a reset link was sent. Check your inbox (and server logs in
-          development). Still stuck?{" "}
+          If <strong>{email}</strong> is registered, we sent a reset link. Check your inbox and spam folder. Still
+          stuck?{" "}
           <a href="mailto:support@paycheckplanner.app" className="underline">
             Contact support
           </a>

@@ -37,6 +37,7 @@
     "react-dom": "19.2.4",
     "react-plaid-link": "^4.1.1",
     "recharts": "^3.8.1",
+    "resend": "^6.12.4",
     "sonner": "^2.0.7",
     "stripe": "^22.2.0",
     "tailwind-merge": "^3.6.0",

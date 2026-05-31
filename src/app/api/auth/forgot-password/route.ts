@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasMongoDB } from "@/lib/db/config";
+import { getSiteUrl } from "@/lib/email/config";
+import { sendPasswordResetEmail } from "@/lib/email/password-reset";
 import { createPasswordResetToken } from "@/lib/mongodb/auth";
 
 export async function POST(request: Request) {
@@ -20,12 +22,13 @@ export async function POST(request: Request) {
   const reset = await createPasswordResetToken(email);
 
   if (reset) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-    const resetUrl = `${siteUrl}/login/reset-password?token=${reset.token}`;
-    console.info("[auth] Password reset link:", resetUrl);
+    const resetUrl = `${getSiteUrl()}/login/reset-password?token=${reset.token}`;
+    const sent = await sendPasswordResetEmail({ to: email, resetUrl });
 
-    // Optional: send email when RESEND_API_KEY is configured (future hook).
-    void process.env.RESEND_API_KEY;
+    if (!sent.ok) {
+      console.error("[auth] Password reset email failed:", sent.message);
+      console.info("[auth] Password reset link (fallback):", resetUrl);
+    }
   }
 
   return NextResponse.json({
