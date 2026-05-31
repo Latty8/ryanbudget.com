@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
     if (userId) {
-      setSubscription(userId, {
+      await setSubscription(userId, {
         tier: "premium",
         status: "active",
         stripeCustomerId: typeof session.customer === "string" ? session.customer : undefined,
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const userId = subscription.metadata?.userId;
     if (userId) {
       const active = subscription.status === "active" || subscription.status === "trialing";
-      setSubscription(userId, {
+      await setSubscription(userId, {
         tier: active ? "premium" : "free",
         status: subscription.status as "active" | "canceled" | "past_due",
         stripeCustomerId:

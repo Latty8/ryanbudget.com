@@ -5,12 +5,14 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { PLAN_FEATURES, PREMIUM_PRICE } from "@/lib/billing/plans";
+import { jsonResponseError, parseJsonResponse } from "@/lib/http/parse-json-response";
 import { PrimaryButton, ShellCard, GhostButton } from "@/components/fintech/ui";
 import { cn } from "@/lib/utils";
-import { useIsPremium } from "@/store/useSubscriptionStore";
+import { useIsPremium, useSubscriptionStore } from "@/store/useSubscriptionStore";
 
 export function PricingTable() {
   const isPremium = useIsPremium();
+  const syncFromServer = useSubscriptionStore((s) => s.syncFromServer);
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [loading, setLoading] = useState(false);
 
@@ -19,26 +21,39 @@ export function PricingTable() {
     try {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ interval }),
       });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        toast.error(data.error ?? "Checkout unavailable");
+      const data = await parseJsonResponse<{ url?: string; error?: string; granted?: boolean }>(
+        response
+      );
+      if (!data) {
+        toast.error(jsonResponseError(response, "Checkout unavailable"));
         return;
+      }
+      if (!response.ok || !data.url) {
+        toast.error(data.error ?? jsonResponseError(response, "Checkout unavailable"));
+        return;
+      }
+      if (data.granted) {
+        await syncFromServer();
       }
       window.location.href = data.url;
     } catch {
-      toast.error("Could not start checkout");
+      toast.error("Could not start checkout — sign in and try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const openPortal = async () => {
-    const response = await fetch("/api/stripe/portal", { method: "POST" });
-    const data = (await response.json()) as { url?: string };
-    if (data.url) window.location.href = data.url;
+    const response = await fetch("/api/stripe/portal", {
+      method: "POST",
+      credentials: "include",
+    });
+    const data = await parseJsonResponse<{ url?: string }>(response);
+    if (data?.url) window.location.href = data.url;
   };
 
   return (

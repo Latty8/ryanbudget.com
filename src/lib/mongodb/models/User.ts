@@ -18,6 +18,11 @@ const UserSchema = new Schema(
     passwordResetExpires: { type: Date, default: null },
     onboardingCompleted: { type: Boolean, default: false },
     preferences: { type: Schema.Types.Mixed, default: () => ({ ...defaultPreferences }) },
+    subscriptionTier: { type: String, enum: ["free", "premium"], default: "free" },
+    subscriptionStatus: { type: String, default: "none" },
+    subscriptionPeriodEnd: { type: Date, default: null },
+    stripeCustomerId: { type: String, default: null },
+    stripeSubscriptionId: { type: String, default: null },
   },
   { timestamps: true }
 );

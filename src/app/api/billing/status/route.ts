@@ -25,5 +25,6 @@ export async function GET() {
   if (!userId) {
     return NextResponse.json({ tier: "free", status: "none" });
   }
-  return NextResponse.json(getSubscription(userId));
+
+  return NextResponse.json(await getSubscription(userId, session?.email));
 }

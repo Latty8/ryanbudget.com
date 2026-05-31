@@ -20,7 +20,7 @@ export async function POST() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const sub = getSubscription(session.userId);
+  const sub = await getSubscription(session.userId, session.email);
 
   if (!hasStripe || !stripe || !sub.stripeCustomerId) {
     return NextResponse.json({ url: `${siteUrl}/pricing` });
