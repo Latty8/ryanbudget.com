@@ -42,43 +42,33 @@ export function CategoryEditCard({
   const remaining = budgeted - spent;
 
   return (
-    <ElevatedCard accentColor={category.color} className="flex h-full flex-col">
-      <div className="relative flex flex-1 flex-col px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[var(--surface-elevated)]/80 to-transparent opacity-60"
-          style={{
-            backgroundImage: `linear-gradient(to bottom, ${category.color}12, transparent 70%)`,
-          }}
-          aria-hidden
-        />
-
-        <div className="relative flex items-start gap-3">
-          <CategoryIconBadge name={category.icon} color={category.color} size="lg" />
+    <ElevatedCard accentColor={category.color} className="flex h-full min-h-[140px] flex-col">
+      <div className="flex flex-1 flex-col px-4 py-4 sm:px-5 sm:py-4">
+        <div className="flex items-start gap-3">
+          <CategoryIconBadge name={category.icon} color={category.color} size="md" />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className="truncate text-base font-semibold tracking-tight text-[var(--foreground)] sm:text-lg">
+                <h3 className="truncate text-[15px] font-semibold text-[var(--foreground)]">
                   {category.name}
                 </h3>
-                <p className="mt-1 inline-flex rounded-full bg-[var(--surface-elevated)] px-2 py-0.5 text-[10px] font-medium text-[var(--muted)]">
-                  {category.group}
-                </p>
+                <p className="mt-0.5 text-xs text-[var(--muted)]">{category.group}</p>
               </div>
               <GhostButton
                 type="button"
                 onClick={onDelete}
                 aria-label={`Delete ${category.name}`}
-                className="shrink-0 text-rose-400 hover:bg-rose-500/10"
+                className="shrink-0 text-rose-500 hover:bg-rose-500/10"
               >
                 <Trash2 className="h-4 w-4" />
               </GhostButton>
             </div>
 
-            <div className="mt-4 space-y-2">
-              <div className="flex items-baseline justify-between gap-2">
+            <div className="mt-3 space-y-2">
+              <div className="flex items-baseline justify-between gap-2 text-sm">
                 <span
                   className={cn(
-                    "text-sm font-semibold tabular-nums",
+                    "font-medium tabular-nums",
                     over ? "text-[var(--negative)]" : "text-[var(--foreground)]"
                   )}
                 >
@@ -86,16 +76,21 @@ export function CategoryEditCard({
                   <span className={cn("font-normal", fintechMuted)}> spent</span>
                 </span>
                 <span className={cn("text-xs tabular-nums", fintechMuted)}>
-                  of {formatMoney(budgeted, currency)}
+                  {formatMoney(budgeted, currency)} budget
                 </span>
               </div>
               <ProgressBar pct={pct} over={over} size="slim" accentColor={category.color} />
-              <p className={cn("text-xs tabular-nums", over ? "text-[var(--negative)]" : "text-[var(--positive)]")}>
+              <p
+                className={cn(
+                  "text-xs tabular-nums",
+                  over ? "text-[var(--negative)]" : "text-[var(--muted)]"
+                )}
+              >
                 {budgeted <= 0
                   ? "No budget set"
                   : over
                     ? `${formatMoney(Math.abs(remaining), currency)} over`
-                    : `${formatMoney(remaining, currency)} left`}
+                    : `${formatMoney(remaining, currency)} remaining`}
               </p>
             </div>
           </div>
@@ -106,7 +101,7 @@ export function CategoryEditCard({
         <button
           type="button"
           onClick={() => setEditOpen((open) => !open)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:px-5"
+          className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:px-5"
         >
           <span>Edit category</span>
           <ChevronRight
@@ -163,7 +158,7 @@ export function CategoryEditCard({
                   value={category.color}
                   onChange={(e) => onUpdate({ color: e.target.value })}
                   aria-label={`Color for ${category.name}`}
-                  className="h-11 cursor-pointer p-1.5"
+                  className="h-10 cursor-pointer p-1"
                 />
               </label>
               <label className="grid gap-1.5">

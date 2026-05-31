@@ -9,7 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { CategoryIconBadge, resolveCategoryIcon } from "@/components/fintech/category-icon";
+import { resolveCategoryIcon } from "@/components/fintech/category-icon";
 import { ElevatedCard, ElevatedCardSection } from "@/components/fintech/elevated-card";
 import { NumberField } from "@/components/fintech/number-field";
 import {
@@ -64,45 +64,25 @@ export function WalletCard({
 
   return (
     <ElevatedCard accentColor={accent}>
-      <div
-        className={cn(
-          "relative overflow-hidden px-4 pb-5 pt-4 sm:px-5 sm:pb-6 sm:pt-5",
-          "bg-gradient-to-br",
-          theme.gradient
-        )}
-      >
-        <div
-          className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-40 blur-2xl"
-          style={{ backgroundColor: accent }}
-          aria-hidden
-        />
-
-        <div className="relative flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+          <div className="flex min-w-0 flex-1 items-center gap-3.5">
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg transition-transform duration-300 group-hover/card:scale-[1.03] sm:h-14 sm:w-14"
-              style={{
-                backgroundColor: accent,
-                boxShadow: `0 10px 28px -6px ${accent}88`,
-              }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg lg:h-11 lg:w-11"
+              style={{ backgroundColor: `${accent}14`, color: accent }}
             >
-              <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.75} aria-hidden />
+              <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-semibold tracking-tight text-[var(--foreground)] sm:text-xl">
+              <h3 className="truncate text-base font-semibold text-[var(--foreground)] lg:text-[15px]">
                 {account.name}
               </h3>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <span
-                  className={cn(
-                    "inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                    theme.badge
-                  )}
-                >
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", theme.badge)}>
                   {theme.label}
                 </span>
                 {account.hidden ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--muted)]">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-[var(--muted)]">
                     <EyeOff className="h-3 w-3" aria-hidden />
                     Hidden
                   </span>
@@ -111,40 +91,41 @@ export function WalletCard({
             </div>
           </div>
 
-          {allowReorder ? (
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <button
-                type="button"
-                className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/80 p-1.5 text-[var(--muted)] backdrop-blur-sm transition hover:bg-[var(--surface-hover)] disabled:opacity-25"
-                disabled={index === 0}
-                onClick={() => onReorder("up")}
-                aria-label={`Move ${account.name} up`}
-              >
-                <ChevronUp className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/80 p-1.5 text-[var(--muted)] backdrop-blur-sm transition hover:bg-[var(--surface-hover)] disabled:opacity-25"
-                disabled={index === total - 1}
-                onClick={() => onReorder("down")}
-                aria-label={`Move ${account.name} down`}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
+          <div className="flex items-center justify-between gap-4 lg:justify-end lg:gap-5">
+            <p className="text-2xl font-semibold tabular-nums tracking-tight text-[var(--foreground)] lg:text-right lg:text-xl">
+              {formatMoney(account.balance, account.currency ?? currency)}
+            </p>
+            {allowReorder ? (
+              <div className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-25"
+                  disabled={index === 0}
+                  onClick={() => onReorder("up")}
+                  aria-label={`Move ${account.name} up`}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-25"
+                  disabled={index === total - 1}
+                  onClick={() => onReorder("down")}
+                  aria-label={`Move ${account.name} down`}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
-
-        <p className="relative mt-5 text-3xl font-bold tabular-nums tracking-tight text-[var(--foreground)] sm:text-[2rem]">
-          {formatMoney(account.balance, account.currency ?? currency)}
-        </p>
       </div>
 
       <div className="border-t border-[var(--border-subtle)]">
         <button
           type="button"
           onClick={() => setEditOpen((open) => !open)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:px-5"
+          className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:px-5"
         >
           <span>Edit wallet</span>
           <ChevronRight
@@ -155,8 +136,8 @@ export function WalletCard({
 
         {editOpen ? (
           <ElevatedCardSection muted className="space-y-4 pt-0">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5 sm:col-span-2">
+            <div className="grid gap-3 lg:grid-cols-2">
+              <label className="grid gap-1.5 lg:col-span-2">
                 <FieldLabel>Name</FieldLabel>
                 <ShellInput
                   value={account.name}
@@ -210,10 +191,10 @@ export function WalletCard({
                     key={color}
                     type="button"
                     className={cn(
-                      "h-8 w-8 rounded-full border-2 transition-all duration-200 hover:scale-110",
+                      "h-7 w-7 rounded-full border-2 transition-colors",
                       account.color === color
-                        ? "scale-110 border-white shadow-md ring-2 ring-[var(--accent)]/40"
-                        : "border-transparent"
+                        ? "border-[var(--foreground)]"
+                        : "border-transparent hover:border-[var(--border-strong)]"
                     )}
                     style={{ backgroundColor: color }}
                     onClick={() => onUpdate({ color })}
@@ -240,7 +221,7 @@ export function WalletCard({
               )}
               <GhostButton
                 type="button"
-                className="text-rose-400 hover:bg-rose-500/10"
+                className="text-rose-500 hover:bg-rose-500/10"
                 onClick={onRemove}
                 aria-label={`Delete ${account.name}`}
               >

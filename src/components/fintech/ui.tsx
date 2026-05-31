@@ -8,11 +8,11 @@ import { useFintechTheme, useShellTheme } from "@/components/fintech/theme";
 
 export { useShellTheme };
 
-/** Premium card — glass, inner highlight, soft shadow */
+/** Calm surface card — solid background, light border, no glass blur */
 export const fintechSurface =
-  "rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)] backdrop-blur-xl backdrop-saturate-150 transition-all duration-300 ease-out hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)]";
+  "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-colors duration-200 hover:border-[var(--border-strong)]";
 export const fintechGlass =
-  "rounded-[var(--radius-card)] border border-[var(--glass-border)] bg-[var(--glass)] shadow-[var(--shadow-card)] backdrop-blur-2xl backdrop-saturate-[1.8] transition-all duration-300 ease-out hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)]";
+  "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-colors duration-200 hover:border-[var(--border-strong)]";
 export const fintechHero =
   "rounded-[var(--radius-card)] bg-gradient-to-br from-[var(--hero-from)] via-[var(--hero-from)] to-[var(--hero-to)] text-white shadow-[var(--shadow-card)]";
 export const fintechMuted = "text-[var(--muted)]";
@@ -167,7 +167,7 @@ export function ProgressBar({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-full bg-[var(--surface-elevated)] shadow-[var(--shadow-inner)]",
+        "overflow-hidden rounded-full bg-[var(--surface-elevated)]",
         size === "slim" ? "h-1" : "h-1.5",
         className
       )}
@@ -252,7 +252,7 @@ export function ShellCard({
     <div
       className={cn(
         fintechSurface,
-        "rounded-2xl p-5 transition-all duration-300 hover:shadow-[var(--shadow-card-hover)]",
+        "rounded-xl p-5",
         className
       )}
     >

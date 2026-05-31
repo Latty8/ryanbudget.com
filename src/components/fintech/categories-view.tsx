@@ -125,7 +125,7 @@ export function CategoriesView() {
           {sections.map(({ kind, items }) => (
             <section key={kind}>
               <p className={cn("mb-4", fintechLabel)}>{CATEGORY_KIND_LABELS[kind]}</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {items.map((category) => (
                   <CategoryEditCard
                     key={category.id}
