@@ -394,7 +394,7 @@ export function PageFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="page-enter space-y-8 pb-24 md:space-y-10 md:pb-0">
+    <div className="page-enter space-y-6 md:space-y-10">
       <header className="space-y-2.5">
         <h1 className={cn("text-2xl font-bold tracking-tight md:text-[1.875rem]", fintechDisplay)}>
           {title}

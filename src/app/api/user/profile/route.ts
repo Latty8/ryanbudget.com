@@ -3,7 +3,7 @@ import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import { readSession } from "@/lib/auth/read-session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { ONBOARDED_COOKIE } from "@/lib/auth/session";
-import { setOnboardingCompleted, isSyncAvailable } from "@/lib/supabase/sync/server";
+import { setOnboardingCompleted, isSyncAvailable } from "@/lib/db/sync-server";
 
 export async function PATCH(request: Request) {
   const session = await readSession();

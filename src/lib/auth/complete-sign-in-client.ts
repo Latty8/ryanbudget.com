@@ -62,8 +62,8 @@ export async function completeOnboardingForUser() {
   });
   const { markOnboardingCompletedRemote } = await import("@/lib/supabase/sync/client");
   await markOnboardingCompletedRemote();
-  const { hasSupabaseDataSync } = await import("@/lib/supabase/client");
-  if (hasSupabaseDataSync) {
+  const { hasCloudDataSync } = await import("@/lib/db/client");
+  if (hasCloudDataSync) {
     const { buildLocalRemoteState } = await import("@/lib/supabase/sync/apply-sync");
     const { pushLocalStateToCloud } = await import("@/lib/supabase/sync/client");
     const { markLocalSyncClean } = await import("@/lib/supabase/sync/sync-dirty");

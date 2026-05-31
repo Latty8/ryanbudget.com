@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { hasCloudDataSync } from "@/lib/db/client";
 import {
   applyRemoteStateToStore,
   buildLocalRemoteState,
@@ -54,7 +54,7 @@ export function CloudSyncProvider() {
         const bootstrap = await bootstrapUserSession();
         await applyOnboardingFromServer(bootstrap.onboardingCompleted);
 
-        if (!hasSupabaseDataSync) {
+        if (!hasCloudDataSync) {
           initialSyncDone.current = true;
           setIdle();
           return;
@@ -81,7 +81,11 @@ export function CloudSyncProvider() {
               toast.error("Could not sync to the cloud. Changes are saved on this device.");
             }
           } else {
+            applyRemoteStateToStore(remote);
             markLocalSyncClean(remote);
+            if (remote.onboardingCompleted) {
+              await applyOnboardingFromServer(true);
+            }
           }
         } else if (countLocalEntities() > 0) {
           const pushed = await pushLocalStateToCloud(local);
@@ -110,7 +114,7 @@ export function CloudSyncProvider() {
     void runInitialSync();
 
     const onVisible = () => {
-      if (document.visibilityState !== "visible" || !hasSupabaseDataSync || !initialSyncDone.current) return;
+      if (document.visibilityState !== "visible" || !hasCloudDataSync || !initialSyncDone.current) return;
       setSyncing("Syncing…");
       void pullAndApplyCloudState().finally(() => setIdle());
     };
@@ -118,7 +122,7 @@ export function CloudSyncProvider() {
     document.addEventListener("visibilitychange", onVisible);
 
     const onOnline = () => {
-      if (!hasSupabaseDataSync || !initialSyncDone.current) return;
+      if (!hasCloudDataSync || !initialSyncDone.current) return;
       setSyncing("Syncing…");
       void pullAndApplyCloudState().finally(() => setIdle());
     };
@@ -133,7 +137,7 @@ export function CloudSyncProvider() {
   }, [user?.userId, setSyncing, setIdle, setError]);
 
   useEffect(() => {
-    if (!user?.userId || isDemoUserId(user.userId) || !hasSupabaseDataSync) return;
+    if (!user?.userId || isDemoUserId(user.userId) || !hasCloudDataSync) return;
 
     const schedulePush = () => {
       if (isApplyingRemoteSync()) return;

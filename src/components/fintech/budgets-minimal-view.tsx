@@ -42,6 +42,7 @@ import {
   ShellInput,
 } from "@/components/fintech/ui";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
+import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import type { BudgetPeriodPreference } from "@/types/app-settings";
@@ -51,6 +52,7 @@ const QUICK_PRESETS = CATEGORY_PRESETS.filter((p) =>
 );
 
 export function BudgetsMinimalView() {
+  usePageCloudSync();
   const confirm = useConfirm();
   const categories = useAppDataStore((s) => s.categories);
   const transactions = useAppDataStore((s) => s.demoTransactions);
@@ -205,7 +207,7 @@ export function BudgetsMinimalView() {
         label={`${Math.round(overallPct)}%`}
         sublabel="used"
       />
-      <div className="grid grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-3 gap-2 sm:gap-6">
         {(
           [
             ["Budgeted", totalBudgeted, false],
@@ -213,11 +215,11 @@ export function BudgetsMinimalView() {
             ["Left", totalLeft, true],
           ] as const
         ).map(([label, value, positive]) => (
-          <div key={label}>
-            <p className={fintechLabel}>{label}</p>
+          <div key={label} className="min-w-0">
+            <p className={cn(fintechLabel, "text-[10px] sm:text-xs")}>{label}</p>
             <p
               className={cn(
-                "mt-2 text-lg font-semibold tabular-nums tracking-tight sm:text-xl",
+                "mt-1 text-base font-semibold tabular-nums tracking-tight sm:mt-2 sm:text-xl",
                 positive ? "text-[var(--positive)]" : fintechDisplay
               )}
             >

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import type { SessionPayload } from "@/lib/auth/session";
-import { ensureUserProfile, isSyncAvailable } from "@/lib/supabase/sync/server";
+import { ensureUserProfile, isSyncAvailable } from "@/lib/db/sync-server";
 
 /** After client-side Supabase OAuth exchange, verify JWT and set app session. */
 export async function POST(request: Request) {

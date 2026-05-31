@@ -150,12 +150,22 @@ export function AccountWalletList({
             key={account.id}
             className="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 transition hover:border-[var(--border-strong)]"
           >
-            <div className={cn("grid gap-3", compact ? "sm:grid-cols-2" : "lg:grid-cols-[auto_1fr_140px_auto]")}>
+            {/* Mobile header row */}
+            <div className="mb-3 flex items-center gap-3 lg:hidden">
+              <span
+                className="h-10 w-10 shrink-0 rounded-xl border border-[var(--border-subtle)]"
+                style={{ backgroundColor: account.color }}
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--foreground)]">{account.name}</p>
+                <p className="text-xs capitalize text-[var(--muted)]">{account.kind}</p>
+              </div>
               {allowReorder ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
-                    className="rounded-lg border border-slate-600 p-1 text-slate-400 hover:bg-neutral-800 disabled:opacity-30"
+                    className="rounded-lg border border-[var(--border)] p-1.5 text-[var(--muted)] disabled:opacity-30"
                     disabled={index === 0}
                     onClick={() => reorder(account.id, "up")}
                     aria-label={`Move ${account.name} up`}
@@ -164,7 +174,7 @@ export function AccountWalletList({
                   </button>
                   <button
                     type="button"
-                    className="rounded-lg border border-slate-600 p-1 text-slate-400 hover:bg-neutral-800 disabled:opacity-30"
+                    className="rounded-lg border border-[var(--border)] p-1.5 text-[var(--muted)] disabled:opacity-30"
                     disabled={index === accounts.length - 1}
                     onClick={() => reorder(account.id, "down")}
                     aria-label={`Move ${account.name} down`}
@@ -173,61 +183,109 @@ export function AccountWalletList({
                   </button>
                 </div>
               ) : null}
-              <div className="grid gap-2">
-                <ShellInput
-                  value={account.name}
-                  onChange={(e) => updateOne(account.id, { name: e.target.value })}
-                  aria-label={`Wallet name ${account.name}`}
-                />
-                <div className="flex flex-wrap gap-1">
-                  {COLOR_SWATCHES.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={cn(
-                        "h-6 w-6 rounded-full border-2 transition",
-                        account.color === color ? "scale-110 border-white" : "border-transparent"
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => updateOne(account.id, { color })}
-                      aria-label={`Color ${color}`}
-                    />
-                  ))}
+            </div>
+
+            <div
+              className={cn(
+                "grid gap-3",
+                compact ? "sm:grid-cols-2" : "grid-cols-1 lg:grid-cols-[auto_1fr_140px_auto]"
+              )}
+            >
+              {allowReorder ? (
+                <div className="hidden flex-col gap-1 lg:flex">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-[var(--border)] p-1 text-[var(--muted)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
+                    disabled={index === 0}
+                    onClick={() => reorder(account.id, "up")}
+                    aria-label={`Move ${account.name} up`}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-[var(--border)] p-1 text-[var(--muted)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
+                    disabled={index === accounts.length - 1}
+                    onClick={() => reorder(account.id, "down")}
+                    aria-label={`Move ${account.name} down`}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
                 </div>
+              ) : null}
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                <label className="grid gap-1 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Name</span>
+                  <ShellInput
+                    value={account.name}
+                    onChange={(e) => updateOne(account.id, { name: e.target.value })}
+                    aria-label={`Wallet name ${account.name}`}
+                  />
+                </label>
+                <label className="grid gap-1 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Balance</span>
+                  <NumberField
+                    value={account.balance}
+                    onChange={(balance) => updateOne(account.id, { balance })}
+                    aria-label={`Balance ${account.name}`}
+                  />
+                </label>
               </div>
-              <div className="grid gap-2">
-                <ShellSelect
-                  value={account.kind}
-                  onChange={(e) => updateOne(account.id, { kind: e.target.value as AccountKind })}
-                  aria-label={`Type ${account.name}`}
-                >
-                  {ACCOUNT_KINDS.map((k) => (
-                    <option key={k.value} value={k.value}>
-                      {k.label}
-                    </option>
-                  ))}
-                </ShellSelect>
-                <ShellSelect
-                  value={account.icon}
-                  onChange={(e) => updateOne(account.id, { icon: e.target.value })}
-                  aria-label={`Icon ${account.name}`}
-                >
-                  {ICON_OPTIONS.map((icon) => (
-                    <option key={icon} value={icon}>
-                      {icon}
-                    </option>
-                  ))}
-                </ShellSelect>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                <label className="grid gap-1 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Type</span>
+                  <ShellSelect
+                    value={account.kind}
+                    onChange={(e) => updateOne(account.id, { kind: e.target.value as AccountKind })}
+                    aria-label={`Type ${account.name}`}
+                  >
+                    {ACCOUNT_KINDS.map((k) => (
+                      <option key={k.value} value={k.value}>
+                        {k.label}
+                      </option>
+                    ))}
+                  </ShellSelect>
+                </label>
+                <label className="grid gap-1 lg:contents">
+                  <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Icon</span>
+                  <ShellSelect
+                    value={account.icon}
+                    onChange={(e) => updateOne(account.id, { icon: e.target.value })}
+                    aria-label={`Icon ${account.name}`}
+                  >
+                    {ICON_OPTIONS.map((icon) => (
+                      <option key={icon} value={icon}>
+                        {icon}
+                      </option>
+                    ))}
+                  </ShellSelect>
+                </label>
               </div>
-              <div className="flex flex-col gap-2">
-                <NumberField
-                  value={account.balance}
-                  onChange={(balance) => updateOne(account.id, { balance })}
-                  aria-label={`Balance ${account.name}`}
-                />
-                <div className="flex gap-2">
+
+              <div className="flex flex-col gap-3 lg:gap-2">
+                <div>
+                  <span className="mb-1.5 block text-xs font-medium text-[var(--muted)] lg:sr-only">Color</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {COLOR_SWATCHES.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={cn(
+                          "h-7 w-7 rounded-full border-2 transition sm:h-6 sm:w-6",
+                          account.color === color ? "scale-110 border-white" : "border-transparent"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => updateOne(account.id, { color })}
+                        aria-label={`Color ${color}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
                   {showHidden ? (
-                    <label className="flex items-center gap-2 text-xs text-slate-400">
+                    <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
                       <input
                         type="checkbox"
                         checked={!account.hidden}
@@ -273,7 +331,7 @@ export function AccountWalletList({
             ))}
           </ShellSelect>
           <NumberField value={draft.balance} onChange={(balance) => setDraft((s) => ({ ...s, balance }))} />
-          <PrimaryButton onClick={addAccount}>
+          <PrimaryButton onClick={addAccount} className="sm:col-span-2 lg:col-span-1">
             <Plus className="mr-1 inline h-4 w-4" />
             Add
           </PrimaryButton>

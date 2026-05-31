@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/read-session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { hasCloudDataSync } from "@/lib/db/config";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
-import { pushRemoteState, isSyncAvailable } from "@/lib/supabase/sync/server";
+import { pushRemoteState, isSyncAvailable } from "@/lib/db/sync-server";
 
 export async function POST(request: Request) {
   const session = await readSession();
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   if (isDemoUserId(session.userId)) {
     return NextResponse.json({ ok: true, synced: false });
   }
-  if (!hasSupabaseDataSync || !isSyncAvailable()) {
+  if (!hasCloudDataSync || !isSyncAvailable()) {
     return NextResponse.json({ ok: true, synced: false });
   }
 

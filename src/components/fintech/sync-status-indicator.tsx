@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { hasCloudDataSync } from "@/lib/db/client";
 import { forceSyncNow } from "@/lib/supabase/sync/client";
 import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ export function SyncStatusIndicator({ className }: { className?: string }) {
   const setError = useSyncStatusStore((s) => s.setError);
   const [manualBusy, setManualBusy] = useState(false);
 
-  const syncEnabled = Boolean(user?.userId && !isDemoUserId(user.userId) && hasSupabaseDataSync);
+  const syncEnabled = Boolean(user?.userId && !isDemoUserId(user.userId) && hasCloudDataSync);
   const busy = status === "syncing" || manualBusy;
 
   const handleSyncNow = async () => {
@@ -74,10 +74,10 @@ export function SyncStatusIndicator({ className }: { className?: string }) {
           className={cn(
             "flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-1 text-[10px] font-medium text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50 sm:text-[11px]"
           )}
-          title="Sync now"
+          title="Refresh data"
         >
           <RefreshCw className={cn("h-3 w-3", busy && "animate-spin")} aria-hidden />
-          <span className="hidden sm:inline">Sync</span>
+          <span className="hidden sm:inline">Refresh</span>
         </button>
       ) : null}
     </div>

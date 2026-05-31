@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { hasCloudDataSync } from "@/lib/db/client";
 import { pullAndApplyCloudState } from "@/lib/supabase/sync/client";
 import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 
@@ -15,7 +15,7 @@ export function usePageCloudSync() {
   const setIdle = useSyncStatusStore((s) => s.setIdle);
 
   useEffect(() => {
-    if (!user?.userId || isDemoUserId(user.userId) || !hasSupabaseDataSync) return;
+    if (!user?.userId || isDemoUserId(user.userId) || !hasCloudDataSync) return;
     if (pulledForPath.current) return;
     pulledForPath.current = true;
 

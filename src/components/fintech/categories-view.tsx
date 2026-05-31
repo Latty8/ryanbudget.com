@@ -16,6 +16,7 @@ import {
   ShellInput,
   ShellSelect,
 } from "@/components/fintech/ui";
+import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import {
   CATEGORY_KIND_LABELS,
@@ -37,6 +38,7 @@ const ICON_OPTIONS = [
 ] as const;
 
 export function CategoriesView() {
+  usePageCloudSync();
   const confirm = useConfirm();
   const categories = useAppDataStore((s) => s.categories);
   const demoTransactions = useAppDataStore((s) => s.demoTransactions);
@@ -122,47 +124,81 @@ export function CategoriesView() {
               <div className="space-y-3">
                 {items.map((category) => (
                   <ShellCard key={category.id} className="p-4">
-                    <div className="grid gap-3 lg:grid-cols-[auto_1fr_120px_100px_110px_120px_auto] lg:items-center">
+                    {/* Mobile: compact header */}
+                    <div className="mb-3 flex items-center gap-3 lg:hidden">
                       <CategoryIconBadge name={category.icon} color={category.color} />
-                      <ShellInput
-                        value={category.name}
-                        onChange={(e) => updateCategory(category.id, { name: e.target.value })}
-                        aria-label={`Category ${category.name}`}
-                      />
-                      <ShellSelect
-                        value={category.group}
-                        onChange={(e) => updateCategory(category.id, { group: e.target.value })}
-                        aria-label={`Group for ${category.name}`}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{category.name}</p>
+                        <p className="text-xs text-[var(--muted)]">{category.group}</p>
+                      </div>
+                      <GhostButton
+                        type="button"
+                        onClick={() => handleDelete(category.id, category.name)}
+                        aria-label={`Delete ${category.name}`}
+                        className="shrink-0 text-rose-400 hover:bg-rose-500/10"
                       >
-                        {groupOptions.map((g) => (
-                          <option key={g} value={g}>
-                            {g}
-                          </option>
-                        ))}
-                      </ShellSelect>
-                      <ShellSelect
-                        value={category.icon}
-                        onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
-                        aria-label={`Icon for ${category.name}`}
-                      >
-                        {iconOptionsForSelect.map((name) => (
-                          <option key={name} value={name}>
-                            {name}
-                          </option>
-                        ))}
-                      </ShellSelect>
-                      <ShellInput
-                        type="color"
-                        value={category.color}
-                        onChange={(e) => updateCategory(category.id, { color: e.target.value })}
-                        aria-label={`Color for ${category.name}`}
-                        className="h-10 cursor-pointer p-1"
-                      />
-                      <NumberField
-                        value={category.budgeted}
-                        onChange={(budgeted) => updateCategory(category.id, { budgeted })}
-                        aria-label={`Budget for ${category.name}`}
-                      />
+                        <Trash2 className="h-4 w-4" />
+                      </GhostButton>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_120px_100px_110px_120px_auto] lg:items-center">
+                      <div className="hidden lg:block">
+                        <CategoryIconBadge name={category.icon} color={category.color} />
+                      </div>
+                      <label className="grid gap-1 lg:contents">
+                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Name</span>
+                        <ShellInput
+                          value={category.name}
+                          onChange={(e) => updateCategory(category.id, { name: e.target.value })}
+                          aria-label={`Category ${category.name}`}
+                        />
+                      </label>
+                      <label className="grid gap-1 lg:contents">
+                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Group</span>
+                        <ShellSelect
+                          value={category.group}
+                          onChange={(e) => updateCategory(category.id, { group: e.target.value })}
+                          aria-label={`Group for ${category.name}`}
+                        >
+                          {groupOptions.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
+                        </ShellSelect>
+                      </label>
+                      <label className="grid gap-1 lg:contents">
+                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Icon</span>
+                        <ShellSelect
+                          value={category.icon}
+                          onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
+                          aria-label={`Icon for ${category.name}`}
+                        >
+                          {iconOptionsForSelect.map((name) => (
+                            <option key={name} value={name}>
+                              {name}
+                            </option>
+                          ))}
+                        </ShellSelect>
+                      </label>
+                      <label className="grid gap-1 lg:contents">
+                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Color</span>
+                        <ShellInput
+                          type="color"
+                          value={category.color}
+                          onChange={(e) => updateCategory(category.id, { color: e.target.value })}
+                          aria-label={`Color for ${category.name}`}
+                          className="h-10 cursor-pointer p-1"
+                        />
+                      </label>
+                      <label className="grid gap-1 lg:contents">
+                        <span className="text-xs font-medium text-[var(--muted)] lg:sr-only">Budget</span>
+                        <NumberField
+                          value={category.budgeted}
+                          onChange={(budgeted) => updateCategory(category.id, { budgeted })}
+                          aria-label={`Budget for ${category.name}`}
+                        />
+                      </label>
                       <GhostButton
                         type="button"
                         onClick={(e) => {
@@ -170,7 +206,7 @@ export function CategoriesView() {
                           handleDelete(category.id, category.name);
                         }}
                         aria-label={`Delete ${category.name}`}
-                        className="text-rose-400 hover:bg-rose-500/10"
+                        className="hidden text-rose-400 hover:bg-rose-500/10 lg:inline-flex"
                       >
                         <Trash2 className="h-4 w-4" />
                       </GhostButton>

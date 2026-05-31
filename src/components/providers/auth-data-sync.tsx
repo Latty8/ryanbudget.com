@@ -4,13 +4,17 @@ import { useEffect, useRef } from "react";
 import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
 import { useAuth } from "@/components/providers/auth-provider";
 
-/** Keeps Zustand data scoped to the signed-in user after Google OAuth or refresh. */
+/** Keeps Zustand data scoped to the signed-in user after email sign-in or refresh. */
 export function AuthDataSync() {
   const { user } = useAuth();
   const lastUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user?.userId || user.userId === lastUserId.current) return;
+    if (!user?.userId) {
+      lastUserId.current = null;
+      return;
+    }
+    if (user.userId === lastUserId.current) return;
     lastUserId.current = user.userId;
     void completeSignInClient(user);
   }, [user]);

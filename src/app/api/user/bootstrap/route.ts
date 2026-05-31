@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/read-session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { hasCloudDataSync } from "@/lib/db/config";
+import { findUserById } from "@/lib/mongodb/sync";
 import {
   ensureUserProfile,
   getOnboardingCompleted,
   isSyncAvailable,
-} from "@/lib/supabase/sync/server";
+} from "@/lib/db/sync-server";
 
 /** Ensure profile row exists and return onboarding status for cross-device gating. */
 export async function GET() {
@@ -30,19 +31,18 @@ export async function GET() {
     });
   }
 
-  const profile = await ensureUserProfile(session.userId, session.email, session.name);
+  await ensureUserProfile(session.userId, session.email, session.name);
+  const mongoUser = await findUserById(session.userId);
   const onboardingCompleted =
-    profile?.onboarding_completed ?? (await getOnboardingCompleted(session.userId)) ?? false;
+    mongoUser?.onboardingCompleted ?? (await getOnboardingCompleted(session.userId)) ?? false;
 
   return NextResponse.json({
     ok: true,
     onboardingCompleted,
-    syncEnabled: hasSupabaseDataSync,
-    profile: profile
-      ? {
-          email: profile.email,
-          name: profile.full_name,
-        }
-      : { email: session.email, name: session.name },
+    syncEnabled: hasCloudDataSync,
+    profile: {
+      email: mongoUser?.email ?? session.email,
+      name: mongoUser?.name ?? session.name,
+    },
   });
 }
