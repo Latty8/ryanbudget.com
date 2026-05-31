@@ -11,6 +11,7 @@ import {
   ProgressBar,
   ShellInput,
   ShellSelect,
+  fintechIconButton,
   fintechMuted,
 } from "@/components/fintech/ui";
 import type { CategoryKind } from "@/lib/categories/category-kind";
@@ -168,11 +169,11 @@ function CategoryActions({
 }) {
   if (isEditing) return null;
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex items-center justify-end gap-1.5">
       <button
         type="button"
         onClick={onStartEdit}
-        className="rounded-md border border-transparent p-2 text-[var(--muted)] transition hover:border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+        className={fintechIconButton}
         aria-label="Edit category"
       >
         <Pencil className="h-4 w-4" />
@@ -181,7 +182,7 @@ function CategoryActions({
         <button
           type="button"
           onClick={onDelete}
-          className="rounded-md border border-transparent p-2 text-rose-500 transition hover:border-rose-500/20 hover:bg-rose-500/10"
+          className={cn(fintechIconButton, "border-transparent text-rose-500 hover:border-rose-500/20 hover:bg-rose-500/10")}
           aria-label="Delete category"
         >
           <Trash2 className="h-4 w-4" />

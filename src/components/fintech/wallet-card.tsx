@@ -17,6 +17,7 @@ import {
   GhostButton,
   ShellInput,
   ShellSelect,
+  fintechIconButton,
 } from "@/components/fintech/ui";
 import { getAccountKindTheme } from "@/lib/fintech/account-theme";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,7 @@ export function WalletCard({
   return (
     <ElevatedCard accentColor={accent}>
       <div className="px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
           <div className="flex min-w-0 flex-1 items-center gap-3.5">
             <div
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg lg:h-11 lg:w-11"
@@ -92,14 +93,14 @@ export function WalletCard({
           </div>
 
           <div className="flex items-center justify-between gap-4 lg:justify-end lg:gap-5">
-            <p className="text-2xl font-semibold tabular-nums tracking-tight text-[var(--foreground)] lg:text-right lg:text-xl">
+            <p className="text-xl font-semibold tabular-nums tracking-tight text-[var(--foreground)] sm:text-2xl lg:text-right lg:text-xl">
               {formatMoney(account.balance, account.currency ?? currency)}
             </p>
             {allowReorder ? (
               <div className="flex shrink-0 gap-1">
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-25"
+                  className={cn(fintechIconButton, "disabled:opacity-25")}
                   disabled={index === 0}
                   onClick={() => onReorder("up")}
                   aria-label={`Move ${account.name} up`}
@@ -108,7 +109,7 @@ export function WalletCard({
                 </button>
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:opacity-25"
+                  className={cn(fintechIconButton, "disabled:opacity-25")}
                   disabled={index === total - 1}
                   onClick={() => onReorder("down")}
                   aria-label={`Move ${account.name} down`}
@@ -191,7 +192,7 @@ export function WalletCard({
                     key={color}
                     type="button"
                     className={cn(
-                      "h-7 w-7 rounded-full border-2 transition-colors",
+                      "h-9 w-9 rounded-full border-2 transition-colors sm:h-8 sm:w-8",
                       account.color === color
                         ? "border-[var(--foreground)]"
                         : "border-transparent hover:border-[var(--border-strong)]"

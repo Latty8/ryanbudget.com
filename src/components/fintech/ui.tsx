@@ -24,6 +24,10 @@ export const fintechDivide = "divide-[var(--border-subtle)]";
 export const fintechLink =
   "font-medium text-[var(--accent)] underline-offset-2 transition-colors duration-200 hover:text-[var(--accent-deep)] hover:underline";
 
+/** 44px minimum touch target for icon-only controls */
+export const fintechIconButton =
+  "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] active:scale-[0.97] disabled:opacity-40";
+
 export function FilterChip({
   active,
   children,
@@ -207,10 +211,7 @@ export function ModalOverlay({
 }) {
   if (!open) return null;
 
-  const panelClass =
-    variant === "solid"
-      ? cn(fintechModalPanel, "p-6 shadow-[var(--shadow-modal)]")
-      : cn(fintechModalPanel, "p-6 shadow-[var(--shadow-modal)]");
+  const panelClass = cn(fintechModalPanel, "w-full max-w-md shadow-[var(--shadow-modal)]");
 
   return (
     <DialogPortal open={open} layer="modal">
@@ -227,16 +228,19 @@ export function ModalOverlay({
         initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className={cn("relative z-10 mx-auto w-full max-w-md", panelClass)}
+        className={cn(
+          "relative z-10 mx-auto w-full max-h-[min(85dvh,calc(100dvh-2rem))] overflow-y-auto overscroll-contain p-4 sm:p-6",
+          panelClass
+        )}
         onClick={(e) => e.stopPropagation()}
       >
-          {title ? (
-            <h2 id="modal-title" className={cn("mb-5 text-lg", fintechDisplay)}>
-              {title}
-            </h2>
-          ) : null}
-          {children}
-        </motion.div>
+        {title ? (
+          <h2 id="modal-title" className={cn("mb-5 text-lg", fintechDisplay)}>
+            {title}
+          </h2>
+        ) : null}
+        {children}
+      </motion.div>
     </DialogPortal>
   );
 }

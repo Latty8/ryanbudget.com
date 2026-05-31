@@ -379,7 +379,7 @@ export function TransactionEntryModal({
 
       <div
 
-        className="relative z-10 mx-auto max-h-[92vh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--modal-solid)] p-4 text-[var(--foreground)] shadow-[var(--shadow-modal)]"
+        className="relative z-10 mx-auto max-h-[min(90dvh,calc(100dvh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--modal-solid)] p-4 text-[var(--foreground)] shadow-sm sm:p-5"
 
         role="dialog"
 
@@ -407,7 +407,7 @@ export function TransactionEntryModal({
 
             type="button"
 
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
 
             onClick={() => onOpenChange(false)}
 
@@ -998,13 +998,13 @@ export function TransactionEntryModal({
 
           {message ? <p className="text-xs text-slate-300">{message}</p> : null}
 
-          <div className="flex justify-end gap-2 pb-safe">
+          <div className="flex flex-col-reverse gap-2 pb-safe sm:flex-row sm:justify-end">
 
             <button
 
               type="button"
 
-              className="min-h-11 rounded-xl border border-slate-600 px-4 py-2 text-sm touch-manipulation"
+              className="min-h-11 w-full rounded-xl border border-slate-600 px-4 py-2.5 text-sm touch-manipulation sm:w-auto"
 
               onClick={() => onOpenChange(false)}
 
@@ -1020,7 +1020,7 @@ export function TransactionEntryModal({
 
               disabled={!canSave || saving}
 
-              className="min-h-11 rounded-xl bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 touch-manipulation disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              className="min-h-11 w-full rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-slate-950 touch-manipulation disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
 
               onClick={async () => {
 

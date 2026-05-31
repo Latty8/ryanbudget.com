@@ -75,8 +75,13 @@ export function shouldPreferRemote(local: RemoteAppState, remote: RemoteAppState
   return stateFingerprintsDiffer(local, remote);
 }
 
-/** Merge remote into local, keeping unsynced local edits and adding remote-only entities. */
-export function mergeRemoteWithLocal(local: RemoteAppState, remote: RemoteAppState): RemoteAppState {
+/** Merge remote into local. When `preferRemoteOnConflict`, server rows win on id collisions (cross-device pull). */
+export function mergeRemoteWithLocal(
+  local: RemoteAppState,
+  remote: RemoteAppState,
+  options?: { preferRemoteOnConflict?: boolean }
+): RemoteAppState {
+  const preferRemote = options?.preferRemoteOnConflict ?? false;
   const mergeLists = <T extends { id: string }>(localItems: T[], remoteItems: T[]): T[] => {
     const remoteMap = new Map(remoteItems.map((item) => [item.id, item]));
     const merged = [...remoteItems];
@@ -86,7 +91,9 @@ export function mergeRemoteWithLocal(local: RemoteAppState, remote: RemoteAppSta
         continue;
       }
       const index = merged.findIndex((row) => row.id === item.id);
-      if (index >= 0) merged[index] = item;
+      if (index >= 0) {
+        merged[index] = preferRemote ? remoteMap.get(item.id)! : item;
+      }
     }
     return merged;
   };

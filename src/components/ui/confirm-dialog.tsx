@@ -94,8 +94,8 @@ export function ConfirmDialog({
             {children ? <div className="mt-3">{children}</div> : null}
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <GhostButton type="button" disabled={loading} onClick={() => onOpenChange(false)}>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+          <GhostButton type="button" disabled={loading} onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
             {cancelLabel}
           </GhostButton>
           <button
@@ -103,7 +103,7 @@ export function ConfirmDialog({
             disabled={loading}
             onClick={() => void onConfirm()}
             className={cn(
-              "inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-[var(--radius-field)] px-4 py-2 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50",
+              "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-field)] px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 sm:w-auto",
               variant === "destructive"
                 ? "bg-rose-600 text-white hover:bg-rose-500"
                 : "bg-[var(--accent)] text-[var(--accent-foreground)] hover:brightness-110"

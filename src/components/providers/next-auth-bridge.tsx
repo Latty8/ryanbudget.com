@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef } from "react";
 import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
 import { useAuth } from "@/components/providers/auth-provider";
-import { hasCloudDataSync } from "@/lib/db/client";
+import { isClientCloudSyncEnabled } from "@/lib/db/client";
 
 /** After NextAuth OAuth redirect, bridge session cookie and hydrate app data. */
 export function NextAuthBridge() {
@@ -13,7 +13,7 @@ export function NextAuthBridge() {
   const bridged = useRef(false);
 
   useEffect(() => {
-    if (!hasCloudDataSync || status !== "authenticated" || !session?.user?.id || !session.user.email) {
+    if (!isClientCloudSyncEnabled() || status !== "authenticated" || !session?.user?.id || !session.user.email) {
       return;
     }
     if (user?.userId === session.user.id || bridged.current) return;

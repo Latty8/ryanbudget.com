@@ -19,18 +19,18 @@ export async function applyOnboardingFromServer(onboardingCompleted: boolean) {
   });
 }
 
-/** After OAuth or email login — scope persisted app data to the signed-in user. Cloud sync runs in CloudSyncProvider. */
+/** After email login or session refresh — scope persisted app data to the signed-in user. */
 export async function completeSignInClient(user: SessionPayload) {
-  if (lastCompletedUserId === user.userId) return;
+  const userChanged = lastCompletedUserId !== user.userId;
   lastCompletedUserId = user.userId;
 
   setClientDemoMode(user.isDemo === true);
   setPersistUserId(user.userId);
-  resetLocalSyncTracking();
+  if (userChanged) resetLocalSyncTracking();
   await useAppDataStore.persist.rehydrate();
   useAppDataStore.getState().setProfile({ name: user.name, email: user.email });
 
-  if (isDemoUserId(user.userId)) return;
+  if (isDemoUserId(user.userId) || !userChanged) return;
 
   const bootstrap = await bootstrapUserSession();
   const storeComplete = useAppDataStore.getState().onboardingComplete;
@@ -40,10 +40,16 @@ export async function completeSignInClient(user: SessionPayload) {
   }
 }
 
-/** Clear sign-in dedupe when session ends (call from sign-out). */
+/** Clear sign-in dedupe and local app state (call from sign-out). */
 export function resetSignInClientState() {
   lastCompletedUserId = null;
   resetLocalSyncTracking();
+  useAppDataStore.getState().resetAppData();
+}
+
+/** Clear in-memory app data without clearing sign-in dedupe. */
+export function resetAppDataState() {
+  useAppDataStore.getState().resetAppData();
 }
 
 /** Force re-sync on next sign-in (e.g. after user switch). */
@@ -62,8 +68,8 @@ export async function completeOnboardingForUser() {
   });
   const { markOnboardingCompletedRemote } = await import("@/lib/supabase/sync/client");
   await markOnboardingCompletedRemote();
-  const { hasCloudDataSync } = await import("@/lib/db/client");
-  if (hasCloudDataSync) {
+  const { isClientCloudSyncEnabled } = await import("@/lib/db/client");
+  if (isClientCloudSyncEnabled()) {
     const { buildLocalRemoteState } = await import("@/lib/supabase/sync/apply-sync");
     const { pushLocalStateToCloud } = await import("@/lib/supabase/sync/client");
     const { markLocalSyncClean } = await import("@/lib/supabase/sync/sync-dirty");

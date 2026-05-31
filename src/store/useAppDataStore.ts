@@ -80,6 +80,7 @@ type AppDataState = {
   deleteAllData: () => void;
   updateTransaction: (id: string, input: TransactionInput) => void;
   deleteTransaction: (id: string) => void;
+  resetAppData: () => void;
 };
 
 const defaultPreferences: AppPreferences = {
@@ -308,6 +309,7 @@ export const useAppDataStore = create<AppDataState>()(
         set((state) => ({
           demoTransactions: state.demoTransactions.filter((t) => t.id !== id),
         })),
+      resetAppData: () => set({ ...initialState }),
     }),
     {
       name: PERSIST_STORE_NAME,

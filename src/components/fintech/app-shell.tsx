@@ -141,7 +141,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="hidden text-sm font-semibold sm:inline">Paycheck Planner</span>
             </Link>
 
-            <nav className="hidden items-center gap-0.5 md:flex lg:gap-1" aria-label="Main">
+            <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto md:flex lg:gap-1 [&::-webkit-scrollbar]:hidden" aria-label="Main">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -162,7 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 href="/settings"
                 className={cn(
-                  "rounded-xl p-2 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]",
+                  "rounded-xl p-2.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] min-h-11 min-w-11 inline-flex items-center justify-center",
                   pathname.startsWith("/settings") && "bg-[var(--surface)] text-[var(--foreground)]"
                 )}
                 aria-label="Settings"

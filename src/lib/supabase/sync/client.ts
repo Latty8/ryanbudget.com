@@ -1,6 +1,6 @@
 "use client";
 
-import { hasCloudDataSync } from "@/lib/db/client";
+import { isClientCloudSyncEnabled, setClientCloudSyncEnabled } from "@/lib/db/client";
 import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
 import { parseJsonResponse } from "@/lib/http/parse-json-response";
 import {
@@ -57,9 +57,12 @@ export async function pullAndApplyCloudState(options?: PullOptions): Promise<boo
     }
 
     const unsynced = hasUnsyncedLocalChanges();
+    const hasNewRevision = Boolean(revision && revision !== getLastAppliedRemoteRevision());
     if (unsynced && !options?.force) {
       if (!shouldPreferRemote(local, remote) && !revision) return false;
-      const merged = mergeRemoteWithLocal(local, remote);
+      const merged = mergeRemoteWithLocal(local, remote, {
+        preferRemoteOnConflict: hasNewRevision,
+      });
       applyRemoteStateToStore(merged);
       markRemoteRevisionApplied(revision);
       if (merged.onboardingCompleted) await applyOnboardingFromServer(true);
@@ -87,7 +90,7 @@ function schedulePull(delayMs = 150) {
 }
 
 export async function forceSyncNow(): Promise<{ ok: boolean; message: string }> {
-  if (!hasCloudDataSync) {
+  if (!isClientCloudSyncEnabled()) {
     return { ok: false, message: "Cloud sync is not enabled." };
   }
 
@@ -106,7 +109,7 @@ export async function forceSyncNow(): Promise<{ ok: boolean; message: string }> 
 
 /** Silent background sync — SSE revision watch + polling fallback. */
 export function subscribeToCloudChanges(userId: string): () => void {
-  if (!hasCloudDataSync) return () => {};
+  if (!isClientCloudSyncEnabled()) return () => {};
 
   void pullAndApplyCloudState();
 
@@ -185,6 +188,7 @@ export async function bootstrapUserSession(): Promise<{
     syncEnabled?: boolean;
   }>(res);
   if (!body) return { onboardingCompleted: false, syncEnabled: false };
+  if (body.syncEnabled === true) setClientCloudSyncEnabled(true);
   return {
     onboardingCompleted: body.onboardingCompleted === true,
     syncEnabled: body.syncEnabled === true,
@@ -201,3 +205,22 @@ export async function markOnboardingCompletedRemote(): Promise<void> {
 }
 
 export { PUSH_DEBOUNCE_MS };
+
+/** Push immediately (e.g. before tab close). Best-effort with keepalive. */
+export function flushPendingCloudPush(): void {
+  if (!isClientCloudSyncEnabled()) return;
+  const payload = buildLocalRemoteState();
+  if (!hasUnsyncedLocalChanges()) return;
+  markPushInFlight(true);
+  void fetch("/api/sync/push", {
+    method: "POST",
+    credentials: "include",
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ state: payload }),
+  })
+    .then((res) => {
+      if (res.ok) markLocalSyncClean(payload);
+    })
+    .finally(() => markPushInFlight(false));
+}

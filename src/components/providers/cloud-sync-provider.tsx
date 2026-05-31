@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { completeSignInClient } from "@/lib/auth/complete-sign-in-client";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasCloudDataSync } from "@/lib/db/client";
+import { isClientCloudSyncEnabled } from "@/lib/db/client";
 import {
   applyRemoteStateToStore,
   buildLocalRemoteState,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/supabase/sync/apply-sync";
 import {
   bootstrapUserSession,
+  flushPendingCloudPush,
   pullAndApplyCloudState,
   pullCloudState,
   pushLocalStateToCloud,
@@ -44,10 +46,13 @@ export function CloudSyncProvider() {
       resetLocalSyncTracking();
 
       try {
+        // Scope localStorage to this user and rehydrate before reading local state.
+        await completeSignInClient(user);
+
         const bootstrap = await bootstrapUserSession();
         await applyOnboardingFromServer(bootstrap.onboardingCompleted);
 
-        if (!hasCloudDataSync) {
+        if (!isClientCloudSyncEnabled()) {
           initialSyncDone.current = true;
           return;
         }
@@ -85,28 +90,42 @@ export function CloudSyncProvider() {
     void runInitialSync();
 
     const onVisible = () => {
-      if (document.visibilityState !== "visible" || !hasCloudDataSync || !initialSyncDone.current) return;
+      if (document.visibilityState !== "visible" || !isClientCloudSyncEnabled() || !initialSyncDone.current) {
+        return;
+      }
       void pullAndApplyCloudState();
     };
 
     document.addEventListener("visibilitychange", onVisible);
 
     const onOnline = () => {
-      if (!hasCloudDataSync || !initialSyncDone.current) return;
+      if (!isClientCloudSyncEnabled() || !initialSyncDone.current) return;
       void pullAndApplyCloudState({ force: true });
     };
 
     window.addEventListener("online", onOnline);
 
+    const onPageHide = () => {
+      if (!isClientCloudSyncEnabled() || !initialSyncDone.current) return;
+      if (pushTimer.current) {
+        clearTimeout(pushTimer.current);
+        pushTimer.current = null;
+      }
+      flushPendingCloudPush();
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+
     return () => {
       unsubscribeRealtime?.();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("pagehide", onPageHide);
     };
-  }, [user?.userId]);
+  }, [user]);
 
   useEffect(() => {
-    if (!user?.userId || isDemoUserId(user.userId) || !hasCloudDataSync) return;
+    if (!user?.userId || isDemoUserId(user.userId) || !isClientCloudSyncEnabled()) return;
 
     const schedulePush = () => {
       if (isApplyingRemoteSync()) return;
