@@ -155,27 +155,33 @@ export function ProgressBar({
   over,
   className,
   size = "default",
+  accentColor,
 }: {
   pct: number;
   over?: boolean;
   className?: string;
   size?: "default" | "slim";
+  accentColor?: string;
 }) {
   const width = Math.min(100, Math.max(0, pct));
   return (
     <div
       className={cn(
         "overflow-hidden rounded-full bg-[var(--surface-elevated)] shadow-[var(--shadow-inner)]",
-        size === "slim" ? "h-1.5" : "h-2",
+        size === "slim" ? "h-1" : "h-1.5",
         className
       )}
     >
       <div
         className={cn(
           "h-full rounded-full transition-all duration-700 ease-out",
-          over ? "bg-[var(--negative)]" : "bg-gradient-to-r from-[var(--accent-deep)] to-[var(--accent)]"
+          !accentColor && (over ? "bg-[var(--negative)]" : "bg-gradient-to-r from-[var(--accent-deep)] to-[var(--accent)]")
         )}
-        style={{ width: `${width}%` }}
+        style={
+          accentColor
+            ? { width: `${width}%`, backgroundColor: over ? "var(--negative)" : accentColor }
+            : { width: `${width}%` }
+        }
       />
     </div>
   );
@@ -243,7 +249,13 @@ export function ShellCard({
   className?: string;
 }) {
   return (
-    <div className={cn(fintechSurface, "p-5", className)}>
+    <div
+      className={cn(
+        fintechSurface,
+        "rounded-2xl p-5 transition-all duration-300 hover:shadow-[var(--shadow-card-hover)]",
+        className
+      )}
+    >
       {children}
     </div>
   );

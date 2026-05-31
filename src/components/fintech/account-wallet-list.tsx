@@ -1,12 +1,17 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { NumberField } from "@/components/fintech/number-field";
 import {
+  ACCOUNT_KINDS,
+  COLOR_SWATCHES,
+  WalletCard,
+} from "@/components/fintech/wallet-card";
+import { ElevatedCard, ElevatedCardSection } from "@/components/fintech/elevated-card";
+import {
   FieldLabel,
-  GhostButton,
   PrimaryButton,
   ShellInput,
   ShellSelect,
@@ -17,24 +22,12 @@ import { cn } from "@/lib/utils";
 import type { AppAccount } from "@/types/app-settings";
 import type { AccountKind } from "@/types/finance";
 
-const ACCOUNT_KINDS: { value: AccountKind; label: string }[] = [
-  { value: "checking", label: "Checking" },
-  { value: "savings", label: "Savings" },
-  { value: "credit", label: "Credit card" },
-  { value: "cash", label: "Cash" },
-  { value: "investment", label: "Investment" },
-];
-
-const ICON_OPTIONS = ["Wallet", "PiggyBank", "CreditCard", "Banknote", "TrendingUp", "Landmark"];
-const COLOR_SWATCHES = ["#38bdf8", "#34d399", "#f472b6", "#fbbf24", "#a78bfa", "#fb7185", "#22c55e", "#60a5fa"];
-
 type AccountWalletListProps = {
   accounts: AppAccount[];
   onChange: (accounts: AppAccount[]) => void;
   transactionCountByAccount?: (accountName: string) => number;
   onReassignTransactions?: (fromAccount: string, toAccount: string) => void;
   showHidden?: boolean;
-  compact?: boolean;
   allowReorder?: boolean;
 };
 
@@ -44,7 +37,6 @@ export function AccountWalletList({
   transactionCountByAccount,
   onReassignTransactions,
   showHidden = true,
-  compact = false,
   allowReorder = true,
 }: AccountWalletListProps) {
   const confirm = useConfirm();
@@ -139,205 +131,59 @@ export function AccountWalletList({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {visible.length === 0 ? (
         <p className={cn("text-sm", isLight ? "text-slate-500" : "text-slate-400")}>
           No wallets yet — add the accounts you actually use.
         </p>
       ) : (
-        visible.map((account, index) => (
-          <div
-            key={account.id}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-4 shadow-sm transition hover:border-[var(--border-strong)] sm:p-5"
-          >
-            {/* Mobile header row */}
-            <div className="mb-4 flex items-start gap-3 lg:hidden">
-              <span
-                className="mt-0.5 h-11 w-11 shrink-0 rounded-2xl border border-[var(--border-subtle)] shadow-inner"
-                style={{ backgroundColor: account.color }}
-                aria-hidden
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {visible.map((account) => {
+            const index = accounts.findIndex((a) => a.id === account.id);
+            return (
+              <WalletCard
+                key={account.id}
+                account={account}
+                index={index}
+                total={accounts.length}
+                showHidden={showHidden}
+                allowReorder={allowReorder}
+                onUpdate={(patch) => updateOne(account.id, patch)}
+                onRemove={() => requestRemove(account)}
+                onReorder={(direction) => reorder(account.id, direction)}
               />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-[var(--foreground)]">{account.name}</p>
-                <p className="text-xs capitalize text-[var(--muted)]">{account.kind.replace("_", " ")}</p>
-              </div>
-              {allowReorder ? (
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--muted)] disabled:opacity-30"
-                    disabled={index === 0}
-                    onClick={() => reorder(account.id, "up")}
-                    aria-label={`Move ${account.name} up`}
-                  >
-                    <ChevronUp className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--muted)] disabled:opacity-30"
-                    disabled={index === accounts.length - 1}
-                    onClick={() => reorder(account.id, "down")}
-                    aria-label={`Move ${account.name} down`}
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div
-              className={cn(
-                "grid gap-4",
-                compact ? "sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_140px_auto]"
-              )}
-            >
-              {allowReorder ? (
-                <div className="hidden flex-col gap-1 lg:flex">
-                  <button
-                    type="button"
-                    className="rounded-lg border border-[var(--border)] p-1 text-[var(--muted)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
-                    disabled={index === 0}
-                    onClick={() => reorder(account.id, "up")}
-                    aria-label={`Move ${account.name} up`}
-                  >
-                    <ChevronUp className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg border border-[var(--border)] p-1 text-[var(--muted)] hover:bg-[var(--surface-hover)] disabled:opacity-30"
-                    disabled={index === accounts.length - 1}
-                    onClick={() => reorder(account.id, "down")}
-                    aria-label={`Move ${account.name} down`}
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : null}
-
-              <div className="grid gap-3 sm:col-span-2 lg:col-span-1">
-                <label className="grid gap-1.5 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)]">Name</span>
-                  <ShellInput
-                    value={account.name}
-                    onChange={(e) => updateOne(account.id, { name: e.target.value })}
-                    aria-label={`Wallet name ${account.name}`}
-                  />
-                </label>
-                <label className="grid gap-1.5 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)]">Balance</span>
-                  <NumberField
-                    value={account.balance}
-                    onChange={(balance) => updateOne(account.id, { balance })}
-                    aria-label={`Balance ${account.name}`}
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2 lg:col-span-1 lg:grid-cols-1">
-                <label className="grid gap-1.5 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)]">Type</span>
-                  <ShellSelect
-                    value={account.kind}
-                    onChange={(e) => updateOne(account.id, { kind: e.target.value as AccountKind })}
-                    aria-label={`Type ${account.name}`}
-                  >
-                    {ACCOUNT_KINDS.map((k) => (
-                      <option key={k.value} value={k.value}>
-                        {k.label}
-                      </option>
-                    ))}
-                  </ShellSelect>
-                </label>
-                <label className="grid gap-1.5 lg:contents">
-                  <span className="text-xs font-medium text-[var(--muted)]">Icon</span>
-                  <ShellSelect
-                    value={account.icon}
-                    onChange={(e) => updateOne(account.id, { icon: e.target.value })}
-                    aria-label={`Icon ${account.name}`}
-                  >
-                    {ICON_OPTIONS.map((icon) => (
-                      <option key={icon} value={icon}>
-                        {icon}
-                      </option>
-                    ))}
-                  </ShellSelect>
-                </label>
-              </div>
-
-              <div className="flex flex-col gap-3 border-t border-[var(--border-subtle)] pt-3 sm:col-span-2 lg:col-span-1 lg:border-0 lg:pt-0">
-                <div>
-                  <span className="mb-2 block text-xs font-medium text-[var(--muted)]">Color</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COLOR_SWATCHES.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={cn(
-                          "h-7 w-7 rounded-full border-2 transition sm:h-6 sm:w-6",
-                          account.color === color ? "scale-110 border-white" : "border-transparent"
-                        )}
-                        style={{ backgroundColor: color }}
-                        onClick={() => updateOne(account.id, { color })}
-                        aria-label={`Color ${color}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  {showHidden ? (
-                    <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-                      <input
-                        type="checkbox"
-                        checked={!account.hidden}
-                        onChange={(e) => updateOne(account.id, { hidden: !e.target.checked })}
-                      />
-                      Show in app
-                    </label>
-                  ) : null}
-                  <GhostButton
-                    type="button"
-                    className="ml-auto text-rose-400 hover:bg-rose-500/10 lg:inline-flex"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      requestRemove(account);
-                    }}
-                    aria-label={`Delete ${account.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="ml-1.5 text-xs lg:hidden">Delete</span>
-                  </GhostButton>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))
+            );
+          })}
+        </div>
       )}
 
-      <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface)]/40 p-4 sm:p-5">
-        <p className="mb-4 text-sm font-medium text-[var(--foreground)]">Add wallet</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_140px_120px_auto]">
-          <ShellInput
-            placeholder="Wallet name"
-            value={draft.name}
-            onChange={(e) => setDraft((s) => ({ ...s, name: e.target.value }))}
-          />
-          <ShellSelect
-            value={draft.kind}
-            onChange={(e) => setDraft((s) => ({ ...s, kind: e.target.value as AccountKind }))}
-          >
-            {ACCOUNT_KINDS.map((k) => (
-              <option key={k.value} value={k.value}>
-                {k.label}
-              </option>
-            ))}
-          </ShellSelect>
-          <NumberField value={draft.balance} onChange={(balance) => setDraft((s) => ({ ...s, balance }))} />
-          <PrimaryButton onClick={addAccount} className="sm:col-span-2 lg:col-span-1">
-            <Plus className="mr-1 inline h-4 w-4" />
-            Add
-          </PrimaryButton>
-        </div>
-      </div>
+      <ElevatedCard className="border-dashed">
+        <ElevatedCardSection>
+          <p className="mb-4 text-sm font-semibold text-[var(--foreground)]">Add wallet</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_140px_120px_auto]">
+            <ShellInput
+              placeholder="Wallet name"
+              value={draft.name}
+              onChange={(e) => setDraft((s) => ({ ...s, name: e.target.value }))}
+            />
+            <ShellSelect
+              value={draft.kind}
+              onChange={(e) => setDraft((s) => ({ ...s, kind: e.target.value as AccountKind }))}
+            >
+              {ACCOUNT_KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </ShellSelect>
+            <NumberField value={draft.balance} onChange={(balance) => setDraft((s) => ({ ...s, balance }))} />
+            <PrimaryButton onClick={addAccount} className="sm:col-span-2 lg:col-span-1">
+              <Plus className="mr-1 inline h-4 w-4" />
+              Add
+            </PrimaryButton>
+          </div>
+        </ElevatedCardSection>
+      </ElevatedCard>
     </div>
   );
 }

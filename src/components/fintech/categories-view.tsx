@@ -1,20 +1,15 @@
 "use client";
 
-import { ShoppingCart, Trash2 } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { CategoryAddPanel } from "@/components/fintech/category-add-panel";
-import { CategoryIconBadge } from "@/components/fintech/category-icon";
-import { NumberField } from "@/components/fintech/number-field";
+import { CategoryEditCard } from "@/components/fintech/category-edit-card";
 import {
   EmptyState,
-  GhostButton,
-  fintechLabel,
   PageFrame,
   SectionTitle,
-  ShellCard,
-  ShellInput,
-  ShellSelect,
+  fintechLabel,
 } from "@/components/fintech/ui";
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
@@ -55,6 +50,15 @@ export function CategoriesView() {
   }, [existingGroups]);
 
   const { income, expense } = useMemo(() => partitionCategoriesByKind(categories), [categories]);
+
+  const spentByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of demoTransactions) {
+      if (tx.amount >= 0) continue;
+      map.set(tx.category, (map.get(tx.category) ?? 0) + Math.abs(tx.amount));
+    }
+    return map;
+  }, [demoTransactions]);
 
   const sections = useMemo(
     () =>
@@ -113,106 +117,25 @@ export function CategoriesView() {
           />
         </div>
       ) : (
-        <div className="mt-8 space-y-6 border-t border-[var(--border-subtle)] pt-8">
+        <div className="mt-8 space-y-8 border-t border-[var(--border-subtle)] pt-8">
           <SectionTitle
             title="Your categories"
-            description="Grouped by Income and Expenses. Edit details inline below."
+            description="Tap a card to edit details. Progress reflects spending this month."
           />
           {sections.map(({ kind, items }) => (
             <section key={kind}>
-              <p className={cn("mb-3", fintechLabel)}>{CATEGORY_KIND_LABELS[kind]}</p>
-              <div className="space-y-3">
+              <p className={cn("mb-4", fintechLabel)}>{CATEGORY_KIND_LABELS[kind]}</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((category) => (
-                  <ShellCard key={category.id} className="overflow-hidden p-0">
-                    <div className="border-b border-[var(--border-subtle)] bg-[var(--surface)]/60 px-4 py-3 lg:hidden">
-                      <div className="flex items-center gap-3">
-                        <CategoryIconBadge name={category.icon} color={category.color} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-base font-semibold">{category.name}</p>
-                          <p className="text-xs text-[var(--muted)]">{category.group}</p>
-                        </div>
-                        <GhostButton
-                          type="button"
-                          onClick={() => handleDelete(category.id, category.name)}
-                          aria-label={`Delete ${category.name}`}
-                          className="shrink-0 text-rose-400 hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </GhostButton>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-[auto_1fr_120px_100px_110px_120px_auto] lg:items-center lg:p-4">
-                      <div className="hidden lg:block">
-                        <CategoryIconBadge name={category.icon} color={category.color} />
-                      </div>
-                      <label className="grid gap-1.5 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)]">Name</span>
-                        <ShellInput
-                          value={category.name}
-                          onChange={(e) => updateCategory(category.id, { name: e.target.value })}
-                          aria-label={`Category ${category.name}`}
-                        />
-                      </label>
-                      <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)]">Group</span>
-                        <ShellSelect
-                          value={category.group}
-                          onChange={(e) => updateCategory(category.id, { group: e.target.value })}
-                          aria-label={`Group for ${category.name}`}
-                        >
-                          {groupOptions.map((g) => (
-                            <option key={g} value={g}>
-                              {g}
-                            </option>
-                          ))}
-                        </ShellSelect>
-                      </label>
-                      <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)]">Icon</span>
-                        <ShellSelect
-                          value={category.icon}
-                          onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
-                          aria-label={`Icon for ${category.name}`}
-                        >
-                          {iconOptionsForSelect.map((name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ))}
-                        </ShellSelect>
-                      </label>
-                      <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)]">Color</span>
-                        <ShellInput
-                          type="color"
-                          value={category.color}
-                          onChange={(e) => updateCategory(category.id, { color: e.target.value })}
-                          aria-label={`Color for ${category.name}`}
-                          className="h-10 cursor-pointer p-1"
-                        />
-                      </label>
-                      <label className="grid gap-1 lg:contents">
-                        <span className="text-xs font-medium text-[var(--muted)]">Budget</span>
-                        <NumberField
-                          value={category.budgeted}
-                          onChange={(budgeted) => updateCategory(category.id, { budgeted })}
-                          aria-label={`Budget for ${category.name}`}
-                        />
-                      </label>
-                      <GhostButton
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(category.id, category.name);
-                        }}
-                        aria-label={`Delete ${category.name}`}
-                        className="hidden text-rose-400 hover:bg-rose-500/10 lg:inline-flex"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </GhostButton>
-                    </div>
-                  </ShellCard>
+                  <CategoryEditCard
+                    key={category.id}
+                    category={category}
+                    spent={spentByCategory.get(category.name) ?? 0}
+                    groupOptions={groupOptions}
+                    iconOptions={iconOptionsForSelect}
+                    onUpdate={(patch) => updateCategory(category.id, patch)}
+                    onDelete={() => handleDelete(category.id, category.name)}
+                  />
                 ))}
               </div>
             </section>

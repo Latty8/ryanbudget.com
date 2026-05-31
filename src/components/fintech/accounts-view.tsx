@@ -68,26 +68,24 @@ export function AccountsView() {
       ) : null}
 
       {!loading ? (
-        <ShellCard className="p-5">
-          <AccountWalletList
-            accounts={accounts}
-            onChange={handleAccountsChange}
-            transactionCountByAccount={countTransactionsForAccount}
-            onReassignTransactions={(from, to) => {
-              useAppDataStore.setState((state) => ({
-                demoTransactions: state.demoTransactions.map((t) =>
-                  t.account === from ? { ...t, account: to } : t
-                ),
-              }));
-            }}
-            showHidden
-            allowReorder
-          />
-        </ShellCard>
+        <AccountWalletList
+          accounts={accounts}
+          onChange={handleAccountsChange}
+          transactionCountByAccount={countTransactionsForAccount}
+          onReassignTransactions={(from, to) => {
+            useAppDataStore.setState((state) => ({
+              demoTransactions: state.demoTransactions.map((t) =>
+                t.account === from ? { ...t, account: to } : t
+              ),
+            }));
+          }}
+          showHidden
+          allowReorder
+        />
       ) : (
         <ShellCard className="space-y-3 p-5">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
         </ShellCard>
       )}
 
