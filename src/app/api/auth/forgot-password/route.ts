@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasMongoDB } from "@/lib/db/config";
+import { isMongoDBConfigured } from "@/lib/db/config";
 import { getSiteUrl } from "@/lib/email/config";
 import { sendPasswordResetEmail } from "@/lib/email/password-reset";
 import { createPasswordResetToken } from "@/lib/mongodb/auth";
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Enter a valid email." }, { status: 400 });
   }
 
-  if (!hasMongoDB) {
+  if (!isMongoDBConfigured()) {
     return NextResponse.json({
       ok: true,
       message: "If an account exists, reset instructions will be sent.",

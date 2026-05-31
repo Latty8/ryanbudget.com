@@ -14,6 +14,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { completeSignInClient, resetSignInDedupe } from "@/lib/auth/complete-sign-in-client";
 import { resolvePostLoginPath } from "@/lib/auth/resolve-post-login-path";
 import { useAppDataStore } from "@/store/useAppDataStore";
+import { jsonResponseError, parseJsonResponse } from "@/lib/http/parse-json-response";
 
 export function SignUpPage() {
   const router = useRouter();
@@ -46,14 +47,17 @@ export function SignUpPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, confirmPassword, name: name.trim() || undefined }),
       });
-      const result = (await response.json()) as {
+      const result = await parseJsonResponse<{
         ok: boolean;
         message?: string;
         user?: { userId: string; email: string; name: string };
-      };
+      }>(response);
 
+      if (!result) {
+        throw new Error(jsonResponseError(response, "Could not create account"));
+      }
       if (!response.ok || !result.ok || !result.user) {
-        throw new Error(result.message ?? "Could not create account");
+        throw new Error(result.message ?? jsonResponseError(response, "Could not create account"));
       }
 
       resetSignInDedupe();

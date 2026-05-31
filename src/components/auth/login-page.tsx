@@ -16,6 +16,7 @@ import { completeSignInClient, resetSignInDedupe } from "@/lib/auth/complete-sig
 import { resolvePostLoginPath } from "@/lib/auth/resolve-post-login-path";
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import { startDemoSession } from "@/lib/auth/start-demo";
+import { jsonResponseError, parseJsonResponse } from "@/lib/http/parse-json-response";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
 
@@ -57,13 +58,16 @@ export function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const result = (await response.json()) as {
+      const result = await parseJsonResponse<{
         ok: boolean;
         message?: string;
         user?: { userId: string; email: string; name: string; isDemo?: boolean };
-      };
+      }>(response);
+      if (!result) {
+        throw new Error(jsonResponseError(response, "Sign in failed"));
+      }
       if (!response.ok || !result.ok || !result.user) {
-        throw new Error(result.message ?? "Sign in failed");
+        throw new Error(result.message ?? jsonResponseError(response, "Sign in failed"));
       }
       await finishSignIn(result.user);
       toast.success("Welcome back");

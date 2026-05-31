@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import { validatePasswordStrength } from "@/lib/auth/password";
-import { hasMongoDB } from "@/lib/db/config";
+import { isMongoDBConfigured } from "@/lib/db/config";
 import { registerUser } from "@/lib/mongodb/auth";
 import type { SessionPayload } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
-  if (!hasMongoDB) {
+  if (!isMongoDBConfigured()) {
     return NextResponse.json(
       { ok: false, message: "Registration requires database configuration." },
       { status: 503 }
@@ -38,25 +38,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: strengthError }, { status: 400 });
   }
 
-  const result = await registerUser({ email, password, name });
-  if (!result.ok) {
-    return NextResponse.json({ ok: false, message: result.message }, { status: 409 });
+  try {
+    const result = await registerUser({ email, password, name });
+    if (!result.ok) {
+      return NextResponse.json({ ok: false, message: result.message }, { status: 409 });
+    }
+
+    const payload: SessionPayload = {
+      userId: result.user.id,
+      email: result.user.email,
+      name: result.user.name,
+      isDemo: false,
+    };
+
+    const response = NextResponse.json({
+      ok: true,
+      user: {
+        userId: payload.userId,
+        email: payload.email,
+        name: payload.name,
+      },
+    });
+    return attachSessionCookies(response, payload);
+  } catch (error) {
+    console.error("[auth/register]", error);
+    return NextResponse.json(
+      { ok: false, message: "Could not connect to the database. Check server logs." },
+      { status: 503 }
+    );
   }
-
-  const payload: SessionPayload = {
-    userId: result.user.id,
-    email: result.user.email,
-    name: result.user.name,
-    isDemo: false,
-  };
-
-  const response = NextResponse.json({
-    ok: true,
-    user: {
-      userId: payload.userId,
-      email: payload.email,
-      name: payload.name,
-    },
-  });
-  return attachSessionCookies(response, payload);
 }

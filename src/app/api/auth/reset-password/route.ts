@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { validatePasswordStrength } from "@/lib/auth/password";
-import { hasMongoDB } from "@/lib/db/config";
+import { isMongoDBConfigured } from "@/lib/db/config";
 import { resetPasswordWithToken } from "@/lib/mongodb/auth";
 
 export async function POST(request: Request) {
-  if (!hasMongoDB) {
+  if (!isMongoDBConfigured()) {
     return NextResponse.json(
       { ok: false, message: "Password reset is not available." },
       { status: 503 }

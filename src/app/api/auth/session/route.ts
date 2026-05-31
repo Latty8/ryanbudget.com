@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { authenticateUser } from "@/lib/mongodb/auth";
-import { hasMongoDB } from "@/lib/db/config";
+import { isMongoDBConfigured } from "@/lib/db/config";
 import { setOnboardingCompleted, isSyncAvailable } from "@/lib/db/sync-server";
 import { readSession } from "@/lib/auth/read-session";
 import { DEMO_MODE_COOKIE, ONBOARDED_COOKIE, SESSION_COOKIE } from "@/lib/auth/session";
@@ -23,25 +23,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Email is required." }, { status: 400 });
   }
 
-  if (hasMongoDB && !requestDemo && !email.includes("demo@")) {
+  if (isMongoDBConfigured() && !requestDemo && !email.includes("demo@")) {
     if (!password) {
       return NextResponse.json({ ok: false, message: "Password is required." }, { status: 400 });
     }
 
-    const auth = await authenticateUser(email, password);
-    if (!auth.ok) {
-      return NextResponse.json({ ok: false, message: auth.message }, { status: 401 });
+    try {
+      const auth = await authenticateUser(email, password);
+      if (!auth.ok) {
+        return NextResponse.json({ ok: false, message: auth.message }, { status: 401 });
+      }
+
+      const payload: SessionPayload = {
+        userId: auth.user.id,
+        email: auth.user.email,
+        name: auth.user.name,
+        isDemo: false,
+      };
+
+      const response = NextResponse.json({ ok: true, user: payload, mode: "live" });
+      return attachSessionCookies(response, payload);
+    } catch (error) {
+      console.error("[auth/session]", error);
+      return NextResponse.json(
+        { ok: false, message: "Could not connect to the database. Check server logs." },
+        { status: 503 }
+      );
     }
-
-    const payload: SessionPayload = {
-      userId: auth.user.id,
-      email: auth.user.email,
-      name: auth.user.name,
-      isDemo: false,
-    };
-
-    const response = NextResponse.json({ ok: true, user: payload, mode: "live" });
-    return attachSessionCookies(response, payload);
   }
 
   // Demo / offline fallback when MongoDB is not configured.

@@ -15,4 +15,9 @@ export NODE_ENV="${NODE_ENV:-production}"
 export PORT="${PORT:-3002}"
 export HOSTNAME="${HOSTNAME:-127.0.0.1}"
 
+if [[ -z "${MONGODB_URI:-}" ]]; then
+  echo "WARNING: MONGODB_URI is not set — registration and cloud sync will fail." >&2
+  echo "Create .env.production in $ROOT with MONGODB_URI=..." >&2
+fi
+
 exec "$ROOT/node_modules/.bin/next" start -H "$HOSTNAME" -p "$PORT"

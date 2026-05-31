@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { SessionPayload } from "@/lib/auth/session";
 import { authenticateUser } from "@/lib/mongodb/auth";
-import { hasMongoDB } from "@/lib/db/config";
+import { isMongoDBConfigured } from "@/lib/db/config";
 
 /** NextAuth — email + password only (Credentials). Primary flow uses /api/auth/session. */
 export const authOptions: NextAuthOptions = {
@@ -15,7 +15,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!hasMongoDB || !credentials?.email || !credentials?.password) return null;
+        if (!isMongoDBConfigured() || !credentials?.email || !credentials?.password) return null;
         const result = await authenticateUser(String(credentials.email), String(credentials.password));
         if (!result.ok) return null;
         return {

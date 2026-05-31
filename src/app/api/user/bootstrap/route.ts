@@ -31,18 +31,26 @@ export async function GET() {
     });
   }
 
-  await ensureUserProfile(session.userId, session.email, session.name);
-  const mongoUser = await findUserById(session.userId);
-  const onboardingCompleted =
-    mongoUser?.onboardingCompleted ?? (await getOnboardingCompleted(session.userId)) ?? false;
+  try {
+    await ensureUserProfile(session.userId, session.email, session.name);
+    const mongoUser = await findUserById(session.userId);
+    const onboardingCompleted =
+      mongoUser?.onboardingCompleted ?? (await getOnboardingCompleted(session.userId)) ?? false;
 
-  return NextResponse.json({
-    ok: true,
-    onboardingCompleted,
-    syncEnabled: hasCloudDataSync,
-    profile: {
-      email: mongoUser?.email ?? session.email,
-      name: mongoUser?.name ?? session.name,
-    },
-  });
+    return NextResponse.json({
+      ok: true,
+      onboardingCompleted,
+      syncEnabled: hasCloudDataSync,
+      profile: {
+        email: mongoUser?.email ?? session.email,
+        name: mongoUser?.name ?? session.name,
+      },
+    });
+  } catch (error) {
+    console.error("[user/bootstrap]", error);
+    return NextResponse.json(
+      { ok: false, message: "Could not load profile from database." },
+      { status: 503 }
+    );
+  }
 }

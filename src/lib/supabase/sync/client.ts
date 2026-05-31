@@ -2,6 +2,7 @@
 
 import { hasCloudDataSync } from "@/lib/db/client";
 import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
+import { parseJsonResponse } from "@/lib/http/parse-json-response";
 import {
   applyRemoteStateToStore,
   buildLocalRemoteState,
@@ -119,15 +120,15 @@ export async function pushLocalStateToCloud(state: RemoteAppState): Promise<bool
     body: JSON.stringify({ state }),
   });
   if (!res.ok) return false;
-  const body = (await res.json()) as { ok?: boolean; synced?: boolean };
-  return body.ok === true && body.synced !== false;
+  const body = await parseJsonResponse<{ ok?: boolean; synced?: boolean }>(res);
+  return body?.ok === true && body.synced !== false;
 }
 
 export async function pullCloudState(): Promise<RemoteAppState | null> {
   const res = await fetch("/api/sync/pull", { credentials: "include", cache: "no-store" });
   if (!res.ok) return null;
-  const body = (await res.json()) as { state?: RemoteAppState | null; syncEnabled?: boolean };
-  return body.state ?? null;
+  const body = await parseJsonResponse<{ state?: RemoteAppState | null; syncEnabled?: boolean }>(res);
+  return body?.state ?? null;
 }
 
 export async function bootstrapUserSession(): Promise<{
@@ -136,10 +137,11 @@ export async function bootstrapUserSession(): Promise<{
 }> {
   const res = await fetch("/api/user/bootstrap", { credentials: "include", cache: "no-store" });
   if (!res.ok) return { onboardingCompleted: false, syncEnabled: false };
-  const body = (await res.json()) as {
+  const body = await parseJsonResponse<{
     onboardingCompleted?: boolean;
     syncEnabled?: boolean;
-  };
+  }>(res);
+  if (!body) return { onboardingCompleted: false, syncEnabled: false };
   return {
     onboardingCompleted: body.onboardingCompleted === true,
     syncEnabled: body.syncEnabled === true,
