@@ -82,6 +82,7 @@ export function computeDashboardSummary(input: {
     group: row.group,
     budgeted: row.budgeted,
     spent: row.spent,
+    color: row.color,
     rolloverEnabled: true,
   }));
 

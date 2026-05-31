@@ -27,6 +27,8 @@ import {
   DangerButton,
   FieldLabel,
   GhostButton,
+  fintechLink,
+  fintechMuted,
   PageFrame,
   PrimaryButton,
   SectionTitle,
@@ -147,7 +149,7 @@ export function SettingsView() {
     <PageFrame title="Settings">
       <ShellCard>
         <SectionTitle title="Subscription" description={premium ? "You're on Premium." : "Free plan — upgrade anytime."} />
-        <p className="text-sm text-slate-400">
+        <p className={cn("text-sm", fintechMuted)}>
           {premium ? "Unlimited accounts, goals, household sharing, and advanced AI." : "2 accounts, 1 goal, basic AI insights."}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -193,8 +195,8 @@ export function SettingsView() {
             title="Refer friends"
             description="Share your link — earn 1 free Premium month for every 2 successful invites."
           />
-          <p className="font-mono text-sm text-sky-300">{referralCode}</p>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="font-mono text-sm text-[var(--accent)]">{referralCode}</p>
+          <p className={cn("mt-2 text-xs", fintechMuted)}>
             {successfulInvites} invite{successfulInvites === 1 ? "" : "s"} · {premiumMonthsEarned} Premium month
             {premiumMonthsEarned === 1 ? "" : "s"} earned
           </p>
@@ -312,7 +314,7 @@ export function SettingsView() {
             </ShellSelect>
           </div>
         </div>
-        <p className={cn("mt-3 text-xs", isLight ? "text-slate-500" : "text-slate-400")}>
+        <p className={cn("mt-3 text-xs", fintechMuted)}>
           Sample balance preview: {formatMoney(1234.56, preferences.currency)}
         </p>
         <div className="mt-4">
@@ -322,7 +324,9 @@ export function SettingsView() {
               type="button"
               className={cn(
                 "rounded-xl border px-3 py-2 text-left text-sm",
-                theme === "dark" ? "border-sky-400 bg-sky-500/15 text-sky-100" : isLight ? "border-slate-300" : "border-slate-600"
+                theme === "dark"
+                  ? "border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--foreground)]"
+                  : "border-[var(--border)]"
               )}
               onClick={() => setTheme("dark")}
             >
@@ -332,7 +336,9 @@ export function SettingsView() {
               type="button"
               className={cn(
                 "rounded-xl border px-3 py-2 text-left text-sm",
-                theme === "light" ? "border-sky-400 bg-sky-500/15 text-sky-700" : isLight ? "border-slate-300" : "border-slate-600"
+                theme === "light"
+                  ? "border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--foreground)]"
+                  : "border-[var(--border)]"
               )}
               onClick={() => setTheme("light")}
             >
@@ -397,7 +403,7 @@ export function SettingsView() {
 
       <ShellCard>
         <SectionTitle title="Help" description="Guides for bi-weekly pay and recurring rules." />
-        <a href="/help" className="text-sm text-sky-400 hover:underline">
+        <a href="/help" className={cn("text-sm", fintechLink)}>
           Open help & documentation
         </a>
       </ShellCard>

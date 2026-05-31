@@ -1,4 +1,5 @@
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
+import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import { stateFingerprint, stateFingerprintsDiffer } from "@/lib/supabase/sync/sync-fingerprint";
 import type { SyncConflictContext } from "@/lib/supabase/sync/sync-meta-storage";
 import { useAppDataStore } from "@/store/useAppDataStore";
@@ -14,7 +15,7 @@ export function applyRemoteStateToStore(remote: RemoteAppState) {
   try {
     useAppDataStore.setState({
       profile: remote.profile,
-      preferences: remote.preferences,
+      preferences: toSyncedPreferences(remote.preferences),
       onboardingComplete: remote.onboardingCompleted,
       accounts: remote.accounts,
       categories: remote.categories,
@@ -31,7 +32,7 @@ export function buildLocalRemoteState(): RemoteAppState {
   const state = useAppDataStore.getState();
   return {
     profile: state.profile,
-    preferences: state.preferences,
+    preferences: toSyncedPreferences(state.preferences),
     onboardingCompleted: state.onboardingComplete,
     accounts: state.accounts,
     categories: state.categories,
@@ -177,7 +178,7 @@ export function mergeRemoteWithLocal(
 
   return {
     profile: remote.profile.email ? remote.profile : local.profile,
-    preferences: { ...remote.preferences, ...local.preferences },
+    preferences: toSyncedPreferences({ ...remote.preferences, ...local.preferences }),
     onboardingCompleted: remote.onboardingCompleted || local.onboardingCompleted,
     accounts: mergeLists(local.accounts, remote.accounts),
     categories: mergeLists(local.categories, remote.categories),

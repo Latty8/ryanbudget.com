@@ -21,13 +21,14 @@ import {
 } from "@/lib/recurring/cadence-display";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import {
+  EmptyState,
   FieldLabel,
   fintechDivide,
   fintechForeground,
-  fintechGlass,
   fintechLabel,
   fintechLink,
   fintechMuted,
+  fintechSurface,
   GhostButton,
   ModalOverlay,
   MotionSection,
@@ -164,24 +165,22 @@ export function RecurringMinimalView() {
         title="Recurring"
         description="Paycheck, rent, and bills — set once, track every cycle."
       >
-        <div className={cn(fintechGlass, "p-12 text-center")}>
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent-muted)]">
-            <CalendarClock className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.75} />
-          </div>
-          <p className={cn("text-sm font-medium", fintechForeground)}>No recurring items yet</p>
-          <p className={cn("mx-auto mt-2 max-w-xs text-sm", fintechMuted)}>
-            Start with your bi-weekly paycheck, then add rent and subscriptions.
-          </p>
-          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <PrimaryButton type="button" onClick={openCreate}>
-              <Plus className="mr-1.5 inline h-4 w-4" />
-              Add recurring
-            </PrimaryButton>
-            <SetupOnboardingLink className={cn("text-sm font-medium", fintechLink)}>
-              Or use quick setup
-            </SetupOnboardingLink>
-          </div>
-        </div>
+        <EmptyState
+          icon={CalendarClock}
+          title="No recurring items yet"
+          description="Start with your bi-weekly paycheck, then add rent and subscriptions."
+          action={
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <PrimaryButton type="button" onClick={openCreate}>
+                <Plus className="mr-1.5 inline h-4 w-4" />
+                Add recurring
+              </PrimaryButton>
+              <SetupOnboardingLink className={cn("text-sm font-medium", fintechLink)}>
+                Or use quick setup
+              </SetupOnboardingLink>
+            </div>
+          }
+        />
         <ModalOverlay open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? "Edit recurring" : "New recurring"}>
           <RecurringForm form={form} setForm={setForm} onSave={saveRule} onCancel={() => setModalOpen(false)} />
         </ModalOverlay>
@@ -206,7 +205,7 @@ export function RecurringMinimalView() {
       </MotionSection>
 
       <MotionSection delay={0.05} className="mt-6">
-        <ul className={cn(fintechGlass, fintechDivide, "divide-y overflow-hidden")}>
+        <ul className={cn(fintechSurface, fintechDivide, "divide-y overflow-hidden")}>
           <AnimatePresence initial={false}>
             {sorted.map((rule) => {
               const income = isIncomeRecurring(rule.name);

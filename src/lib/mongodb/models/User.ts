@@ -1,13 +1,8 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
-import type { AppPreferences } from "@/types/app-settings";
+import type { SyncedAppPreferences } from "@/types/app-settings";
+import { defaultSyncedPreferences } from "@/lib/preferences/sync-preferences";
 
-const defaultPreferences: AppPreferences = {
-  currency: "USD",
-  dateFormat: "MDY",
-  weekStart: "sunday",
-  budgetPeriod: "bi-weekly",
-  locale: "en",
-};
+const defaultPreferences = defaultSyncedPreferences;
 
 const UserSchema = new Schema(
   {

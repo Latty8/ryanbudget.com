@@ -1,5 +1,6 @@
 "use client";
 
+import { fintechCardBody } from "@/components/fintech/ui";
 import { cn } from "@/lib/utils";
 
 /** Flat, calm card shell — border-first, minimal shadow. */
@@ -47,7 +48,7 @@ export function ElevatedCardSection({
   return (
     <div
       className={cn(
-        "px-4 py-4 sm:px-5 sm:py-4",
+        fintechCardBody,
         muted && "border-t border-[var(--border-subtle)] bg-[var(--surface-elevated)]",
         className
       )}

@@ -15,10 +15,8 @@ import {
   PrimaryButton,
   ShellInput,
   ShellSelect,
-  useShellTheme,
 } from "@/components/fintech/ui";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
-import { cn } from "@/lib/utils";
 import type { AppAccount } from "@/types/app-settings";
 import type { AccountKind } from "@/types/finance";
 
@@ -40,7 +38,6 @@ export function AccountWalletList({
   allowReorder = true,
 }: AccountWalletListProps) {
   const confirm = useConfirm();
-  const { isLight } = useShellTheme();
   const [draft, setDraft] = useState<Omit<AppAccount, "id">>({
     name: "",
     kind: "checking",
@@ -132,11 +129,7 @@ export function AccountWalletList({
 
   return (
     <div className="space-y-5">
-      {visible.length === 0 ? (
-        <p className={cn("text-sm", isLight ? "text-slate-500" : "text-slate-400")}>
-          No wallets yet — add the accounts you actually use.
-        </p>
-      ) : (
+      {visible.length > 0 ? (
         <div className="flex flex-col gap-3">
           {visible.map((account) => {
             const index = accounts.findIndex((a) => a.id === account.id);
@@ -155,7 +148,7 @@ export function AccountWalletList({
             );
           })}
         </div>
-      )}
+      ) : null}
 
       <ElevatedCard className="border-dashed">
         <ElevatedCardSection>

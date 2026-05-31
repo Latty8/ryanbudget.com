@@ -1,4 +1,4 @@
-import type { AppAccount, AppCategory, AppPreferences } from "@/types/app-settings";
+import type { AppAccount, AppCategory, SyncedAppPreferences } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 import type { TransactionInput, TransactionRecord } from "@/types/finance";
 
@@ -27,7 +27,7 @@ export function transactionInputToStoreRow(
   id: string,
   accounts: AppAccount[],
   categories: AppCategory[],
-  preferences: AppPreferences,
+  preferences: SyncedAppPreferences,
   existing?: Pick<DemoTransaction, "amount" | "currency">
 ): DemoTransaction {
   const account = accounts.find((a) => a.id === input.accountId);

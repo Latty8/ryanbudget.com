@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans } from "next/font/google";
 import { AppShell } from "@/components/fintech/app-shell";
 import { ChangelogModal } from "@/components/fintech/lazy-overlays";
@@ -61,6 +61,16 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0d9488" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d9488" },
+  ],
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -71,8 +81,6 @@ export default async function RootLayout({
   return (
     <html lang="en" className={cn("h-full", dmSans.variable)} data-theme="light" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#0d9488" />
-        <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icon.svg" />
       </head>
       <body className="min-h-full touch-manipulation bg-[var(--background)] text-[var(--foreground)] antialiased">

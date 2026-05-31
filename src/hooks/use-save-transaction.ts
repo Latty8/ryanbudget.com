@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import type { TransactionInput } from "@/types/finance";
 import { createTransaction } from "@/lib/supabase/queries/transactions";
 import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { toastTransactionSaved } from "@/lib/feedback/app-feedback";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
@@ -34,7 +35,7 @@ export function useSaveTransaction() {
         validated.message.includes("does not exist");
       if (isSchemaError) {
         appendToStore(input);
-        toast.success("Saved on this device");
+        toastTransactionSaved();
         return { ok: true, message: "Saved locally." };
       }
       toast.error(validated.message);
@@ -44,16 +45,16 @@ export function useSaveTransaction() {
     appendToStore(input);
 
     if (!hasSupabaseDataSync) {
-      toast.success("Saved");
+      toastTransactionSaved();
       return { ok: true, message: "Saved locally." };
     }
 
     if (validated.message === "Transaction saved.") {
-      toast.success("Transaction saved");
+      toastTransactionSaved();
       return validated;
     }
 
-    toast.success("Saved on this device");
+    toastTransactionSaved();
     return { ok: true, message: "Saved locally." };
   }, []);
 }

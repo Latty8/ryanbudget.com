@@ -1,4 +1,5 @@
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
+import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 
 function sortedIds(items: { id: string }[]) {
   return [...items]
@@ -22,7 +23,7 @@ export function stateFingerprint(state: RemoteAppState): string {
     entityPayload(state.transactions),
     entityPayload(state.recurring),
     entityPayload(state.goals),
-    JSON.stringify(state.preferences),
+    JSON.stringify(toSyncedPreferences(state.preferences)),
     JSON.stringify(state.profile),
     state.onboardingCompleted ? "1" : "0",
   ].join("|");

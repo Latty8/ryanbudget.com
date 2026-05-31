@@ -18,6 +18,10 @@ import {
   enrichedTransactions,
 } from "@/lib/demo/enriched-demo-data";
 import { convertAmount } from "@/lib/currency/exchange-rates";
+import {
+  defaultSyncedPreferences,
+  toSyncedPreferences,
+} from "@/lib/preferences/sync-preferences";
 import { clearRecurringProjectionCache } from "@/lib/recurring/project-runs";
 import { demoGoals } from "@/lib/demo/sample-data";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
@@ -27,7 +31,7 @@ import type {
   AppExportBundle,
   AppGoal,
   AppRecurringRule,
-  AppPreferences,
+  SyncedAppPreferences,
   CurrencyCode,
   DateFormatPreference,
   OnboardingProgress,
@@ -40,14 +44,14 @@ type AppDataState = {
   profile: UserProfile;
   accounts: AppAccount[];
   categories: AppCategory[];
-  preferences: AppPreferences;
+  preferences: SyncedAppPreferences;
   onboardingComplete: boolean;
   demoTransactions: typeof enrichedTransactions;
   demoRecurring: AppRecurringRule[];
   goals: AppGoal[];
   onboardingProgress: OnboardingProgress;
   setProfile: (patch: Partial<UserProfile>) => void;
-  setPreferences: (patch: Partial<AppPreferences>) => void;
+  setPreferences: (patch: Partial<SyncedAppPreferences>) => void;
   addAccount: (account: Omit<AppAccount, "id">) => void;
   updateAccount: (id: string, patch: Partial<AppAccount>) => void;
   deleteAccount: (id: string) => void;
@@ -83,13 +87,7 @@ type AppDataState = {
   resetAppData: () => void;
 };
 
-const defaultPreferences: AppPreferences = {
-  currency: "USD",
-  dateFormat: "MDY",
-  weekStart: "sunday",
-  budgetPeriod: "bi-weekly",
-  locale: "en",
-};
+const defaultPreferences = defaultSyncedPreferences;
 
 const initialState = {
   profile: { name: "", email: "" },
@@ -109,7 +107,9 @@ export const useAppDataStore = create<AppDataState>()(
       ...initialState,
       setProfile: (patch) => set((state) => ({ profile: { ...state.profile, ...patch } })),
       setPreferences: (patch) =>
-        set((state) => ({ preferences: { ...state.preferences, ...patch } })),
+        set((state) => ({
+          preferences: toSyncedPreferences({ ...state.preferences, ...patch }),
+        })),
       addAccount: (account) =>
         set((state) => ({
           accounts: [
@@ -322,7 +322,7 @@ export const useAppDataStore = create<AppDataState>()(
         const merged = {
           ...current,
           ...p,
-          preferences: { ...defaultPreferences, ...current.preferences, ...p?.preferences },
+          preferences: toSyncedPreferences({ ...defaultPreferences, ...current.preferences, ...p?.preferences }),
         };
         return {
           ...merged,
@@ -351,7 +351,7 @@ export function formatMoneyWithSource(
   return `${main} (${native})`;
 }
 
-export function preferenceLabels(prefs: AppPreferences) {
+export function preferenceLabels(prefs: SyncedAppPreferences) {
   const dateFormats: Record<DateFormatPreference, string> = {
     MDY: "MM/DD/YYYY",
     DMY: "DD/MM/YYYY",

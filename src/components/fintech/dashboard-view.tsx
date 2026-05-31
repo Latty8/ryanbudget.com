@@ -1,33 +1,40 @@
 "use client";
 
+import { RefreshCw } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { motion } from "framer-motion";
-import { DashboardAiInsights } from "@/components/fintech/dashboard-ai-insights";
 import { DashboardBudgetProgress } from "@/components/fintech/dashboard-budget-progress";
 import { DashboardCashflowMinimal } from "@/components/fintech/dashboard-cashflow-minimal";
-import { getEffectiveBudgetPeriod, periodLabel, periodSpentLabel } from "@/lib/budget/period";
+import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
+import { useBudgetViewPeriod } from "@/hooks/use-budget-view-period";
+import { periodLabel, periodSpentLabel } from "@/lib/budget/period";
 import {
   fintechDivide,
   fintechDisplay,
   fintechForeground,
-  fintechGlass,
   fintechHero,
   fintechLabel,
   fintechLink,
   fintechMuted,
+  EmptyState,
   fintechSurface,
   Skeleton,
 } from "@/components/fintech/ui";
 import { computeDashboardSummary } from "@/lib/dashboard/compute-summary";
 import { useMounted } from "@/components/use-mounted";
-import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import type { RecurringFrequency } from "@/types/finance";
 import { useShallow } from "zustand/react/shallow";
+
+const DashboardAiInsights = dynamic(
+  () => import("@/components/fintech/dashboard-ai-insights").then((m) => ({ default: m.DashboardAiInsights })),
+  { loading: () => <Skeleton className="h-48 rounded-[var(--radius-card)]" /> }
+);
 
 const fadeUp = {
   initial: { opacity: 0, y: 12 },
@@ -50,12 +57,16 @@ function UpcomingList({
 
   if (items.length === 0) {
     return (
-      <p className={cn("text-sm", fintechMuted)}>
-        Add recurring in{" "}
-        <Link href="/recurring" className={fintechLink}>
-          Recurring
-        </Link>
-      </p>
+      <EmptyState
+        icon={RefreshCw}
+        title="Nothing scheduled yet"
+        description="Add your bi-weekly paycheck and recurring bills to see what's coming up."
+        action={
+          <Link href="/recurring" className={cn("text-sm font-medium", fintechLink)}>
+            Set up recurring
+          </Link>
+        }
+      />
     );
   }
 
@@ -99,10 +110,7 @@ export function DashboardView() {
       }))
     );
 
-  const budgetPeriod = useMemo(
-    () => getEffectiveBudgetPeriod(preferences.budgetPeriod, recurring),
-    [preferences.budgetPeriod, recurring]
-  );
+  const budgetPeriod = useBudgetViewPeriod(recurring);
 
   const data = useMemo(
     () =>
@@ -140,12 +148,12 @@ export function DashboardView() {
   return (
     <div className="space-y-8 pb-24 md:space-y-10 md:pb-0">
       {needsSetup ? (
-        <motion.section {...fadeUp} className={cn(fintechGlass, "p-8 text-center")}>
+        <motion.section {...fadeUp} className={cn(fintechSurface, "p-6 text-center sm:p-8")}>
           <p className={cn("text-lg font-semibold", fintechForeground)}>Welcome — start with your paycheck</p>
           <p className={cn("mx-auto mt-2 max-w-sm text-sm leading-relaxed", fintechMuted)}>
             Tell us when you get paid and which bills repeat each month.
           </p>
-          <SetupOnboardingLink className="mt-6 inline-flex rounded-full bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:brightness-110">
+          <SetupOnboardingLink className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-[var(--accent-foreground)] shadow-sm transition hover:brightness-105">
             Set up in 2 minutes
           </SetupOnboardingLink>
         </motion.section>
@@ -161,10 +169,10 @@ export function DashboardView() {
       <motion.section
         {...fadeUp}
         transition={{ delay: 0.1 }}
-        className={cn(fintechHero, "relative overflow-hidden px-8 py-10")}
+        className={cn(fintechHero, "relative overflow-hidden px-6 py-8 sm:px-8 sm:py-10")}
       >
         <div
-          className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"
+          className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5 blur-2xl"
           aria-hidden
         />
         <p className="text-sm font-medium text-white/70">Money left to spend</p>
@@ -186,14 +194,14 @@ export function DashboardView() {
         transition={{ delay: 0.15 }}
         className="grid grid-cols-2 gap-4 md:gap-6"
       >
-        <div className={cn(fintechGlass, "p-5")}>
+        <div className={cn(fintechSurface, "p-4 sm:p-5")}>
           <p className={fintechLabel}>Income</p>
           <p className="mt-2 text-2xl font-semibold text-[var(--positive)]">
             {formatMoney(data.incomeThisMonth, preferences.currency)}
           </p>
           <p className={cn("mt-1 text-xs", fintechMuted)}>This month</p>
         </div>
-        <div className={cn(fintechGlass, "p-5")}>
+        <div className={cn(fintechSurface, "p-4 sm:p-5")}>
           <p className={fintechLabel}>Expenses</p>
           <p className={cn("mt-2 text-2xl font-semibold", fintechForeground)}>
             {formatMoney(data.expensesThisMonth, preferences.currency)}

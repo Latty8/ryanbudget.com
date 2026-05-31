@@ -1,3 +1,4 @@
+import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import { createSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   mapAccountToRow,
@@ -108,7 +109,7 @@ export async function pushRemoteState(userId: string, state: RemoteAppState): Pr
         id: profileId,
         email: state.profile.email,
         full_name: state.profile.name,
-        preferences: state.preferences,
+        preferences: toSyncedPreferences(state.preferences),
         onboarding_completed: state.onboardingCompleted,
         updated_at: new Date().toISOString(),
       },

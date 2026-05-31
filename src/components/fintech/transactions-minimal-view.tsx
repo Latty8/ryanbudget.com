@@ -2,16 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Pencil, Search, Trash2 } from "lucide-react";
+import { Pencil, ReceiptText, Search, Trash2 } from "lucide-react";
 import { startOfMonth } from "date-fns";
 import { TransactionEntryModal } from "@/components/fintech/transaction-entry-modal";
 import {
+  EmptyState,
   FilterChip,
   fintechForeground,
-  fintechGlass,
+  fintechIconButton,
   fintechLabel,
   fintechMuted,
+  fintechSurface,
   PageFrame,
+  PrimaryButton,
 } from "@/components/fintech/ui";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { useDeleteTransaction, useTransactionSubmit } from "@/hooks/use-transaction-mutations";
@@ -49,6 +52,8 @@ export function TransactionsMinimalView() {
   const [filter, setFilter] = useState<"all" | "this-month" | "expenses" | "income">("all");
   const [editTransaction, setEditTransaction] = useState<TransactionRecord | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const storeTransactions = useAppDataStore((s) => s.demoTransactions);
   const primaryCurrency = useAppDataStore((s) => s.preferences.currency);
@@ -108,6 +113,17 @@ export function TransactionsMinimalView() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    const handler = () => {
+      const latest = useAppDataStore.getState().demoTransactions[0]?.id;
+      if (!latest) return;
+      setFlashId(latest);
+      window.setTimeout(() => setFlashId(null), 1200);
+    };
+    window.addEventListener("planner:transaction-saved", handler);
+    return () => window.removeEventListener("planner:transaction-saved", handler);
+  }, []);
+
   const filters = [
     ["all", "All"],
     ["this-month", "This month"],
@@ -120,7 +136,7 @@ export function TransactionsMinimalView() {
       title="Transactions"
       description="Grouped by date · tap a row to edit"
     >
-      <div className={cn(fintechGlass, "space-y-4 p-4 md:p-5")}>
+      <div className={cn(fintechSurface, "space-y-4 p-4 md:p-5")}>
         <label className="relative block">
           <Search
             className={cn(
@@ -134,7 +150,7 @@ export function TransactionsMinimalView() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search merchants, categories…"
-            className="w-full rounded-[var(--radius-field)] border border-[var(--border)] bg-[var(--surface-elevated)] py-2.5 pl-10 pr-3 text-sm text-[var(--foreground)] shadow-[var(--shadow-inner)] outline-none transition-all placeholder:text-[var(--muted)] focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
+            className="min-h-11 w-full rounded-[var(--radius-field)] border border-[var(--border)] bg-[var(--surface-elevated)] py-3 pl-10 pr-3 text-base text-[var(--foreground)] shadow-[var(--shadow-inner)] outline-none transition-all placeholder:text-[var(--muted)] focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)] sm:text-sm"
           />
         </label>
         <div className="flex flex-wrap gap-2">
@@ -147,10 +163,19 @@ export function TransactionsMinimalView() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className={cn(fintechGlass, "border-dashed py-16 text-center")}>
-          <p className={cn("text-sm font-medium", fintechForeground)}>No transactions yet</p>
-          <p className={cn("mt-1 text-xs", fintechMuted)}>Use the + button below to add one</p>
-        </div>
+        <EmptyState
+          icon={ReceiptText}
+          title="No transactions yet"
+          description="Log spending and income as it happens — great for staying on track between paychecks."
+          action={
+            <PrimaryButton
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("planner:new-transaction"))}
+            >
+              Add transaction
+            </PrimaryButton>
+          }
+        />
       ) : (
         <div className="space-y-8">
           <AnimatePresence initial={false}>
@@ -164,17 +189,22 @@ export function TransactionsMinimalView() {
               >
                 <h2
                   className={cn(
-                    "sticky top-16 z-10 -mx-1 mb-3 rounded-lg px-2 py-2 backdrop-blur-md",
+                    "sticky top-14 z-10 -mx-1 mb-3 rounded-lg px-2 py-2 backdrop-blur-md sm:top-16",
                     fintechLabel,
                     "bg-[var(--background)]/90"
                   )}
                 >
                   {group.label}
                 </h2>
-                <ul className={cn(fintechGlass, "divide-y divide-[var(--border-subtle)] overflow-hidden")}>
+                <ul className={cn(fintechSurface, "divide-y divide-[var(--border-subtle)] overflow-hidden")}>
                   {group.rows.map((row) => (
                     <li key={row.id}>
-                      <div className="group flex items-center gap-3 px-4 py-4 transition-colors duration-200 hover:bg-[var(--surface-hover)]">
+                      <div
+                        className={cn(
+                          "group flex items-center gap-3 px-4 py-4 transition-colors duration-200 hover:bg-[var(--surface-hover)]",
+                          flashId === row.id && "row-highlight"
+                        )}
+                      >
                         <button
                           type="button"
                           className="min-w-0 flex-1 text-left"
@@ -197,14 +227,14 @@ export function TransactionsMinimalView() {
                           {formatMoneyWithSource(row.amount, primaryCurrency, row.currency)}
                         </p>
                         <div
-                          className="flex shrink-0 gap-0.5"
+                          className="flex shrink-0 gap-1"
                           onClick={(e) => e.stopPropagation()}
                           onKeyDown={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
                             aria-label={`Edit ${row.description}`}
-                            className="rounded-lg p-2.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--foreground)]"
+                            className={fintechIconButton}
                             onClick={() => openEdit(row)}
                           >
                             <Pencil className="h-4 w-4" strokeWidth={1.75} />
@@ -212,7 +242,7 @@ export function TransactionsMinimalView() {
                           <button
                             type="button"
                             aria-label={`Delete ${row.description}`}
-                            className="rounded-lg p-2.5 text-[var(--muted)] transition-colors hover:bg-rose-500/12 hover:text-rose-500"
+                            className={cn(fintechIconButton, "border-rose-500/30 text-rose-500 hover:bg-rose-500/10 hover:text-rose-500")}
                             onClick={() => handleDelete(row)}
                           >
                             <Trash2 className="h-4 w-4" strokeWidth={1.75} />

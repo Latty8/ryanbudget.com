@@ -64,16 +64,21 @@ export type AppCategory = {
   budgetBehavior?: CategoryBudgetBehavior;
 };
 
-export type AppPreferences = {
+export type SyncedAppPreferences = {
   currency: CurrencyCode;
   dateFormat: DateFormatPreference;
   weekStart: WeekStartPreference;
-  /** Budget list viewing period (monthly default; bi-weekly available for paycheck cadence) */
-  budgetPeriod: BudgetPeriodPreference;
-  /** Budgets page card density */
-  budgetViewDensity?: BudgetViewDensity;
   locale: AppLocale;
 };
+
+/** Per-device viewing preferences — never synced to the cloud. */
+export type DeviceUiPreferences = {
+  budgetPeriod: BudgetPeriodPreference;
+  budgetViewDensity: BudgetViewDensity;
+};
+
+/** @deprecated Use SyncedAppPreferences + DeviceUiPreferences */
+export type AppPreferences = SyncedAppPreferences & DeviceUiPreferences;
 
 export type AppExportBundle = {
   version: 1;
@@ -81,5 +86,5 @@ export type AppExportBundle = {
   profile: UserProfile;
   accounts: AppAccount[];
   categories: AppCategory[];
-  preferences: AppPreferences;
+  preferences: SyncedAppPreferences;
 };

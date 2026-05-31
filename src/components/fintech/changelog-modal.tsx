@@ -2,9 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { GhostButton, PrimaryButton, ShellCard } from "@/components/fintech/ui";
+import {
+  GhostButton,
+  PrimaryButton,
+  ShellCard,
+  fintechForeground,
+  fintechIconButton,
+  fintechMuted,
+} from "@/components/fintech/ui";
+import { DialogPortal } from "@/components/ui/dialog-portal";
 import { APP_VERSION, CHANGELOG_ENTRIES } from "@/lib/version";
 import { trackEvent } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 export const CHANGELOG_KEY = "planner-changelog-seen";
 export { APP_VERSION as CHANGELOG_VERSION };
@@ -29,23 +38,24 @@ export function ChangelogModal() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-4">
-      <ShellCard className="w-full max-w-md">
-        <div className="flex items-center justify-between">
+    <DialogPortal open={open} layer="modal">
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 bg-[var(--overlay)]/90"
+        onClick={() => setOpen(false)}
+      />
+      <ShellCard className="relative z-10 mx-auto w-full max-w-md shadow-[var(--shadow-modal)]">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-lg font-semibold">What&apos;s new</p>
-            <p className="text-xs text-slate-400">Version {APP_VERSION}</p>
+            <p className={cn("text-lg font-semibold", fintechForeground)}>What&apos;s new</p>
+            <p className={cn("text-xs", fintechMuted)}>Version {APP_VERSION}</p>
           </div>
-          <button
-            type="button"
-            className="rounded-lg p-1 text-slate-400 hover:bg-neutral-800"
-            onClick={() => setOpen(false)}
-            aria-label="Close"
-          >
+          <button type="button" className={fintechIconButton} onClick={() => setOpen(false)} aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <ul className="mt-3 list-inside list-disc space-y-2 text-sm text-slate-300">
+        <ul className={cn("mt-3 list-inside list-disc space-y-2 text-sm", fintechMuted)}>
           {CHANGELOG_ENTRIES.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -64,6 +74,6 @@ export function ChangelogModal() {
           Remind me later
         </GhostButton>
       </ShellCard>
-    </div>
+    </DialogPortal>
   );
 }

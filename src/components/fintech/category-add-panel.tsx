@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { CategoryIconBadge } from "@/components/fintech/category-icon";
 import { NumberField } from "@/components/fintech/number-field";
 import {
+  ColorSwatchPicker,
   FieldLabel,
   fintechMuted,
   PrimaryButton,
@@ -80,7 +81,6 @@ export function CategoryAddPanel({
       return;
     }
     onAdd(presetToCategory(preset));
-    toast.success(`Added ${preset.name}`);
   };
 
   const saveCustom = () => {
@@ -107,7 +107,6 @@ export function CategoryAddPanel({
       group: groupForKind(kind, draft.group),
     });
     setDraft(emptyDraft());
-    toast.success("Category added");
   };
 
   return (
@@ -305,21 +304,12 @@ export function CategoryAddPanel({
           </div>
           <div>
             <FieldLabel>Color</FieldLabel>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {CATEGORY_COLOR_OPTIONS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  aria-label={`Color ${color}`}
-                  onClick={() => setDraft((s) => ({ ...s, color }))}
-                  className={cn(
-                    "h-8 w-8 rounded-full border-2 transition",
-                    draft.color === color ? "border-[var(--foreground)] scale-110" : "border-transparent"
-                  )}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
+            <ColorSwatchPicker
+              className="mt-2"
+              colors={CATEGORY_COLOR_OPTIONS}
+              value={draft.color}
+              onChange={(color) => setDraft((s) => ({ ...s, color }))}
+            />
           </div>
           <div className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5">
             <CategoryIconBadge name={draft.icon} color={draft.color} />

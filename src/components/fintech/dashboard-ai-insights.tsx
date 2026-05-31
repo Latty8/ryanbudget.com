@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  fintechGlass,
+  fintechSurface,
   fintechForeground,
   fintechLabel,
   fintechMuted,
@@ -119,7 +119,7 @@ export function DashboardAiInsights({
     source === "openai" ? "Powered by AI" : source === "grok" ? "Powered by Grok" : "Smart analysis";
 
   return (
-    <section className={cn(fintechGlass, "overflow-hidden")}>
+    <section className={cn(fintechSurface, "overflow-hidden")}>
       <div className="flex w-full items-center justify-between gap-3 p-5 md:p-6">
         <button
           type="button"
@@ -182,7 +182,7 @@ export function DashboardAiInsights({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05, duration: 0.3 }}
                       className={cn(
-                        "flex gap-3 rounded-2xl border p-4 shadow-[var(--shadow-inner)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]",
+                        "flex gap-3 rounded-2xl border p-4 shadow-sm transition-colors duration-200 hover:border-[var(--border-strong)]",
                         style.wrap
                       )}
                     >

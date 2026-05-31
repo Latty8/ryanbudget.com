@@ -2,7 +2,6 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { isApplyingRemoteSync } from "@/lib/supabase/sync/apply-sync";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
 export const APP_QUERY_KEYS = {
@@ -27,7 +26,6 @@ export function SyncQueryBridge() {
 
   useEffect(() => {
     return useAppDataStore.subscribe((state, prev) => {
-      if (isApplyingRemoteSync()) return;
       if (
         state.accounts === prev.accounts &&
         state.categories === prev.categories &&
@@ -37,7 +35,8 @@ export function SyncQueryBridge() {
       ) {
         return;
       }
-      invalidateAppQueries(queryClient);
+      // Defer so invalidation runs after applyRemoteStateToStore clears its guard.
+      queueMicrotask(() => invalidateAppQueries(queryClient));
     });
   }, [queryClient]);
 

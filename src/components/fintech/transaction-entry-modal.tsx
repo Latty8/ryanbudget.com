@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Loader2, Mic, Plus, Sparkles, X } from "lucide-react";
 
+import { motion } from "framer-motion";
+
 import { nanoid } from "nanoid";
 
 import { toast } from "sonner";
@@ -13,7 +15,9 @@ import { toast } from "sonner";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 
 import { NumberField } from "@/components/fintech/number-field";
+import { GhostButton, PrimaryButton, fintechIconButton } from "@/components/fintech/ui";
 import { ModalPortal } from "@/components/ui/modal-portal";
+import { toastTransactionSaved } from "@/lib/feedback/app-feedback";
 
 import { NlpTransactionPreview } from "@/components/fintech/nlp-transaction-preview";
 
@@ -28,6 +32,7 @@ import { formatConvertedHint } from "@/lib/currency/exchange-rates";
 import { demoAccounts, demoBudgets } from "@/lib/demo/sample-data";
 
 import { trackEvent } from "@/lib/analytics";
+import { cn } from "@/lib/utils";
 
 import type { ParsedTransactionDraft } from "@/lib/ai/parse-transaction";
 import type { ReceiptScanSuggestion } from "@/lib/receipts/receipt-scan";
@@ -373,27 +378,27 @@ export function TransactionEntryModal({
         <button
           type="button"
           aria-label="Close"
-          className="absolute inset-0 bg-[var(--overlay)]"
+          className="absolute inset-0 bg-[var(--overlay)]/90"
           onClick={() => onOpenChange(false)}
         />
 
-      <div
-
-        className="relative z-10 mx-auto max-h-[min(90dvh,calc(100dvh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--modal-solid)] p-4 text-[var(--foreground)] shadow-sm sm:p-5"
-
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 mx-auto flex max-h-[min(90dvh,calc(100dvh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-full max-w-2xl flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--modal-solid)] text-[var(--foreground)] shadow-[var(--shadow-modal)]"
         role="dialog"
-
         aria-modal="true"
-
         aria-labelledby="tx-modal-title"
-
       >
 
-        <div className="mb-3 flex items-center justify-between">
+        <div className="shrink-0 px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
+
+          <div className="flex items-center justify-between">
 
           <div>
 
-            <p className="text-sm text-slate-400">{editTransaction ? "Edit" : "Quick transaction"}</p>
+            <p className="text-sm text-[var(--muted)]">{editTransaction ? "Edit" : "Quick transaction"}</p>
 
             <h2 id="tx-modal-title" className="text-lg font-semibold">
 
@@ -407,7 +412,7 @@ export function TransactionEntryModal({
 
             type="button"
 
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className={fintechIconButton}
 
             onClick={() => onOpenChange(false)}
 
@@ -419,21 +424,25 @@ export function TransactionEntryModal({
 
           </button>
 
+          </div>
+
         </div>
 
 
 
-        <div className="grid gap-3">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5">
+
+        <div className="grid gap-3 pb-4">
 
           <label className="grid gap-1">
 
-            <span className="text-xs text-slate-400">Natural language</span>
+            <span className="text-xs text-[var(--muted)]">Natural language</span>
 
             <div className="flex flex-col gap-2 sm:flex-row">
 
               <input
 
-                className="min-h-11 flex-1 rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2.5 text-base outline-none focus-visible:border-violet-400 focus-visible:ring-2 focus-visible:ring-violet-400/30 sm:text-sm"
+                className="min-h-11 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2.5 text-base outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)] sm:text-sm"
 
                 placeholder='e.g. $67.50 groceries at Walmart last Friday'
 
@@ -467,7 +476,7 @@ export function TransactionEntryModal({
 
                 disabled={nlpLoading || !nlpText.trim() || !nlpEnabled}
 
-                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-violet-500/50 px-4 py-2.5 text-sm text-violet-200 touch-manipulation disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--accent)]/40 px-4 py-2.5 text-sm text-[var(--accent)] touch-manipulation disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
 
                 onClick={() => void runNlpParse()}
 
@@ -531,7 +540,7 @@ export function TransactionEntryModal({
 
           <label className="grid gap-1">
 
-            <span className="text-xs text-slate-400">Amount</span>
+            <span className="text-xs text-[var(--muted)]">Amount</span>
 
             <NumberField
 
@@ -549,7 +558,7 @@ export function TransactionEntryModal({
 
             {conversionHint ? (
 
-              <span className="text-xs text-sky-300">{conversionHint} in your primary currency</span>
+              <span className="text-xs text-[var(--accent)]">{conversionHint} in your primary currency</span>
 
             ) : null}
 
@@ -559,11 +568,11 @@ export function TransactionEntryModal({
 
           <label className="grid gap-1">
 
-            <span className="text-xs text-slate-400">Transaction currency</span>
+            <span className="text-xs text-[var(--muted)]">Transaction currency</span>
 
             <select
 
-              className="min-h-11 rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2 text-sm outline-none focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/30"
+              className="min-h-11 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
 
               value={txCurrency}
 
@@ -595,11 +604,11 @@ export function TransactionEntryModal({
 
             <label className="grid gap-1">
 
-              <span className="text-xs text-slate-400">Date</span>
+              <span className="text-xs text-[var(--muted)]">Date</span>
 
               <input
 
-                className="min-h-11 rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2 outline-none focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/30"
+                className="min-h-11 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
 
                 type="date"
 
@@ -613,11 +622,11 @@ export function TransactionEntryModal({
 
             <label className="grid gap-1">
 
-              <span className="text-xs text-slate-400">Account</span>
+              <span className="text-xs text-[var(--muted)]">Account</span>
 
               <select
 
-                className="min-h-11 rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2 outline-none focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/30"
+                className="min-h-11 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
 
                 value={input.accountId}
 
@@ -645,13 +654,13 @@ export function TransactionEntryModal({
 
           <label className="grid gap-1">
 
-            <span className="text-xs text-slate-400">Description</span>
+            <span className="text-xs text-[var(--muted)]">Description</span>
 
             <div className="relative">
 
               <input
 
-                className="min-h-11 w-full rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2 pr-12 text-base outline-none focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/30 sm:text-sm"
+                className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 pr-12 text-base outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)] sm:text-sm"
 
                 placeholder="Coffee, Uber, Rent..."
 
@@ -665,7 +674,7 @@ export function TransactionEntryModal({
 
                 type="button"
 
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-slate-400 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                className={cn(fintechIconButton, "absolute right-1 top-1/2 -translate-y-1/2 !min-h-10 !min-w-10")}
 
                 aria-label="Voice input coming soon"
 
@@ -687,7 +696,7 @@ export function TransactionEntryModal({
 
             <div className="flex flex-wrap gap-2">
 
-              <p className="inline-flex items-center gap-1 text-xs text-slate-400">
+              <p className="inline-flex items-center gap-1 text-xs text-[var(--muted)]">
 
                 <Sparkles className="h-3 w-3" /> Suggestions
 
@@ -701,7 +710,7 @@ export function TransactionEntryModal({
 
                   type="button"
 
-                  className="rounded-full border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:border-sky-400"
+                  className="rounded-full border border-[var(--border)] px-2 py-1 text-xs text-[var(--foreground)] hover:border-[var(--accent)]"
 
                   onClick={() => setInput((prev) => ({ ...prev, categoryId: suggestion }))}
 
@@ -721,11 +730,11 @@ export function TransactionEntryModal({
 
           <label className="grid gap-1">
 
-            <span className="text-xs text-slate-400">Category</span>
+            <span className="text-xs text-[var(--muted)]">Category</span>
 
             <select
 
-              className="min-h-11 rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2 outline-none focus-visible:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400/30"
+              className="min-h-11 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)]"
 
               value={input.categoryId}
 
@@ -751,15 +760,15 @@ export function TransactionEntryModal({
 
           {goals.length > 0 ? (
 
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <div className="rounded-xl border border-[var(--positive)]/20 bg-[var(--positive-muted)] p-3">
 
-              <p className="text-xs font-medium text-emerald-300">Also add to a savings goal</p>
+              <p className="text-xs font-medium text-[var(--positive)]">Also add to a savings goal</p>
 
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
 
                 <select
 
-                  className="min-h-11 rounded-xl border border-slate-600 bg-neutral-950 px-3 py-2 text-sm outline-none focus-visible:border-emerald-400"
+                  className="min-h-11 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 text-sm outline-none focus-visible:border-[var(--positive)] focus-visible:ring-2 focus-visible:ring-[var(--positive-muted)]"
 
                   value={goalContributionId}
 
@@ -815,7 +824,7 @@ export function TransactionEntryModal({
 
                 type="button"
 
-                className={`rounded-full border px-2 py-1 text-xs ${input.tags.includes(tag) ? "border-sky-400 bg-sky-500/20 text-sky-200" : "border-slate-600 text-slate-300"}`}
+                className={`rounded-full border px-2 py-1 text-xs ${input.tags.includes(tag) ? "border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--foreground)]"}`}
 
                 onClick={() => toggleTag(tag)}
 
@@ -831,7 +840,7 @@ export function TransactionEntryModal({
 
 
 
-          <div className="rounded-xl border border-slate-700 bg-neutral-950/70 p-3">
+          <div className="rounded-xl border border-[var(--border-strong)] bg-[var(--surface-elevated)]/70 p-3">
 
             <div className="flex flex-wrap items-center justify-between gap-2">
 
@@ -855,7 +864,7 @@ export function TransactionEntryModal({
 
                 <select
 
-                  className="rounded-lg border border-slate-600 bg-neutral-900 px-2 py-1 text-xs"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1 text-xs"
 
                   value={input.recurringFrequency}
 
@@ -893,7 +902,7 @@ export function TransactionEntryModal({
 
             <div className="mt-3">
 
-              <button type="button" className="text-xs text-slate-300 underline" onClick={() => setShowSplit((prev) => !prev)}>
+              <button type="button" className="text-xs text-[var(--foreground)] underline" onClick={() => setShowSplit((prev) => !prev)}>
 
                 {showSplit ? "Hide split lines" : "Split transaction"}
 
@@ -909,7 +918,7 @@ export function TransactionEntryModal({
 
                       <input
 
-                        className="rounded-lg border border-slate-600 bg-neutral-900 px-2 py-1 text-sm"
+                        className="rounded-lg border border-[var(--border)] bg-[var(--surface-elevated)] px-2 py-1 text-sm"
 
                         placeholder="Category"
 
@@ -955,7 +964,7 @@ export function TransactionEntryModal({
 
                     type="button"
 
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-600 px-2 py-1 text-xs"
+                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] px-2 py-1 text-xs"
 
                     onClick={() =>
 
@@ -996,32 +1005,24 @@ export function TransactionEntryModal({
 
 
 
-          {message ? <p className="text-xs text-slate-300">{message}</p> : null}
+          {message ? <p className="text-xs text-[var(--foreground)]">{message}</p> : null}
 
-          <div className="flex flex-col-reverse gap-2 pb-safe sm:flex-row sm:justify-end">
+        </div>
 
-            <button
+        </div>
 
-              type="button"
+          <div className="shrink-0 border-t border-[var(--border-subtle)] bg-[var(--modal-solid)] px-4 py-4 pb-safe sm:px-5">
 
-              className="min-h-11 w-full rounded-xl border border-slate-600 px-4 py-2.5 text-sm touch-manipulation sm:w-auto"
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 
-              onClick={() => onOpenChange(false)}
-
-            >
-
+            <GhostButton type="button" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
               Cancel
+            </GhostButton>
 
-            </button>
-
-            <button
-
+            <PrimaryButton
               type="button"
-
               disabled={!canSave || saving}
-
-              className="min-h-11 w-full rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-slate-950 touch-manipulation disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
-
+              className="w-full sm:w-auto"
               onClick={async () => {
 
                 setSaving(true);
@@ -1039,7 +1040,7 @@ export function TransactionEntryModal({
                 if (!navigator.onLine) {
                   saveOfflineDraft(payload);
                   setSaving(false);
-                  toast.success("Saved offline — will sync when you're back online");
+                  toastTransactionSaved({ offline: true });
                   onOpenChange(false);
                   return;
                 }
@@ -1111,16 +1112,23 @@ export function TransactionEntryModal({
               }}
 
             >
-
-              {saving ? "Saving..." : editTransaction ? "Save changes" : "Save transaction"}
-
-            </button>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  Saving…
+                </>
+              ) : editTransaction ? (
+                "Save changes"
+              ) : (
+                "Save transaction"
+              )}
+            </PrimaryButton>
 
           </div>
 
-        </div>
+          </div>
 
-      </div>
+      </motion.div>
 
     </ModalPortal>
 

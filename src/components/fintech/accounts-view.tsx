@@ -1,13 +1,13 @@
 "use client";
 
-import { Loader2, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AccountWalletList } from "@/components/fintech/account-wallet-list";
 import {
   EmptyState,
-  fintechGlass,
+  fintechSurface,
   fintechMuted,
   PageFrame,
   ShellCard,
@@ -53,43 +53,37 @@ export function AccountsView() {
       description="Manage checking, savings, credit, and cash accounts. Reorder to set your preferred picker order."
     >
       {loading ? (
-        <ShellCard className="flex items-center justify-center gap-2 p-10 text-sm text-[var(--muted)]">
-          <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" aria-hidden />
-          Loading wallets…
-        </ShellCard>
-      ) : null}
-
-      {!loading && accounts.length === 0 ? (
-        <EmptyState
-          icon={Wallet}
-          title="No wallets yet"
-          description="Add the accounts you actually use — checking, savings, credit cards, and cash."
-        />
-      ) : null}
-
-      {!loading ? (
-        <AccountWalletList
-          accounts={accounts}
-          onChange={handleAccountsChange}
-          transactionCountByAccount={countTransactionsForAccount}
-          onReassignTransactions={(from, to) => {
-            useAppDataStore.setState((state) => ({
-              demoTransactions: state.demoTransactions.map((t) =>
-                t.account === from ? { ...t, account: to } : t
-              ),
-            }));
-          }}
-          showHidden
-          allowReorder
-        />
-      ) : (
         <ShellCard className="space-y-3 p-5">
-          <Skeleton className="h-40 w-full rounded-2xl" />
-          <Skeleton className="h-40 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
         </ShellCard>
-      )}
+      ) : (
+        <>
+          {accounts.length === 0 ? (
+            <EmptyState
+              icon={Wallet}
+              title="No wallets yet"
+              description="Add the accounts you actually use — checking, savings, credit cards, and cash."
+            />
+          ) : null}
 
-      <p className={cn(fintechGlass, "mt-4 px-4 py-3 text-xs", fintechMuted)}>
+          <AccountWalletList
+            accounts={accounts}
+            onChange={handleAccountsChange}
+            transactionCountByAccount={countTransactionsForAccount}
+            onReassignTransactions={(from, to) => {
+              useAppDataStore.setState((state) => ({
+                demoTransactions: state.demoTransactions.map((t) =>
+                  t.account === from ? { ...t, account: to } : t
+                ),
+              }));
+            }}
+            showHidden
+            allowReorder
+          />
+        </>
+      )}
+      <p className={cn(fintechSurface, "mt-4 px-4 py-3 text-xs", fintechMuted)}>
         Hidden wallets stay in your data but won&apos;t appear in transaction pickers.
       </p>
     </PageFrame>

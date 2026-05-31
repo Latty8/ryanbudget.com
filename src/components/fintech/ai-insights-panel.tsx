@@ -5,7 +5,7 @@ import { Brain, Loader2, MessageCircle, Sparkles, Target, TrendingUp, Wand2 } fr
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { GhostButton, PrimaryButton, ShellCard, ShellInput, ShellSelect, useShellTheme } from "@/components/fintech/ui";
+import { GhostButton, PrimaryButton, ShellCard, ShellInput, ShellSelect, fintechForeground, fintechInsightAccent, fintechInsightBox, fintechInsightPositive, fintechInsightWarning, fintechLabel, fintechLink, fintechMuted } from "@/components/fintech/ui";
 import type { DashboardInsight, DashboardSummary } from "@/types/finance";
 import type { AppCategory, AppGoal } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
@@ -38,7 +38,6 @@ export function AiInsightsPanel({
   currency,
   baselineInsights,
 }: AiInsightsPanelProps) {
-  const { isLight } = useShellTheme();
   const { premium, canUse } = usePremium();
   const aiReady = useDeferredMount(2500);
   const [insights, setInsights] = useState<DashboardInsight[]>(baselineInsights);
@@ -162,14 +161,14 @@ export function AiInsightsPanel({
   return (
     <ShellCard>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-2 text-sm font-medium">
-          <Brain className="h-4 w-4 text-violet-400" aria-hidden />
+        <p className={cn("inline-flex items-center gap-2 text-sm font-medium", fintechForeground)}>
+          <Brain className="h-4 w-4 text-[var(--accent)]" aria-hidden />
           AI financial coach
         </p>
         <div className="flex items-center gap-2">
-          <span className={cn("text-xs", isLight ? "text-slate-500" : "text-slate-400")}>{sourceLabel}</span>
+          <span className={cn("text-xs", fintechMuted)}>{sourceLabel}</span>
           {!premium ? (
-            <Link href="/pricing" className="text-xs text-violet-300 hover:underline">
+            <Link href="/pricing" className={cn("text-xs", fintechLink)}>
               Upgrade for advanced AI
             </Link>
           ) : null}
@@ -192,45 +191,35 @@ export function AiInsightsPanel({
       </div>
 
       {coachQuery.isLoading && coachEnabled ? (
-        <div className="mb-4 flex items-center gap-2 text-xs text-slate-400">
+        <div className={cn("mb-4 flex items-center gap-2 text-xs", fintechMuted)}>
           <Loader2 className="h-4 w-4 animate-spin" />
           Building your weekly coach report…
         </div>
       ) : null}
 
       {coachQuery.data?.weekly ? (
-        <div
-          className={cn(
-            "mb-4 rounded-xl border p-3",
-            isLight ? "border-sky-200 bg-sky-50" : "border-sky-500/30 bg-sky-500/5"
-          )}
-        >
-          <p className="text-[10px] font-medium uppercase tracking-wide text-sky-400">
+        <div className={cn("mb-4", fintechInsightAccent)}>
+          <p className={cn(fintechLabel, "normal-case tracking-normal text-[var(--accent)]")}>
             {coachQuery.data.weekly.weekLabel}
           </p>
-          <p className="mt-1 text-sm font-medium">{coachQuery.data.weekly.headline}</p>
-          <p className={cn("mt-1 text-xs", isLight ? "text-slate-600" : "text-slate-400")}>
+          <p className={cn("mt-1 text-sm font-medium", fintechForeground)}>{coachQuery.data.weekly.headline}</p>
+          <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>
             {coachQuery.data.weekly.body}
           </p>
         </div>
       ) : null}
 
       {coachQuery.data?.coach ? (
-        <div
-          className={cn(
-            "mb-4 rounded-xl border p-3",
-            isLight ? "border-violet-200 bg-violet-50" : "border-violet-500/30 bg-violet-500/5"
-          )}
-        >
-          <p className="text-sm font-medium">{coachQuery.data.coach.headline}</p>
-          <p className={cn("mt-1 text-xs", isLight ? "text-slate-600" : "text-slate-400")}>
+        <div className={cn("mb-4", fintechInsightBox)}>
+          <p className={cn("text-sm font-medium", fintechForeground)}>{coachQuery.data.coach.headline}</p>
+          <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>
             {coachQuery.data.coach.body}
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
             {coachQuery.data.coach.focusAreas.map((area) => (
               <li
                 key={area}
-                className="rounded-full border border-violet-500/40 px-2 py-0.5 text-xs text-violet-200"
+                className="rounded-full border border-[var(--accent)]/30 px-2 py-0.5 text-xs text-[var(--foreground)]"
               >
                 {area}
               </li>
@@ -241,7 +230,7 @@ export function AiInsightsPanel({
 
       {coachQuery.data?.spendingHabits && coachQuery.data.spendingHabits.length > 0 ? (
         <div className="mb-4 space-y-2">
-          <p className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+          <p className={cn("inline-flex items-center gap-1", fintechLabel)}>
             <TrendingUp className="h-3 w-3" aria-hidden />
             Spending habits
           </p>
@@ -251,16 +240,14 @@ export function AiInsightsPanel({
               className={cn(
                 "rounded-lg border px-3 py-2 text-xs",
                 h.tone === "warning"
-                  ? "border-amber-500/30 bg-amber-500/5"
+                  ? fintechInsightWarning
                   : h.tone === "positive"
-                    ? "border-emerald-500/30 bg-emerald-500/5"
-                    : isLight
-                      ? "border-slate-200 bg-slate-50"
-                      : "border-slate-700 bg-neutral-900"
+                    ? fintechInsightPositive
+                    : fintechInsightBox
               )}
             >
-              <p className="font-medium">{h.title}</p>
-              <p className={cn("mt-0.5", isLight ? "text-slate-600" : "text-slate-400")}>{h.detail}</p>
+              <p className={cn("font-medium", fintechForeground)}>{h.title}</p>
+              <p className={cn("mt-0.5", fintechMuted)}>{h.detail}</p>
             </div>
           ))}
         </div>
@@ -268,13 +255,16 @@ export function AiInsightsPanel({
 
       {coachQuery.data?.goalPredictions && coachQuery.data.goalPredictions.length > 0 ? (
         <div className="mb-4 space-y-2">
-          <p className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+          <p className={cn("inline-flex items-center gap-1", fintechLabel)}>
             <Target className="h-3 w-3" aria-hidden />
             Goal predictions
           </p>
           {coachQuery.data.goalPredictions.map((g) => (
-            <p key={g.goalId} className={cn("text-xs", isLight ? "text-slate-600" : "text-slate-400")}>
-              <span className={g.onTrack ? "text-emerald-400" : "text-amber-300"}>{g.name}:</span> {g.message}
+            <p key={g.goalId} className={cn("text-xs", fintechMuted)}>
+              <span className={g.onTrack ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                {g.name}:
+              </span>{" "}
+              {g.message}
             </p>
           ))}
         </div>
@@ -282,10 +272,10 @@ export function AiInsightsPanel({
 
       {anomaliesQuery.data?.anomalies && anomaliesQuery.data.anomalies.length > 0 ? (
         <div className="mb-4 space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-400">Anomalies detected</p>
+          <p className={cn(fintechLabel, "text-amber-600 dark:text-amber-400")}>Anomalies detected</p>
           {anomaliesQuery.data.anomalies.slice(0, 3).map((a) => (
-            <p key={a.category} className={cn("text-xs", isLight ? "text-slate-600" : "text-slate-400")}>
-              <span className="font-medium text-amber-300">{a.category}:</span> {a.explanation}
+            <p key={a.category} className={cn("text-xs", fintechMuted)}>
+              <span className="font-medium text-amber-600 dark:text-amber-400">{a.category}:</span> {a.explanation}
             </p>
           ))}
         </div>
@@ -296,34 +286,26 @@ export function AiInsightsPanel({
           <div
             key={insight.id}
             className={cn(
-              "rounded-xl border p-3",
               insight.tone === "positive"
-                ? "border-emerald-500/30 bg-emerald-500/5"
+                ? fintechInsightPositive
                 : insight.tone === "warning"
-                  ? "border-amber-500/30 bg-amber-500/5"
-                  : isLight
-                    ? "border-slate-200 bg-slate-50"
-                    : "border-slate-700 bg-neutral-900"
+                  ? fintechInsightWarning
+                  : fintechInsightBox
             )}
           >
-            <p className="text-sm font-medium">{insight.title}</p>
-            <p className={cn("mt-1 text-xs", isLight ? "text-slate-600" : "text-slate-400")}>{insight.body}</p>
+            <p className={cn("text-sm font-medium", fintechForeground)}>{insight.title}</p>
+            <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>{insight.body}</p>
           </div>
         ))}
       </div>
 
       {canUse("what_if_simulator") ? (
-        <div
-          className={cn(
-            "mt-4 rounded-xl border p-3",
-            isLight ? "border-slate-200 bg-slate-50" : "border-slate-700 bg-neutral-900"
-          )}
-        >
-          <p className="mb-2 inline-flex items-center gap-2 text-sm font-medium">
-            <Wand2 className="h-4 w-4 text-sky-400" aria-hidden />
+        <div className={cn("mt-4", fintechInsightBox)}>
+          <p className={cn("mb-2 inline-flex items-center gap-2 text-sm font-medium", fintechForeground)}>
+            <Wand2 className="h-4 w-4 text-[var(--accent)]" aria-hidden />
             What-if simulator
           </p>
-          <p className={cn("mb-3 text-xs", isLight ? "text-slate-500" : "text-slate-400")}>
+          <p className={cn("mb-3 text-xs leading-relaxed", fintechMuted)}>
             Cut a category or ask a free-form question — anonymized totals only.
           </p>
           <div className="flex flex-wrap items-end gap-2">
@@ -357,12 +339,12 @@ export function AiInsightsPanel({
             </PrimaryButton>
           </div>
           {whatIfAnswer ? (
-            <p className={cn("mt-3 text-sm", isLight ? "text-slate-700" : "text-slate-300")}>{whatIfAnswer}</p>
+            <p className={cn("mt-3 text-sm leading-relaxed", fintechForeground)}>{whatIfAnswer}</p>
           ) : null}
 
-          <div className="mt-4 border-t border-slate-700 pt-4">
-            <p className="mb-2 inline-flex items-center gap-2 text-xs font-medium">
-              <MessageCircle className="h-3.5 w-3.5 text-violet-400" aria-hidden />
+          <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
+            <p className={cn("mb-2 inline-flex items-center gap-2 text-xs font-medium", fintechForeground)}>
+              <MessageCircle className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden />
               Ask anything
             </p>
             <div className="flex flex-wrap gap-2">
@@ -381,7 +363,7 @@ export function AiInsightsPanel({
               </PrimaryButton>
             </div>
             {customAnswer ? (
-              <p className={cn("mt-3 text-sm", isLight ? "text-slate-700" : "text-slate-300")}>{customAnswer}</p>
+              <p className={cn("mt-3 text-sm leading-relaxed", fintechForeground)}>{customAnswer}</p>
             ) : null}
           </div>
 
@@ -409,10 +391,10 @@ export function AiInsightsPanel({
             {multiLoading ? "Comparing…" : "Compare multiple scenarios"}
           </GhostButton>
           {multiWhatIf.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-xs text-slate-400">
+            <ul className={cn("mt-2 space-y-1 text-xs", fintechMuted)}>
               {multiWhatIf.map((r) => (
                 <li key={r.label}>
-                  <span className="text-sky-300">{r.label}:</span> {r.summary}
+                  <span className="font-medium text-[var(--accent)]">{r.label}:</span> {r.summary}
                 </li>
               ))}
             </ul>

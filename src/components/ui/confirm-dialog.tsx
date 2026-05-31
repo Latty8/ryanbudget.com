@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { motion } from "framer-motion";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { DialogPortal } from "@/components/ui/dialog-portal";
 import { GhostButton, fintechModalPanel, fintechForeground, fintechMuted } from "@/components/fintech/ui";
@@ -52,15 +53,18 @@ export function ConfirmDialog({
       <button
         type="button"
         aria-label="Close dialog backdrop"
-        className="absolute inset-0 z-0 cursor-default bg-black/50 backdrop-blur-[2px]"
+        className="absolute inset-0 z-0 cursor-default bg-[var(--overlay)]/80 backdrop-blur-[2px]"
         disabled={loading}
         onClick={() => onOpenChange(false)}
       />
-      <div
+      <motion.div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         className={cn(
           fintechModalPanel,
           "relative z-10 mx-auto w-[min(100%,26rem)] max-h-[min(85dvh,32rem)] overflow-y-auto p-5 shadow-[var(--shadow-modal)] sm:p-6"
@@ -94,7 +98,7 @@ export function ConfirmDialog({
             {children ? <div className="mt-3">{children}</div> : null}
           </div>
         </div>
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+        <div className="mt-5 flex flex-col-reverse gap-2 pb-safe sm:flex-row sm:flex-wrap sm:justify-end">
           <GhostButton type="button" disabled={loading} onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
             {cancelLabel}
           </GhostButton>
@@ -106,14 +110,14 @@ export function ConfirmDialog({
               "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-field)] px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 sm:w-auto",
               variant === "destructive"
                 ? "bg-rose-600 text-white hover:bg-rose-500"
-                : "bg-[var(--accent)] text-[var(--accent-foreground)] hover:brightness-110"
+                : "bg-[var(--accent)] text-[var(--accent-foreground)] hover:brightness-105"
             )}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
             {confirmLabel}
           </button>
         </div>
-      </div>
+      </motion.div>
     </DialogPortal>
   );
 }

@@ -4,6 +4,7 @@ import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { bootstrapUserSession } from "@/lib/supabase/sync/client";
 import { resetLocalSyncTracking, clearPersistedSyncMetaForUser } from "@/lib/supabase/sync/sync-dirty";
 import { setPersistUserId } from "@/lib/storage/user-persist";
+import { rehydrateDeviceUiStore } from "@/store/useDeviceUiStore";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
 let lastCompletedUserId: string | null = null;
@@ -28,6 +29,7 @@ export async function completeSignInClient(user: SessionPayload) {
   setPersistUserId(user.userId);
   if (userChanged) resetLocalSyncTracking();
   await useAppDataStore.persist.rehydrate();
+  await rehydrateDeviceUiStore();
   useAppDataStore.getState().setProfile({ name: user.name, email: user.email });
 
   if (isDemoUserId(user.userId) || !userChanged) return;

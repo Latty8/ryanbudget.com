@@ -8,7 +8,7 @@ import { TransactionModel } from "@/lib/mongodb/models/Transaction";
 import { UserModel } from "@/lib/mongodb/models/User";
 import { buildRemoteState } from "@/lib/mongodb/mappers";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
-import type { AppPreferences } from "@/types/app-settings";
+import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 
 export async function findUserById(userId: string) {
   await connectMongo();
@@ -66,7 +66,7 @@ export async function pullMongoState(
     email: user?.email ?? fallback?.email ?? "",
     name: user?.name ?? fallback?.name ?? "",
     onboardingCompleted: user?.onboardingCompleted ?? false,
-    preferences: (user?.preferences ?? {}) as AppPreferences,
+    preferences: (user?.preferences ?? {}) as RemoteAppState["preferences"],
     accounts,
     categories,
     transactions,
@@ -108,7 +108,7 @@ export async function pushMongoState(userId: string, state: RemoteAppState): Pro
       $set: {
         email: state.profile.email.trim().toLowerCase(),
         name: state.profile.name,
-        preferences: state.preferences,
+        preferences: toSyncedPreferences(state.preferences),
         onboardingCompleted: state.onboardingCompleted,
       },
     }

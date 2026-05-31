@@ -1,4 +1,5 @@
 import type { AppCategory, CategoryBudgetBehavior } from "@/types/app-settings";
+import { ENTITY_COLOR_SWATCHES } from "@/lib/fintech/color-swatches";
 
 /** Legacy groups kept for existing data; new groups are more descriptive. */
 export const LEGACY_CATEGORY_GROUPS = ["Income", "Needs", "Wants", "Goals", "Custom"] as const;
@@ -71,18 +72,7 @@ export const CATEGORY_PRESETS: CategoryPreset[] = [
   { presetId: "misc", name: "Miscellaneous", group: "Miscellaneous", icon: "Sparkles", color: "#94a3b8", budgeted: 50, budgetBehavior: "flexible" },
 ];
 
-export const CATEGORY_COLOR_OPTIONS = [
-  "#38bdf8",
-  "#22c55e",
-  "#fbbf24",
-  "#fb7185",
-  "#a78bfa",
-  "#2dd4bf",
-  "#60a5fa",
-  "#f97316",
-  "#64748b",
-  "#e879f9",
-];
+export const CATEGORY_COLOR_OPTIONS = [...ENTITY_COLOR_SWATCHES];
 
 export const CATEGORY_ICON_NAMES = [
   "Home",

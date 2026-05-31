@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { createTransaction } from "@/lib/supabase/queries/transactions";
 import { hasSupabaseDataSync } from "@/lib/supabase/client";
+import { toastTransactionDeleted, toastTransactionSaved } from "@/lib/feedback/app-feedback";
 import type { TransactionInput } from "@/types/finance";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { useSaveTransaction } from "@/hooks/use-save-transaction";
@@ -15,13 +16,13 @@ export function useUpdateTransaction() {
     updateLocal(id, input);
 
     if (!hasSupabaseDataSync) {
-      toast.success("Transaction updated");
+      toastTransactionSaved({ edit: true });
       return { ok: true, message: "Updated locally." };
     }
 
     const cloudResult = await createTransaction(input);
     if (cloudResult.ok) {
-      toast.success("Transaction updated");
+      toastTransactionSaved({ edit: true });
       return cloudResult;
     }
 
@@ -31,7 +32,7 @@ export function useUpdateTransaction() {
       cloudResult.message.includes("does not exist");
 
     if (isSchemaError) {
-      toast.success("Updated on this device");
+      toastTransactionSaved({ edit: true });
       return { ok: true, message: "Updated locally." };
     }
 
@@ -44,7 +45,7 @@ export function useUpdateTransaction() {
 export function useDeleteTransaction() {
   return useCallback(async (id: string) => {
     useAppDataStore.getState().deleteTransaction(id);
-    toast.success("Transaction deleted");
+    toastTransactionDeleted();
     return { ok: true };
   }, []);
 }

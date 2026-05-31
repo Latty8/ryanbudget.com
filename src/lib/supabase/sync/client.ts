@@ -21,7 +21,7 @@ import {
 } from "@/lib/supabase/sync/sync-dirty";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
 
-const POLL_INTERVAL_MS = 3_000;
+const POLL_INTERVAL_MS = 5_000;
 const PUSH_DEBOUNCE_MS = 300;
 
 let pullTimer: ReturnType<typeof setTimeout> | null = null;
@@ -128,15 +128,27 @@ export function subscribeToCloudChanges(userId: string): () => void {
 
   void pullAndApplyCloudState();
 
-  if (typeof EventSource !== "undefined") {
+  let reconnectAttempt = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connectWatch = () => {
+    if (typeof EventSource === "undefined") return;
     watchSource?.close();
     watchSource = new EventSource("/api/sync/watch", { withCredentials: true });
+    watchSource.onopen = () => {
+      reconnectAttempt = 0;
+    };
     watchSource.onmessage = () => schedulePull(50, true);
     watchSource.onerror = () => {
       watchSource?.close();
       watchSource = null;
+      const delay = Math.min(30_000, 1000 * 2 ** reconnectAttempt);
+      reconnectAttempt += 1;
+      reconnectTimer = setTimeout(connectWatch, delay);
     };
-  }
+  };
+
+  connectWatch();
 
   const pollTimer = setInterval(() => {
     if (document.visibilityState !== "visible") return;
@@ -151,6 +163,7 @@ export function subscribeToCloudChanges(userId: string): () => void {
   document.addEventListener("visibilitychange", onVisible);
 
   return () => {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
     if (pullTimer) {
       clearTimeout(pullTimer);
       pullTimer = null;

@@ -6,13 +6,15 @@ import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { toast } from "sonner";
+import { toastGoalComplete, toastGoalProgress } from "@/lib/feedback/app-feedback";
 import { NumberField } from "@/components/fintech/number-field";
 import {
+  ColorSwatchPicker,
   FieldLabel,
   GhostButton,
   EmptyState,
   fintechForeground,
-  fintechGlass,
+  fintechSurface,
   fintechLabel,
   fintechMuted,
   ModalOverlay,
@@ -25,6 +27,7 @@ import {
   ShellInput,
   ShellSelect,
 } from "@/components/fintech/ui";
+import { ENTITY_COLOR_SWATCHES } from "@/lib/fintech/color-swatches";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import { usePremium } from "@/hooks/use-premium";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
@@ -33,7 +36,6 @@ import { cn } from "@/lib/utils";
 import type { AppGoal } from "@/types/app-settings";
 
 const GOAL_ICONS = ["Target", "Shield", "Plane", "Home", "Car", "Gift"];
-const GOAL_COLORS = ["#22c55e", "#38bdf8", "#a78bfa", "#fbbf24", "#fb7185", "#34d399"];
 
 const emptyGoal = (): Omit<AppGoal, "id"> => ({
   name: "",
@@ -41,7 +43,7 @@ const emptyGoal = (): Omit<AppGoal, "id"> => ({
   current: 0,
   targetDate: format(new Date(Date.now() + 90 * 86400000), "yyyy-MM-dd"),
   icon: "Target",
-  color: GOAL_COLORS[0],
+  color: ENTITY_COLOR_SWATCHES[0],
 });
 
 const MILESTONES = [25, 50, 75, 100] as const;
@@ -191,7 +193,7 @@ export function GoalsView() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className={cn(fintechGlass, "p-5 transition-all duration-200 hover:shadow-[var(--shadow-card-hover)]")}
+                  className={cn(fintechSurface, "p-4 transition-colors duration-200 sm:p-5")}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
@@ -236,10 +238,10 @@ export function GoalsView() {
                         const afterPct =
                           g.target > 0 ? ((g.current + amount) / g.target) * 100 : 0;
                         setContribution((prev) => ({ ...prev, [g.id]: 0 }));
-                        toast.success(`Added ${formatMoney(amount, preferences.currency)} to ${g.name}`);
+                        toastGoalProgress(g.name, formatMoney(amount, preferences.currency));
                         if (beforePct < 100 && afterPct >= 100) {
                           setShowConfetti(true);
-                          toast.success(`Goal complete: ${g.name}!`, { duration: 5000 });
+                          toastGoalComplete(g.name);
                         }
                       }}
                     >
@@ -294,19 +296,13 @@ export function GoalsView() {
                     ))}
                   </ShellSelect>
                 </label>
-                <label className="grid gap-1">
+                <label className="grid gap-1 sm:col-span-2">
                   <FieldLabel>Color</FieldLabel>
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {GOAL_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={cn("h-7 w-7 rounded-full border-2", form.color === color ? "border-white" : "border-transparent")}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setForm((s) => ({ ...s, color }))}
-                      />
-                    ))}
-                  </div>
+                  <ColorSwatchPicker
+                    colors={ENTITY_COLOR_SWATCHES}
+                    value={form.color}
+                    onChange={(color) => setForm((s) => ({ ...s, color }))}
+                  />
                 </label>
               </div>
             </div>

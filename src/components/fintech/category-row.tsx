@@ -4,16 +4,21 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CategoryIconBadge } from "@/components/fintech/category-icon";
 import { NumberField } from "@/components/fintech/number-field";
+import { ElevatedCard } from "@/components/fintech/elevated-card";
 import {
+  ColorSwatchPicker,
   FieldLabel,
   GhostButton,
   PrimaryButton,
   ProgressBar,
   ShellInput,
   ShellSelect,
+  fintechCardBody,
+  fintechDeleteIconButton,
   fintechIconButton,
   fintechMuted,
 } from "@/components/fintech/ui";
+import { ENTITY_COLOR_SWATCHES } from "@/lib/fintech/color-swatches";
 import type { CategoryKind } from "@/lib/categories/category-kind";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
@@ -127,12 +132,10 @@ function CategoryEditForm({
         </label>
         <label className="grid gap-1.5">
           <FieldLabel>Color</FieldLabel>
-          <ShellInput
-            type="color"
+          <ColorSwatchPicker
+            colors={ENTITY_COLOR_SWATCHES}
             value={draft.color}
-            onChange={(e) => setDraft((s) => ({ ...s, color: e.target.value }))}
-            aria-label="Category color"
-            className="h-10 cursor-pointer p-1"
+            onChange={(color) => setDraft((s) => ({ ...s, color }))}
           />
         </label>
         <label className="grid gap-1.5">
@@ -148,7 +151,7 @@ function CategoryEditForm({
         <GhostButton type="button" onClick={onCancel}>
           Cancel
         </GhostButton>
-        <PrimaryButton type="button" onClick={onSave} className="min-h-10 px-4 py-2 shadow-sm">
+        <PrimaryButton type="button" onClick={onSave} className="shadow-sm">
           Save changes
         </PrimaryButton>
       </div>
@@ -182,7 +185,7 @@ function CategoryActions({
         <button
           type="button"
           onClick={onDelete}
-          className={cn(fintechIconButton, "border-transparent text-rose-500 hover:border-rose-500/20 hover:bg-rose-500/10")}
+          className={cn(fintechIconButton, fintechDeleteIconButton)}
           aria-label="Delete category"
         >
           <Trash2 className="h-4 w-4" />
@@ -325,13 +328,8 @@ export function CategoryRow({
   }
 
   return (
-    <article
-      className={cn(
-        "overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm",
-        isEditing && "border-[var(--border-strong)]"
-      )}
-    >
-      <div className="flex items-start gap-3 px-4 py-4">
+    <ElevatedCard accentColor={category.color} className={cn("min-h-[132px]", isEditing && "border-[var(--border-strong)]")}>
+      <div className={cn(fintechCardBody, "flex items-start gap-3")}>
         <CategoryIconBadge name={category.icon} color={category.color} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -374,6 +372,6 @@ export function CategoryRow({
           onSave={handleSave}
         />
       ) : null}
-    </article>
+    </ElevatedCard>
   );
 }

@@ -1,32 +1,35 @@
 "use client";
 
+import { BarChart3 } from "lucide-react";
 import { useMemo } from "react";
+import { useBudgetViewPeriod } from "@/hooks/use-budget-view-period";
 import {
+  EmptyState,
   fintechDivide,
   fintechForeground,
-  fintechGlass,
   fintechLabel,
   fintechMuted,
   fintechSurface,
   PageFrame,
 } from "@/components/fintech/ui";
 import { DashboardCashflowMinimal } from "@/components/fintech/dashboard-cashflow-minimal";
-import { getEffectiveBudgetPeriod, reportCadenceFromBudgetPeriod } from "@/lib/budget/period";
+import { reportCadenceFromBudgetPeriod } from "@/lib/budget/period";
 import { computeReportData, resolveReportRange } from "@/lib/reports/compute-report-data";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/lib/utils";
 
 export function ReportsMinimalView() {
-  const { accounts, categories, transactions, currency, budgetPeriod } = useAppDataStore(
+  const { accounts, categories, transactions, currency, recurring } = useAppDataStore(
     useShallow((s) => ({
       accounts: s.accounts,
       categories: s.categories,
       transactions: s.demoTransactions,
       currency: s.preferences.currency,
-      budgetPeriod: getEffectiveBudgetPeriod(s.preferences.budgetPeriod, s.demoRecurring),
+      recurring: s.demoRecurring,
     }))
   );
+  const budgetPeriod = useBudgetViewPeriod(recurring);
 
   const range = useMemo(() => resolveReportRange("this-month"), []);
 
@@ -57,13 +60,13 @@ export function ReportsMinimalView() {
   return (
     <PageFrame title="Reports" description="This month at a glance.">
       <div className="mb-8 grid grid-cols-2 gap-4">
-        <div className={cn(fintechGlass, "p-5 text-center")}>
+        <div className={cn(fintechSurface, "p-4 text-center sm:p-5")}>
           <p className={fintechLabel}>Income</p>
           <p className="mt-2 text-2xl font-semibold text-[var(--positive)]">
             {formatMoney(report.income, currency)}
           </p>
         </div>
-        <div className={cn(fintechGlass, "p-5 text-center")}>
+        <div className={cn(fintechSurface, "p-4 text-center sm:p-5")}>
           <p className={fintechLabel}>Spent</p>
           <p className={cn("mt-2 text-2xl font-semibold", fintechForeground)}>
             {formatMoney(report.expenses, currency)}
@@ -90,7 +93,15 @@ export function ReportsMinimalView() {
             ))}
           </ul>
         </section>
-      ) : null}
+      ) : (
+        <div className="mt-8">
+          <EmptyState
+            icon={BarChart3}
+            title="No category spending yet"
+            description="Add a few transactions this month to see where your money goes."
+          />
+        </div>
+      )}
     </PageFrame>
   );
 }

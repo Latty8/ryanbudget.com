@@ -9,14 +9,18 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { resolveCategoryIcon } from "@/components/fintech/category-icon";
+import { CategoryIconBadge } from "@/components/fintech/category-icon";
 import { ElevatedCard, ElevatedCardSection } from "@/components/fintech/elevated-card";
 import { NumberField } from "@/components/fintech/number-field";
+import { ENTITY_COLOR_SWATCHES } from "@/lib/fintech/color-swatches";
 import {
   FieldLabel,
   GhostButton,
+  ColorSwatchPicker,
   ShellInput,
   ShellSelect,
+  fintechCardBody,
+  fintechCardToggle,
   fintechIconButton,
 } from "@/components/fintech/ui";
 import { getAccountKindTheme } from "@/lib/fintech/account-theme";
@@ -34,7 +38,6 @@ const ACCOUNT_KINDS: { value: AccountKind; label: string }[] = [
 ];
 
 const ICON_OPTIONS = ["Wallet", "PiggyBank", "CreditCard", "Banknote", "TrendingUp", "Landmark"];
-const COLOR_SWATCHES = ["#38bdf8", "#34d399", "#f472b6", "#fbbf24", "#a78bfa", "#fb7185", "#22c55e", "#60a5fa"];
 
 type WalletCardProps = {
   account: AppAccount;
@@ -60,22 +63,16 @@ export function WalletCard({
   const [editOpen, setEditOpen] = useState(false);
   const currency = useAppDataStore((s) => s.preferences.currency);
   const theme = getAccountKindTheme(account.kind);
-  const Icon = resolveCategoryIcon(account.icon);
   const accent = account.color || theme.accent;
 
   return (
-    <ElevatedCard accentColor={accent}>
-      <div className="px-4 py-4 sm:px-5 sm:py-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+    <ElevatedCard accentColor={accent} className="min-h-[132px]">
+      <div className={fintechCardBody}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
           <div className="flex min-w-0 flex-1 items-center gap-3.5">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg lg:h-11 lg:w-11"
-              style={{ backgroundColor: `${accent}14`, color: accent }}
-            >
-              <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-            </div>
+            <CategoryIconBadge name={account.icon} color={accent} size="md" />
             <div className="min-w-0">
-              <h3 className="truncate text-base font-semibold text-[var(--foreground)] lg:text-[15px]">
+              <h3 className="truncate text-[15px] font-semibold text-[var(--foreground)]">
                 {account.name}
               </h3>
               <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -93,7 +90,7 @@ export function WalletCard({
           </div>
 
           <div className="flex items-center justify-between gap-4 lg:justify-end lg:gap-5">
-            <p className="text-xl font-semibold tabular-nums tracking-tight text-[var(--foreground)] sm:text-2xl lg:text-right lg:text-xl">
+            <p className="text-lg font-semibold tabular-nums tracking-tight text-[var(--foreground)] sm:text-xl lg:text-right">
               {formatMoney(account.balance, account.currency ?? currency)}
             </p>
             {allowReorder ? (
@@ -126,7 +123,7 @@ export function WalletCard({
         <button
           type="button"
           onClick={() => setEditOpen((open) => !open)}
-          className="flex w-full items-center justify-between px-4 py-2.5 text-left text-xs font-medium text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] sm:px-5"
+          className={fintechCardToggle}
         >
           <span>Edit wallet</span>
           <ChevronRight
@@ -186,28 +183,17 @@ export function WalletCard({
 
             <div>
               <FieldLabel>Color</FieldLabel>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {COLOR_SWATCHES.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={cn(
-                      "h-9 w-9 rounded-full border-2 transition-colors sm:h-8 sm:w-8",
-                      account.color === color
-                        ? "border-[var(--foreground)]"
-                        : "border-transparent hover:border-[var(--border-strong)]"
-                    )}
-                    style={{ backgroundColor: color }}
-                    onClick={() => onUpdate({ color })}
-                    aria-label={`Color ${color}`}
-                  />
-                ))}
-              </div>
+              <ColorSwatchPicker
+                className="mt-2"
+                colors={ENTITY_COLOR_SWATCHES}
+                value={account.color}
+                onChange={(color) => onUpdate({ color })}
+              />
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-3">
               {showHidden ? (
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--muted)]">
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-[var(--muted)]">
                   <input
                     type="checkbox"
                     className="rounded border-[var(--border)]"
@@ -237,4 +223,5 @@ export function WalletCard({
   );
 }
 
-export { ACCOUNT_KINDS, ICON_OPTIONS, COLOR_SWATCHES };
+export { ACCOUNT_KINDS, ICON_OPTIONS };
+export { ENTITY_COLOR_SWATCHES as COLOR_SWATCHES };

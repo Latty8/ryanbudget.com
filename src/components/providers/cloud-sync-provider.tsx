@@ -99,6 +99,10 @@ export function CloudSyncProvider() {
       } catch (error) {
         console.error("[cloud-sync] initial sync failed", error);
         initialSyncDone.current = true;
+        unsubscribeRealtime = subscribeToCloudChanges(user.userId);
+        window.setTimeout(() => {
+          void pullAndApplyCloudState({ force: true });
+        }, 12_000);
       }
     };
 
@@ -137,7 +141,7 @@ export function CloudSyncProvider() {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [user]);
+  }, [user?.userId]);
 
   useEffect(() => {
     if (!user?.userId || isDemoUserId(user.userId) || !isClientCloudSyncEnabled()) return;

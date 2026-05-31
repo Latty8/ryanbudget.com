@@ -16,7 +16,8 @@ import {
   ShellCard,
   ShellInput,
   ShellSelect,
-  useShellTheme,
+  fintechForeground,
+  fintechMuted,
 } from "@/components/fintech/ui";
 import { useAuth } from "@/components/providers/auth-provider";
 import { completeOnboardingForUser } from "@/lib/auth/complete-sign-in-client";
@@ -38,7 +39,6 @@ export function OnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const { isLight } = useShellTheme();
   const { t } = useTranslations();
 
   const onboardingProgress = useAppDataStore((s) => s.onboardingProgress);
@@ -158,14 +158,14 @@ export function OnboardingFlow() {
           <span>
             Step {step + 1} of {STEP_COUNT} · {ONBOARDING_STEP_LABELS[step]}
           </span>
-          <button type="button" className="inline-flex items-center gap-1 hover:text-sky-500" onClick={skipStep}>
+          <button type="button" className="inline-flex items-center gap-1 text-[var(--muted)] hover:text-[var(--accent)]" onClick={skipStep}>
             <SkipForward className="h-3 w-3" />
             Skip step
           </button>
         </div>
-        <div className="mb-8 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700">
+        <div className="mb-8 h-1.5 rounded-full bg-[var(--surface-elevated)]">
           <motion.div
-            className="h-1.5 rounded-full bg-sky-500"
+            className="h-1.5 rounded-full bg-[var(--accent)]"
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: 0.35 }}
           />
@@ -183,17 +183,17 @@ export function OnboardingFlow() {
             {step === 0 ? (
               <>
                 <div className="flex items-start gap-4">
-                  <div className="rounded-2xl bg-sky-100 p-3 dark:bg-sky-500/20">
-                    <CalendarClock className="h-7 w-7 text-sky-600 dark:text-sky-400" />
+                  <div className="rounded-2xl bg-[var(--accent-muted)] p-3">
+                    <CalendarClock className="h-7 w-7 text-[var(--accent)]" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold">Plan around your paycheck</h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className={cn("mt-1 text-sm", fintechMuted)}>
                       We&apos;ll learn your pay schedule and main bills so you always know what&apos;s safe to spend.
                     </p>
                   </div>
                 </div>
-                <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+                <ol className={cn("list-decimal space-y-2 pl-5 text-sm", fintechMuted)}>
                   <li>Add your bi-weekly paycheck</li>
                   <li>Turn on the bills you pay every month</li>
                   <li>See &quot;safe to spend&quot; on your dashboard</li>
@@ -222,7 +222,7 @@ export function OnboardingFlow() {
             {step === 1 ? (
               <>
                 <h2 className="text-lg font-semibold">Your paycheck</h2>
-                <p className="text-sm text-slate-500">
+                <p className={cn("text-sm", fintechMuted)}>
                   Most people here are paid every two weeks. You can change this later.
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -252,7 +252,7 @@ export function OnboardingFlow() {
             {step === 2 ? (
               <>
                 <h2 className="text-lg font-semibold">Main bills</h2>
-                <p className="text-sm text-slate-500">Toggle what you pay regularly — we&apos;ll remind you before payday.</p>
+                <p className={cn("text-sm", fintechMuted)}>Toggle what you pay regularly — we&apos;ll remind you before payday.</p>
                 <ul className="space-y-2">
                   {recurringTemplates
                     .filter((t) => t.id !== "payroll")
@@ -260,14 +260,13 @@ export function OnboardingFlow() {
                       <li
                         key={t.id}
                         className={cn(
-                          "flex items-center justify-between rounded-xl border px-4 py-3 text-sm",
-                          isLight ? "border-slate-200" : "border-slate-700",
-                          t.enabled && "border-sky-300 bg-sky-50/50 dark:border-sky-700 dark:bg-sky-950/20"
+                          "flex min-h-11 items-center justify-between rounded-xl border border-[var(--border)] px-4 py-3 text-sm",
+                          t.enabled && "border-[var(--accent)]/40 bg-[var(--accent-muted)]"
                         )}
                       >
                         <div>
                           <p className="font-medium">{t.name}</p>
-                          <p className="text-xs text-slate-500">{t.description}</p>
+                          <p className={cn("text-xs", fintechMuted)}>{t.description}</p>
                         </div>
                         <label className="flex items-center gap-2 text-xs">
                           <input
@@ -300,11 +299,11 @@ export function OnboardingFlow() {
 
             {step === 3 ? (
               <>
-                <div className="flex items-center gap-2 text-emerald-600">
+                <div className="flex items-center gap-2 text-[var(--positive)]">
                   <CheckCircle2 className="h-6 w-6" />
                   <h2 className="text-lg font-semibold">You&apos;re set</h2>
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className={cn("text-sm", fintechMuted)}>
                   Your dashboard shows safe-to-spend. Use the + button anytime to log a purchase.
                 </p>
                 <div className="flex flex-wrap gap-2">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   fintechForeground,
-  fintechGlass,
+  fintechSurface,
   fintechLabel,
   fintechLink,
   fintechMuted,
@@ -19,6 +19,7 @@ type CategoryProgress = {
   name: string;
   budgeted: number;
   spent: number;
+  color?: string;
 };
 
 export function DashboardBudgetProgress({
@@ -38,7 +39,7 @@ export function DashboardBudgetProgress({
   if (rows.length === 0) return null;
 
   return (
-    <section className={cn(fintechGlass, "p-6 md:p-7")}>
+    <section className={cn(fintechSurface, "p-6 md:p-7")}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className={cn("text-sm font-semibold", fintechForeground)}>Budget progress</h2>
@@ -62,7 +63,7 @@ export function DashboardBudgetProgress({
                   {formatMoney(row.spent, currency)} / {formatMoney(row.budgeted, currency)}
                 </span>
               </div>
-              <ProgressBar pct={pct} over={over} className="mt-2" />
+              <ProgressBar pct={pct} over={over} size="slim" accentColor={row.color} className="mt-2" />
             </li>
           );
         })}

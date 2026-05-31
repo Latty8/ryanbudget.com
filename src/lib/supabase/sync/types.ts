@@ -2,15 +2,15 @@ import type {
   AppAccount,
   AppCategory,
   AppGoal,
-  AppPreferences,
   AppRecurringRule,
+  SyncedAppPreferences,
   UserProfile,
 } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 
 export type RemoteAppState = {
   profile: UserProfile;
-  preferences: AppPreferences;
+  preferences: SyncedAppPreferences;
   onboardingCompleted: boolean;
   accounts: AppAccount[];
   categories: AppCategory[];
@@ -24,7 +24,7 @@ export type ProfileRow = {
   email: string | null;
   full_name: string | null;
   onboarding_completed: boolean;
-  preferences: AppPreferences | null;
+  preferences: SyncedAppPreferences | null;
 };
 
 export type AccountRow = {

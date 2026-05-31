@@ -1,5 +1,5 @@
-const CACHE_NAME = "paycheck-planner-v4";
-const PRECACHE = ["/offline.html", "/icon.svg", "/dashboard"];
+const CACHE_NAME = "paycheck-planner-v5";
+const PRECACHE = ["/offline.html", "/icon.svg", "/dashboard", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)));

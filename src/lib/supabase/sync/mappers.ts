@@ -2,9 +2,10 @@ import type {
   AppAccount,
   AppCategory,
   AppGoal,
-  AppPreferences,
   AppRecurringRule,
+  SyncedAppPreferences,
 } from "@/types/app-settings";
+import { defaultSyncedPreferences, toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import type {
   AccountRow,
   CategoryRow,
@@ -16,13 +17,7 @@ import type {
 } from "@/lib/supabase/sync/types";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 
-const defaultPreferences: AppPreferences = {
-  currency: "USD",
-  dateFormat: "MDY",
-  weekStart: "sunday",
-  budgetPeriod: "bi-weekly",
-  locale: "en",
-};
+const defaultPreferences = defaultSyncedPreferences;
 
 export function mapAccountRow(row: AccountRow): AppAccount {
   return {
@@ -173,7 +168,7 @@ export function mapRemoteState(input: {
       name: profile?.full_name ?? input.fallbackProfile?.name ?? "",
       email: profile?.email ?? input.fallbackProfile?.email ?? "",
     },
-    preferences: { ...defaultPreferences, ...(profile?.preferences ?? {}) },
+    preferences: toSyncedPreferences({ ...defaultPreferences, ...(profile?.preferences ?? {}) }),
     onboardingCompleted: profile?.onboarding_completed ?? false,
     accounts: input.accounts.map(mapAccountRow),
     categories: input.categories.map(mapCategoryRow),

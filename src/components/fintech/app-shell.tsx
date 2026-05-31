@@ -7,14 +7,18 @@ import {
   BarChart3,
   CalendarClock,
   CircleDollarSign,
+  Ellipsis,
   LayoutDashboard,
+  PiggyBank,
   ReceiptText,
+  RefreshCw,
   Settings,
   Tags,
   Wallet,
 } from "lucide-react";
 import { AddTransactionFab } from "@/components/fintech/add-transaction-fab";
 import { DemoModeBanner } from "@/components/fintech/demo-mode-banner";
+import { NotificationCenter } from "@/components/fintech/notification-center";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -22,11 +26,22 @@ const navItems = [
   { href: "/transactions", label: "Transactions", icon: ReceiptText, mobile: true },
   { href: "/budgets", label: "Budgets", icon: CircleDollarSign, mobile: true },
   { href: "/accounts", label: "Wallets", icon: Wallet, mobile: true },
-  { href: "/categories", label: "Categories", icon: Tags, mobile: true },
+  { href: "/more", label: "More", icon: Ellipsis, mobile: true },
+  { href: "/categories", label: "Categories", icon: Tags, mobile: false },
   { href: "/reports", label: "Reports", icon: BarChart3, mobile: false },
 ] as const;
 
 const mobileNavItems = navItems.filter((item) => item.mobile);
+
+const moreSectionPaths = [
+  "/more",
+  "/categories",
+  "/recurring",
+  "/goals",
+  "/reports",
+  "/household",
+  "/settings",
+] as const;
 
 const marketingPaths = new Set(["/", "/pricing", "/changelog", "/help"]);
 
@@ -50,7 +65,7 @@ function NavLink({
         "flex items-center gap-3 rounded-xl transition-all duration-200",
         compact ? "px-3 py-2.5 text-sm" : "px-3.5 py-2 text-sm",
         active
-          ? "bg-[var(--surface)] font-medium text-[var(--foreground)] shadow-[var(--shadow-card)]"
+          ? "bg-[var(--surface)] font-medium text-[var(--foreground)] shadow-sm"
           : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
       )}
     >
@@ -88,19 +103,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <div className={shellClass}>{children}</div>;
   }
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => {
+    if (href === "/more") {
+      return moreSectionPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <div className={shellClass}>
       <DemoModeBanner />
 
-      {/* Desktop sidebar — xl+ */}
       <aside
         className="fixed inset-y-0 left-0 z-40 hidden w-[var(--sidebar-width)] flex-col border-r border-[var(--border)] bg-[var(--nav-bg)] px-4 py-6 shadow-[var(--shadow-nav)] backdrop-blur-xl xl:flex"
         aria-label="Sidebar"
       >
         <Link href="/dashboard" className="group mb-8 flex items-center gap-3 px-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] text-white shadow-[var(--shadow-glow)] transition group-hover:scale-105">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] text-white shadow-sm transition group-hover:scale-[1.02]">
             <CalendarClock className="h-5 w-5" />
           </span>
           <span className="text-sm font-semibold tracking-tight">Paycheck Planner</span>
@@ -117,6 +136,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               compact
             />
           ))}
+          <NavLink href="/recurring" label="Recurring" icon={RefreshCw} active={isActive("/recurring")} compact />
+          <NavLink href="/goals" label="Goals" icon={PiggyBank} active={isActive("/goals")} compact />
         </nav>
 
         <div className="mt-auto border-t border-[var(--border-subtle)] pt-4">
@@ -131,38 +152,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen flex-col xl:pl-[var(--sidebar-width)]">
-        {/* Top bar — tablet + mobile (hidden on xl where sidebar handles nav) */}
         <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--nav-bg)] shadow-[var(--shadow-nav)] backdrop-blur-xl xl:hidden">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 md:px-6">
-            <Link href="/dashboard" className="group flex shrink-0 items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] text-white shadow-[var(--shadow-glow)]">
+            <Link href="/dashboard" className="group flex min-w-0 flex-1 items-center gap-2">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-deep)] text-white shadow-sm">
                 <CalendarClock className="h-4 w-4" />
               </span>
-              <span className="hidden text-sm font-semibold sm:inline">Paycheck Planner</span>
+              <span className="truncate text-sm font-semibold sm:inline">Paycheck Planner</span>
             </Link>
 
-            <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto md:flex lg:gap-1 [&::-webkit-scrollbar]:hidden" aria-label="Main">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all lg:px-3 lg:py-2 lg:text-sm",
-                    isActive(item.href)
-                      ? "bg-[var(--surface)] text-[var(--foreground)] shadow-[var(--shadow-card)]"
-                      : "text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1">
+              <NotificationCenter />
               <Link
                 href="/settings"
                 className={cn(
-                  "rounded-xl p-2.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] min-h-11 min-w-11 inline-flex items-center justify-center",
+                  "inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2.5 text-[var(--muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]",
                   pathname.startsWith("/settings") && "bg-[var(--surface)] text-[var(--foreground)]"
                 )}
                 aria-label="Settings"
@@ -173,26 +177,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main key={pathname} className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 pb-24 md:px-8 md:py-10 xl:pb-10">
+        <main
+          key={pathname}
+          className="page-enter mx-auto w-full max-w-4xl flex-1 px-4 py-8 pb-28 md:px-8 md:py-10 xl:pb-10"
+        >
           {children}
         </main>
 
-        {/* Mobile bottom nav */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--nav-bg)] shadow-[var(--shadow-nav)] backdrop-blur-xl md:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--nav-bg)] pb-safe shadow-[var(--shadow-nav)] backdrop-blur-xl xl:hidden"
           aria-label="Mobile"
         >
-          <div className="mx-auto grid max-w-lg grid-cols-5 px-1 py-1.5">
+          <div className="mx-auto grid max-w-lg grid-cols-5 px-1 py-1">
             {mobileNavItems.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href;
+              const active = isActive(item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 rounded-xl py-2 text-[9px] font-medium transition-colors",
-                    active ? "text-[var(--accent)]" : "text-[var(--muted)]"
+                    "flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-colors duration-200",
+                    active
+                      ? "bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
+                      : "text-[var(--muted)] active:bg-[var(--surface-hover)]"
                   )}
                 >
                   <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />

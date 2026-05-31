@@ -2,24 +2,19 @@ import type {
   AppAccount,
   AppCategory,
   AppGoal,
-  AppPreferences,
   AppRecurringRule,
+  SyncedAppPreferences,
 } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
+import { defaultSyncedPreferences, toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import type { MongoAccountDoc } from "@/lib/mongodb/models/Account";
 import type { MongoCategoryDoc } from "@/lib/mongodb/models/Category";
 import type { MongoGoalDoc } from "@/lib/mongodb/models/Goal";
 import type { MongoRecurringDoc } from "@/lib/mongodb/models/RecurringTransaction";
 import type { MongoTransactionDoc } from "@/lib/mongodb/models/Transaction";
 
-const defaultPreferences: AppPreferences = {
-  currency: "USD",
-  dateFormat: "MDY",
-  weekStart: "sunday",
-  budgetPeriod: "bi-weekly",
-  locale: "en",
-};
+const defaultPreferences = defaultSyncedPreferences;
 
 export function mapAccountDoc(doc: MongoAccountDoc): AppAccount {
   return {
@@ -86,7 +81,7 @@ export function buildRemoteState(input: {
   email: string;
   name: string;
   onboardingCompleted: boolean;
-  preferences: AppPreferences;
+  preferences: SyncedAppPreferences;
   accounts: MongoAccountDoc[];
   categories: MongoCategoryDoc[];
   transactions: MongoTransactionDoc[];
@@ -95,7 +90,7 @@ export function buildRemoteState(input: {
 }): RemoteAppState {
   return {
     profile: { email: input.email, name: input.name },
-    preferences: { ...defaultPreferences, ...input.preferences },
+    preferences: toSyncedPreferences({ ...defaultPreferences, ...input.preferences }),
     onboardingCompleted: input.onboardingCompleted,
     accounts: input.accounts.map(mapAccountDoc),
     categories: input.categories.map(mapCategoryDoc),

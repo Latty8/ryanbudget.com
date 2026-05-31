@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus } from "lucide-react";
+import { CircleDollarSign, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { toastBudgetSaved } from "@/lib/feedback/app-feedback";
 import {
   BudgetAmountForm,
   createBudgetAmountFormState,
@@ -15,7 +16,6 @@ import {
   BUDGET_PERIOD_OPTIONS,
   budgetAmountsFromMonthly,
   computeCategoryBudgetRows,
-  getEffectiveBudgetPeriod,
   monthlyFromPeriodAmount,
   periodLabel,
   periodSpentLabel,
@@ -25,13 +25,14 @@ import {
 import { CATEGORY_PRESETS, presetToCategory } from "@/lib/categories/category-presets";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import {
+  EmptyState,
   FieldLabel,
   fintechDisplay,
   fintechForeground,
-  fintechGlass,
   fintechLabel,
   fintechLink,
   fintechMuted,
+  fintechSurface,
   GhostButton,
   ModalOverlay,
   MotionSection,
@@ -43,6 +44,7 @@ import {
 } from "@/components/fintech/ui";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
+import { useBudgetPeriodPreference, useBudgetViewPeriod, useSetBudgetPeriodPreference } from "@/hooks/use-budget-view-period";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import type { BudgetPeriodPreference } from "@/types/app-settings";
@@ -58,15 +60,13 @@ export function BudgetsMinimalView() {
   const transactions = useAppDataStore((s) => s.demoTransactions);
   const demoRecurring = useAppDataStore((s) => s.demoRecurring);
   const preferences = useAppDataStore((s) => s.preferences);
-  const setPreferences = useAppDataStore((s) => s.setPreferences);
+  const budgetPeriodPref = useBudgetPeriodPreference();
+  const setBudgetPeriodPref = useSetBudgetPeriodPreference();
   const addCategory = useAppDataStore((s) => s.addCategory);
   const updateCategory = useAppDataStore((s) => s.updateCategory);
   const deleteCategory = useAppDataStore((s) => s.deleteCategory);
 
-  const viewPeriod: BudgetPeriod = getEffectiveBudgetPeriod(
-    preferences.budgetPeriod,
-    demoRecurring
-  );
+  const viewPeriod: BudgetPeriod = useBudgetViewPeriod(demoRecurring);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -74,6 +74,7 @@ export function BudgetsMinimalView() {
   const [amountForm, setAmountForm] = useState<BudgetAmountFormState>(() =>
     createBudgetAmountFormState({ monthly: 100, source: "bi-weekly" })
   );
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const expenseCategories = useMemo(
     () => categories.filter((c) => c.name !== "Income" && c.name !== "Uncategorized"),
@@ -96,7 +97,7 @@ export function BudgetsMinimalView() {
   const { totalBudgeted, totalSpent, totalLeft, overallPct } = sumBudgetTotals(displayRows);
 
   const setViewPeriod = (value: BudgetPeriodPreference) => {
-    setPreferences({ budgetPeriod: value });
+    setBudgetPeriodPref(value);
   };
 
   const openAdd = () => {
@@ -145,7 +146,8 @@ export function BudgetsMinimalView() {
     }
     if (editingId) {
       updateCategory(editingId, { budgeted: monthly });
-      toast.success("Budget updated");
+      setFlashId(editingId);
+      toastBudgetSaved(true);
     } else {
       const preset = CATEGORY_PRESETS.find(
         (p) => p.name.toLowerCase() === formName.trim().toLowerCase()
@@ -162,8 +164,11 @@ export function BudgetsMinimalView() {
           budgetBehavior: "fixed",
         });
       }
-      toast.success("Budget added");
+      const newId = useAppDataStore.getState().categories.at(-1)?.id ?? null;
+      if (newId) setFlashId(newId);
+      toastBudgetSaved(false);
     }
+    window.setTimeout(() => setFlashId(null), 1200);
     setModalOpen(false);
   };
 
@@ -182,21 +187,21 @@ export function BudgetsMinimalView() {
   };
 
   const viewBar = (
-    <div className={cn(fintechGlass, "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4")}>
+    <div className={cn(fintechSurface, "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4")}>
       <div className="min-w-0">
         <p className={fintechLabel}>View as</p>
         <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>
           {periodSpentLabel(viewPeriod)} of spending · {periodLabel(viewPeriod)} limits
         </p>
       </div>
-      <SegmentToggle value={viewPeriod} options={BUDGET_PERIOD_OPTIONS} onChange={setViewPeriod} className="w-full sm:w-auto" />
+      <SegmentToggle value={budgetPeriodPref} options={BUDGET_PERIOD_OPTIONS} onChange={setViewPeriod} className="w-full sm:w-auto" />
     </div>
   );
 
   const summaryCard = (
     <div
       className={cn(
-        fintechGlass,
+        fintechSurface,
         "grid gap-6 p-5 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8 sm:p-6"
       )}
     >
@@ -235,12 +240,22 @@ export function BudgetsMinimalView() {
     return (
       <PageFrame title="Budgets" description="Simple limits per category — calm and clear.">
         {viewBar}
-        <div className={cn(fintechGlass, "p-10 text-center")}>
-          <p className={cn("text-sm", fintechMuted)}>No categories yet.</p>
-          <SetupOnboardingLink className={cn("mt-4 inline-block text-sm font-medium", fintechLink)}>
-            Finish setup
-          </SetupOnboardingLink>
-        </div>
+        <EmptyState
+          icon={CircleDollarSign}
+          title="No budget categories yet"
+          description="Add categories with spending limits to see how much you have left before your next paycheck."
+          action={
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <PrimaryButton type="button" onClick={openAdd}>
+                <Plus className="mr-1.5 inline h-4 w-4" />
+                Add budget
+              </PrimaryButton>
+              <SetupOnboardingLink className={cn("text-sm font-medium", fintechLink)}>
+                Finish setup
+              </SetupOnboardingLink>
+            </div>
+          }
+        />
         <BudgetModal
           open={modalOpen}
           editingId={editingId}
@@ -273,6 +288,19 @@ export function BudgetsMinimalView() {
       </MotionSection>
 
       <MotionSection delay={0.1} className="mt-6">
+        {displayRows.length === 0 ? (
+          <EmptyState
+            icon={CircleDollarSign}
+            title="No budgets set yet"
+            description="Add a spending limit for groceries, utilities, or anything you track between paychecks."
+            action={
+              <PrimaryButton type="button" onClick={openAdd}>
+                <Plus className="mr-1.5 inline h-4 w-4" />
+                Add budget
+              </PrimaryButton>
+            }
+          />
+        ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <AnimatePresence initial={false}>
             {displayRows.map((row) => (
@@ -280,6 +308,7 @@ export function BudgetsMinimalView() {
                 <BudgetCategoryCard
                   row={row}
                   currency={preferences.currency}
+                  highlight={flashId === row.id}
                   onEdit={() => openEdit(row.id, row.name, row.monthlyBudgeted)}
                   onDelete={() => handleDelete(row.id, row.name)}
                 />
@@ -287,6 +316,7 @@ export function BudgetsMinimalView() {
             ))}
           </AnimatePresence>
         </div>
+        )}
       </MotionSection>
 
       <BudgetModal
@@ -331,8 +361,18 @@ function BudgetModal({
       onClose={onClose}
       title={editingId ? "Edit budget" : "Add budget"}
       variant="solid"
+      footer={
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <GhostButton type="button" onClick={onClose} className="w-full sm:w-auto">
+            Cancel
+          </GhostButton>
+          <PrimaryButton type="button" onClick={onSave} className="w-full sm:w-auto">
+            Save
+          </PrimaryButton>
+        </div>
+      }
     >
-      <div className="grid gap-5">
+      <div className="grid gap-5 pb-1">
         {!editingId ? (
           <>
             <label className="grid gap-1.5">
@@ -351,7 +391,7 @@ function BudgetModal({
                     key={preset.presetId}
                     type="button"
                     onClick={() => onQuickPreset(preset.presetId)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-medium transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs font-medium transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
                   >
                     <CategoryIconBadge name={preset.icon} color={preset.color} size="sm" />
                     {preset.name}
@@ -364,14 +404,6 @@ function BudgetModal({
           <p className={cn("text-sm font-medium", fintechForeground)}>{formName}</p>
         )}
         <BudgetAmountForm state={amountForm} onChange={setAmountForm} />
-        <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-4">
-          <GhostButton type="button" onClick={onClose}>
-            Cancel
-          </GhostButton>
-          <PrimaryButton type="button" onClick={onSave}>
-            Save
-          </PrimaryButton>
-        </div>
       </div>
     </ModalOverlay>
   );
