@@ -6,6 +6,7 @@ import { GoalModel } from "@/lib/mongodb/models/Goal";
 import { RecurringTransactionModel } from "@/lib/mongodb/models/RecurringTransaction";
 import { TransactionModel } from "@/lib/mongodb/models/Transaction";
 import { UserModel } from "@/lib/mongodb/models/User";
+import { sanitizeCategoryList } from "@/lib/categories/system-category";
 import { buildRemoteState } from "@/lib/mongodb/mappers";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
 import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
@@ -136,7 +137,8 @@ export async function pushMongoState(userId: string, state: RemoteAppState): Pro
   );
   if (!accountsOk) return false;
 
-  const categoryRows = state.categories.map((category) => ({
+  const syncCategories = sanitizeCategoryList(state.categories);
+  const categoryRows = syncCategories.map((category) => ({
     userId: objectId,
     clientId: category.id,
     name: category.name,
@@ -150,7 +152,7 @@ export async function pushMongoState(userId: string, state: RemoteAppState): Pro
   const categoriesOk = await replaceUserCollection(
     CategoryModel as mongoose.Model<unknown>,
     objectId,
-    state.categories.map((c) => c.id),
+    syncCategories.map((c) => c.id),
     categoryRows
   );
   if (!categoriesOk) return false;

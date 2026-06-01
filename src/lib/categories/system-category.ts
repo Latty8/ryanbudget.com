@@ -1,46 +1,27 @@
 import { nanoid } from "nanoid";
 import type { AppCategory } from "@/types/app-settings";
 
+/** Label stored on transactions when no user category applies — not a visible budget row. */
 export const SYSTEM_UNCATEGORIZED_NAME = "Uncategorized";
 export const SYSTEM_UNCATEGORIZED_ID = "system-uncategorized";
 
-export function isSystemCategory(category: Pick<AppCategory, "id" | "name">): boolean {
+/** Hidden system / legacy rows — never shown on Categories or synced as budget lines. */
+export function isHiddenSystemCategory(category: Pick<AppCategory, "id" | "name">): boolean {
   return (
     category.id === SYSTEM_UNCATEGORIZED_ID ||
-    category.name === SYSTEM_UNCATEGORIZED_NAME
+    category.name.trim().toLowerCase() === SYSTEM_UNCATEGORIZED_NAME.toLowerCase()
   );
 }
 
-export function createSystemUncategorizedCategory(): AppCategory {
-  return {
-    id: SYSTEM_UNCATEGORIZED_ID,
-    name: SYSTEM_UNCATEGORIZED_NAME,
-    group: "Miscellaneous",
-    icon: "CircleDollarSign",
-    color: "#64748b",
-    budgeted: 0,
-  };
+/** @deprecated Use {@link isHiddenSystemCategory} */
+export const isSystemCategory = isHiddenSystemCategory;
+
+/** Strip hidden Uncategorized rows from persisted and synced category lists. */
+export function sanitizeCategoryList(categories: AppCategory[]): AppCategory[] {
+  return categories.filter((c) => !isHiddenSystemCategory(c));
 }
 
-/** Ensure the protected Uncategorized bucket exists (no duplicates). */
-export function ensureSystemCategories(categories: AppCategory[]): AppCategory[] {
-  const existing = categories.find((c) => c.name === SYSTEM_UNCATEGORIZED_NAME);
-  if (existing) {
-    if (existing.id === SYSTEM_UNCATEGORIZED_ID) return categories;
-    return categories.map((c) =>
-      c.name === SYSTEM_UNCATEGORIZED_NAME ? { ...c, id: SYSTEM_UNCATEGORIZED_ID } : c
-    );
-  }
-  return [...categories, createSystemUncategorizedCategory()];
-}
-
-export function uncategorizedCategoryForReassignment(categories: AppCategory[]): AppCategory {
-  const existing = categories.find((c) => c.name === SYSTEM_UNCATEGORIZED_NAME);
-  if (existing) return existing;
-  return createSystemUncategorizedCategory();
-}
-
-/** Stable id for new user categories (system rows use a fixed id). */
+/** Stable id for new user categories. */
 export function newCategoryId(): string {
   return nanoid();
 }

@@ -1,5 +1,6 @@
 import { addWeeks } from "date-fns";
 import { formatLocalDate, parseLocalDate } from "@/lib/dates/parse-local-date";
+import { isIncomeRecurring } from "@/lib/recurring/cadence-display";
 import type { PaycheckProjection, RecurringFrequency } from "@/types/finance";
 
 export type PaycheckRule = {
@@ -11,7 +12,7 @@ export type PaycheckRule = {
 };
 
 export function isPayrollRule(rule: PaycheckRule): boolean {
-  return rule.name.toLowerCase().includes("payroll") || rule.cadence === "bi-weekly";
+  return isIncomeRecurring(rule.name) || rule.amount > 0 || rule.cadence === "bi-weekly";
 }
 
 /** Project the next N paychecks from recurring income rules. */

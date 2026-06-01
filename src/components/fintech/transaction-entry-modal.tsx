@@ -102,6 +102,8 @@ export function TransactionEntryModal({
 
   editTransaction,
 
+  initialDraft,
+
 }: {
 
   open: boolean;
@@ -113,6 +115,9 @@ export function TransactionEntryModal({
   onSubmit?: (input: TransactionInput, editId?: string) => Promise<{ ok: boolean; message: string }>;
 
   editTransaction?: TransactionRecord | null;
+
+  /** Prefill fields when opened from calendar or quick actions */
+  initialDraft?: Partial<TransactionInput>;
 
 }) {
 
@@ -185,7 +190,19 @@ export function TransactionEntryModal({
       setInput(transactionRecordToInput(editTransaction, accountOptions, categoryEntities));
       setReceipts(editTransaction.receipts ?? []);
     } else {
-      setInput(defaultTransactionInput(categoryOptions, accountOptions));
+      const base = defaultTransactionInput(categoryOptions, accountOptions);
+      if (initialDraft) {
+        setInput({
+          ...base,
+          ...initialDraft,
+          categoryId: initialDraft.categoryId
+            ? resolveCategoryId(String(initialDraft.categoryId), categoryOptions)
+            : base.categoryId,
+          accountId: initialDraft.accountId ?? base.accountId,
+        });
+      } else {
+        setInput(base);
+      }
       setReceipts([]);
     }
     setShowSplit(false);
@@ -193,7 +210,7 @@ export function TransactionEntryModal({
     setNlpPreview(null);
     setMessage(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening or switching edit target
-  }, [open, editTransaction?.id]);
+  }, [open, editTransaction?.id, initialDraft]);
 
 
 

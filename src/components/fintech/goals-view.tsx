@@ -21,7 +21,6 @@ import {
   MotionSection,
   PageFrame,
   PrimaryButton,
-  ProgressBar,
   ProgressRing,
   ShellCard,
   ShellInput,
@@ -34,6 +33,14 @@ import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { useAppDataStore, formatMoney } from "@/store/useAppDataStore";
 import { cn } from "@/lib/utils";
 import type { AppGoal } from "@/types/app-settings";
+import {
+  SINKING_FUND_TYPES,
+  suggestBiWeeklyContribution,
+  suggestMonthlyContribution,
+  paychecksUntilTarget,
+  fundProgressPct,
+} from "@/lib/goals/sinking-fund";
+import { useBudgetViewPeriod } from "@/hooks/use-budget-view-period";
 
 const GOAL_ICONS = ["Target", "Shield", "Plane", "Home", "Car", "Gift"];
 
@@ -44,9 +51,26 @@ const emptyGoal = (): Omit<AppGoal, "id"> => ({
   targetDate: format(new Date(Date.now() + 90 * 86400000), "yyyy-MM-dd"),
   icon: "Target",
   color: ENTITY_COLOR_SWATCHES[0],
+  fundType: "general",
+  monthlyContribution: 0,
+  notes: "",
 });
 
 const MILESTONES = [25, 50, 75, 100] as const;
+
+function FundProgressTrack({ pct, color }: { pct: number; color: string }) {
+  return (
+    <div className="relative mt-4 h-2.5 overflow-hidden rounded-full bg-[var(--surface-elevated)]">
+      <div
+        className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
+        style={{
+          width: `${pct}%`,
+          background: `linear-gradient(90deg, ${color}99, ${color})`,
+        }}
+      />
+    </div>
+  );
+}
 
 function GoalMilestones({ pct }: { pct: number }) {
   return (
@@ -85,6 +109,9 @@ export function GoalsView() {
   const deleteGoal = useAppDataStore((s) => s.deleteGoal);
   const contributeToGoal = useAppDataStore((s) => s.contributeToGoal);
   const preferences = useAppDataStore((s) => s.preferences);
+  const recurring = useAppDataStore((s) => s.demoRecurring);
+  const budgetPeriod = useBudgetViewPeriod(recurring);
+  const useBiWeekly = budgetPeriod === "bi-weekly";
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -108,6 +135,9 @@ export function GoalsView() {
       targetDate: goal.targetDate,
       icon: goal.icon,
       color: goal.color,
+      fundType: goal.fundType ?? "general",
+      monthlyContribution: goal.monthlyContribution ?? 0,
+      notes: goal.notes ?? "",
     });
     setModalOpen(true);
   };
@@ -119,10 +149,10 @@ export function GoalsView() {
     }
     if (editingId) {
       updateGoal(editingId, form);
-      toast.success("Goal updated");
+      toast.success("Fund updated");
     } else {
       addGoal(form);
-      toast.success("Goal created");
+      toast.success("Fund created");
     }
     setModalOpen(false);
   };
@@ -135,7 +165,7 @@ export function GoalsView() {
       confirmLabel: "Delete goal",
       onConfirm: () => {
         deleteGoal(goal.id);
-        toast.success("Goal deleted");
+        toast.success("Fund deleted");
       },
     });
   };
@@ -146,14 +176,14 @@ export function GoalsView() {
   );
 
   return (
-    <PageFrame title="Goals" description="Savings goals with clear progress and milestones.">
+    <PageFrame title="Sinking Funds" description="Set aside money for vacations, holidays, repairs, and other planned expenses.">
       <ConfettiBurst active={showConfetti} onComplete={() => setShowConfetti(false)} />
       <MotionSection className="flex flex-wrap items-center justify-between gap-4">
-        <p className={cn("text-sm", fintechMuted)}>Track progress toward what matters</p>
+        <p className={cn("text-sm", fintechMuted)}>Envelope-style funds with suggested monthly contributions</p>
         {(canAddGoal(goals.length) || demoMode) && (
           <PrimaryButton onClick={openCreate}>
             <Plus className="mr-1 inline h-4 w-4" />
-            New goal
+            New fund
           </PrimaryButton>
         )}
       </MotionSection>
@@ -184,8 +214,11 @@ export function GoalsView() {
         <div className="grid gap-4 md:grid-cols-2">
           <AnimatePresence mode="popLayout">
             {sortedGoals.map((g) => {
-              const pct = Math.min(100, g.target > 0 ? (g.current / g.target) * 100 : 0);
+              const pct = fundProgressPct(g);
               const remaining = Math.max(0, g.target - g.current);
+              const biweekly = suggestBiWeeklyContribution(g);
+              const monthly = suggestMonthlyContribution(g);
+              const paychecks = paychecksUntilTarget(g);
               return (
                 <motion.div
                   key={g.id}
@@ -207,8 +240,16 @@ export function GoalsView() {
                           : "Goal reached!"}
                       </p>
                       <p className={cn(fintechLabel, "mt-2 normal-case tracking-normal")}>
-                        By {format(parseISO(g.targetDate), "MMM d, yyyy")}
+                        Target {format(parseISO(g.targetDate), "MMM d, yyyy")}
+                        {paychecks > 0 ? ` · ${paychecks} paychecks left` : ""}
                       </p>
+                      {remaining > 0 && (useBiWeekly ? biweekly > 0 : monthly > 0) ? (
+                        <p className="mt-2 rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-2.5 py-1.5 text-xs font-medium text-[var(--accent)]">
+                          {useBiWeekly
+                            ? `Set aside ${formatMoney(biweekly, preferences.currency)} each paycheck`
+                            : `Set aside ${formatMoney(monthly, preferences.currency)} per month`}
+                        </p>
+                      ) : null}
                     </div>
                     <ProgressRing
                       pct={pct}
@@ -217,7 +258,7 @@ export function GoalsView() {
                       label={`${Math.round(pct)}%`}
                     />
                   </div>
-                  <ProgressBar pct={pct} className="mt-4" />
+                  <FundProgressTrack pct={pct} color={g.color} />
                   <GoalMilestones pct={pct} />
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <NumberField
@@ -264,12 +305,25 @@ export function GoalsView() {
       <ModalOverlay
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingId ? "Edit goal" : "New savings goal"}
+        title={editingId ? "Edit fund" : "New sinking fund"}
       >
             <div className="grid gap-3">
               <label className="grid gap-1">
                 <FieldLabel>Name</FieldLabel>
-                <ShellInput value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
+                <ShellInput value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Vacation, Christmas, Car repair…" />
+              </label>
+              <label className="grid gap-1">
+                <FieldLabel>Fund type</FieldLabel>
+                <ShellSelect
+                  value={form.fundType ?? "general"}
+                  onChange={(e) => setForm((s) => ({ ...s, fundType: e.target.value as AppGoal["fundType"] }))}
+                >
+                  {SINKING_FUND_TYPES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </ShellSelect>
               </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1">
@@ -284,6 +338,24 @@ export function GoalsView() {
               <label className="grid gap-1">
                 <FieldLabel>Target date</FieldLabel>
                 <ShellInput type="date" value={form.targetDate} onChange={(e) => setForm((s) => ({ ...s, targetDate: e.target.value }))} />
+              </label>
+              <label className="grid gap-1">
+                <FieldLabel>
+                  {useBiWeekly ? "Planned per paycheck (optional)" : "Planned monthly (optional)"}
+                </FieldLabel>
+                <NumberField
+                  value={form.monthlyContribution ?? 0}
+                  onChange={(monthlyContribution) => setForm((s) => ({ ...s, monthlyContribution }))}
+                />
+                {form.target > form.current && form.targetDate ? (
+                  <p className={cn("text-xs", fintechMuted)}>
+                    Suggested:{" "}
+                    {useBiWeekly
+                      ? formatMoney(suggestBiWeeklyContribution(form as AppGoal), preferences.currency)
+                      : formatMoney(suggestMonthlyContribution(form as AppGoal), preferences.currency)}{" "}
+                    {useBiWeekly ? "per paycheck" : "per month"}
+                  </p>
+                ) : null}
               </label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="grid gap-1">

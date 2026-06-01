@@ -57,12 +57,27 @@ export function parseCsvTransactions(csv: string): DemoTransaction[] {
   return rows;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 export function parseJsonBundle(raw: string): AppExportBundle | null {
   try {
     const parsed = JSON.parse(raw) as AppExportBundle;
-    if (parsed.version !== 1 || !parsed.profile || !parsed.accounts || !parsed.categories) return null;
+    if (parsed.version !== 1 || !isRecord(parsed.profile) || !Array.isArray(parsed.accounts) || !Array.isArray(parsed.categories)) {
+      return null;
+    }
+    if (!parsed.preferences || typeof parsed.preferences !== "object") return null;
     return parsed;
   } catch {
     return null;
   }
+}
+
+export function describeImportResult(bundle: AppExportBundle) {
+  const parts = ["profile", "accounts", "categories"];
+  if (bundle.transactions?.length) parts.push(`${bundle.transactions.length} transactions`);
+  if (bundle.recurring?.length) parts.push(`${bundle.recurring.length} recurring`);
+  if (bundle.goals?.length) parts.push(`${bundle.goals.length} goals`);
+  return parts.join(", ");
 }

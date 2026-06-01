@@ -3,6 +3,7 @@ import { attachSessionCookies } from "@/lib/auth/attach-session-cookies";
 import { readSession } from "@/lib/auth/read-session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
 import { ONBOARDED_COOKIE } from "@/lib/auth/session";
+import { isMongoDBConfigured } from "@/lib/db/config";
 import { setOnboardingCompleted, isSyncAvailable } from "@/lib/db/sync-server";
 
 export async function PATCH(request: Request) {
@@ -18,7 +19,7 @@ export async function PATCH(request: Request) {
 
   const completed = body.onboardingCompleted === true;
 
-  if (!isDemoUserId(session.userId) && isSyncAvailable()) {
+  if (!isDemoUserId(session.userId) && (isMongoDBConfigured() || isSyncAvailable())) {
     await setOnboardingCompleted(session.userId, completed);
   }
 

@@ -1,3 +1,4 @@
+import { sanitizeCategoryList } from "@/lib/categories/system-category";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
 import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import { stateFingerprint, stateFingerprintsDiffer } from "@/lib/supabase/sync/sync-fingerprint";
@@ -13,12 +14,14 @@ export function isApplyingRemoteSync() {
 export function applyRemoteStateToStore(remote: RemoteAppState) {
   applyingRemote = true;
   try {
+    const current = useAppDataStore.getState();
+    const onboardingComplete = remote.onboardingCompleted || current.onboardingComplete;
     useAppDataStore.setState({
       profile: remote.profile,
       preferences: toSyncedPreferences(remote.preferences),
-      onboardingComplete: remote.onboardingCompleted,
+      onboardingComplete,
       accounts: remote.accounts,
-      categories: remote.categories,
+      categories: sanitizeCategoryList(remote.categories),
       demoTransactions: remote.transactions,
       demoRecurring: remote.recurring,
       goals: remote.goals,
@@ -139,9 +142,14 @@ export function resolveInitialSync(
 
   const remoteCount = countRemoteEntities(remote);
   const localCount = countRemoteEntities(local);
+  const neverSynced = !ctx?.lastSyncedFingerprint;
 
   if (remoteCount === 0 && localCount === 0) return "noop";
   if (remoteCount === 0 && localCount > 0) return "push-local";
+
+  if (neverSynced && remoteCount > 0) {
+    return "apply-remote";
+  }
 
   if (shouldPreferRemote(local, remote, { ...ctx, remoteRevision })) {
     return "apply-remote";
@@ -181,7 +189,7 @@ export function mergeRemoteWithLocal(
     preferences: toSyncedPreferences({ ...remote.preferences, ...local.preferences }),
     onboardingCompleted: remote.onboardingCompleted || local.onboardingCompleted,
     accounts: mergeLists(local.accounts, remote.accounts),
-    categories: mergeLists(local.categories, remote.categories),
+    categories: sanitizeCategoryList(mergeLists(local.categories, remote.categories)),
     transactions: mergeLists(local.transactions, remote.transactions),
     recurring: mergeLists(local.recurring, remote.recurring),
     goals: mergeLists(local.goals, remote.goals),

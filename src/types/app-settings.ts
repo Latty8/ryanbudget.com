@@ -1,3 +1,4 @@
+import type { DemoTransaction } from "@/lib/demo/sample-data";
 import type { AccountKind, RecurringFrequency } from "@/types/finance";
 
 export type DateFormatPreference = "MDY" | "DMY" | "YMD";
@@ -25,6 +26,8 @@ export type AppAccount = {
   hidden?: boolean;
 };
 
+export type SinkingFundType = "general" | "vacation" | "holiday" | "emergency" | "repair" | "other";
+
 export type AppGoal = {
   id: string;
   name: string;
@@ -33,6 +36,10 @@ export type AppGoal = {
   targetDate: string;
   icon: string;
   color: string;
+  /** Optional planned monthly contribution */
+  monthlyContribution?: number;
+  fundType?: SinkingFundType;
+  notes?: string;
 };
 
 export type OnboardingProgress = {
@@ -87,4 +94,9 @@ export type AppExportBundle = {
   accounts: AppAccount[];
   categories: AppCategory[];
   preferences: SyncedAppPreferences;
+  /** Full backup fields (optional for older exports) */
+  transactions?: DemoTransaction[];
+  recurring?: AppRecurringRule[];
+  goals?: AppGoal[];
+  onboardingComplete?: boolean;
 };

@@ -7,6 +7,7 @@ import type {
 } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 import type { RemoteAppState } from "@/lib/supabase/sync/types";
+import { sanitizeCategoryList } from "@/lib/categories/system-category";
 import { defaultSyncedPreferences, toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import type { MongoAccountDoc } from "@/lib/mongodb/models/Account";
 import type { MongoCategoryDoc } from "@/lib/mongodb/models/Category";
@@ -93,7 +94,7 @@ export function buildRemoteState(input: {
     preferences: toSyncedPreferences({ ...defaultPreferences, ...input.preferences }),
     onboardingCompleted: input.onboardingCompleted,
     accounts: input.accounts.map(mapAccountDoc),
-    categories: input.categories.map(mapCategoryDoc),
+    categories: sanitizeCategoryList(input.categories.map(mapCategoryDoc)),
     transactions: input.transactions.map(mapTransactionDoc),
     recurring: input.recurring.map(mapRecurringDoc),
     goals: input.goals.map(mapGoalDoc),

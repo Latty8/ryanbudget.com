@@ -77,9 +77,15 @@ function countRemoteEntitiesFromState(state: RemoteAppState) {
   );
 }
 
-export function resetLocalSyncTracking() {
+export function resetLocalSyncTracking(options?: { clearPersistedMeta?: boolean }) {
   pushPending = false;
   pushInFlight = false;
+  if (options?.clearPersistedMeta) {
+    lastSyncedEntityCount = -1;
+    lastSyncedFingerprint = "";
+    lastAppliedRemoteRevision = "";
+    return;
+  }
   const meta = loadPersistedSyncMeta();
   if (meta) {
     lastSyncedEntityCount = meta.lastSyncedEntityCount;
@@ -92,9 +98,15 @@ export function resetLocalSyncTracking() {
   lastAppliedRemoteRevision = "";
 }
 
+/** Full reset after account switch — never treat stale local cache as synced. */
+export function resetLocalSyncTrackingForNewSession(userId: string) {
+  clearPersistedSyncMeta(userId);
+  resetLocalSyncTracking({ clearPersistedMeta: true });
+}
+
 export function clearPersistedSyncMetaForUser(userId?: string) {
   clearPersistedSyncMeta(userId ?? getPersistUserId());
-  resetLocalSyncTracking();
+  resetLocalSyncTracking({ clearPersistedMeta: true });
 }
 
 export function getSyncConflictContext(): SyncConflictContext {

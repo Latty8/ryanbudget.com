@@ -24,16 +24,17 @@ function buildWeeklyInsight(context: AnonymizedBudgetContext): WeeklyCoachInsigh
   if (context.daysUntilNextPaycheck !== null && context.daysUntilNextPaycheck <= 3) {
     return {
       weekLabel,
-      headline: "Paycheck week — protect your buffer",
-      body: `Payday is in ${context.daysUntilNextPaycheck} days. You have $${context.moneyLeftToSpend} safe to spend and ${context.upcomingBillsCount} bills ($${context.upcomingBillsTotal}) ahead. Pay essentials first, then assign leftovers to goals.`,
+      headline: "Almost payday — you've got this",
+      body: `Payday is in ${context.daysUntilNextPaycheck} days. You have $${context.moneyLeftToSpend} safe to spend with ${context.upcomingBillsCount} bill(s) (~$${context.upcomingBillsTotal}) ahead. Essentials first, then a little room for goals if anything's left.`,
     };
   }
 
   if (context.payFrequency === "bi-weekly") {
+    const perWeek = Math.round(context.moneyLeftToSpend / 2);
     return {
       weekLabel,
-      headline: "Bi-weekly rhythm check",
-      body: `Mid-cycle with $${context.moneyLeftToSpend} safe to spend. ${context.categoriesUnderBudget} categories on track. ${context.categoriesOverBudget > 0 ? `Recalibrate ${context.categoriesOverBudget} over-budget categories before the next 14-day stretch.` : "Keep steady — you're aligned with your paycheck plan."}`,
+      headline: "Your bi-weekly rhythm",
+      body: `About $${perWeek}/week left in this pay cycle. ${context.categoriesUnderBudget} categories on track.${context.categoriesOverBudget > 0 ? ` Ease one over-budget category — small cuts add ~$${Math.round(context.incomeThisMonth * 0.03)}/paycheck.` : " Nice work staying aligned with your plan."}`,
     };
   }
 

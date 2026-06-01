@@ -41,8 +41,18 @@ export async function POST(request: Request) {
         isDemo: false,
       };
 
+      if (process.env.NODE_ENV === "development") {
+        console.info("[auth/session] login", {
+          userId: payload.userId,
+          email: payload.email,
+          onboardingCompleted: auth.user.onboardingCompleted,
+        });
+      }
+
       const response = NextResponse.json({ ok: true, user: payload, mode: "live" });
-      return attachSessionCookies(response, payload);
+      return attachSessionCookies(response, payload, {
+        onboarded: auth.user.onboardingCompleted,
+      });
     } catch (error) {
       console.error("[auth/session]", error);
       return NextResponse.json(
@@ -69,7 +79,7 @@ export async function POST(request: Request) {
   };
 
   const response = NextResponse.json({ ok: true, user: payload, mode: "demo" });
-  return attachSessionCookies(response, payload, { demo: isDemo });
+  return attachSessionCookies(response, payload, { demo: isDemo, onboarded: isDemo });
 }
 
 export async function DELETE() {
@@ -92,14 +102,18 @@ export async function PATCH(request: Request) {
       maxAge: 60 * 60 * 24 * 365,
     });
     const session = await readSession();
-    if (session?.userId && !isDemoUserId(session.userId) && isSyncAvailable()) {
-      await setOnboardingCompleted(session.userId, true);
+    if (session?.userId && !isDemoUserId(session.userId)) {
+      if (isMongoDBConfigured() || isSyncAvailable()) {
+        await setOnboardingCompleted(session.userId, true);
+      }
     }
   } else if (body.onboarded === false) {
     response.cookies.delete(ONBOARDED_COOKIE);
     const session = await readSession();
-    if (session?.userId && !isDemoUserId(session.userId) && isSyncAvailable()) {
-      await setOnboardingCompleted(session.userId, false);
+    if (session?.userId && !isDemoUserId(session.userId)) {
+      if (isMongoDBConfigured() || isSyncAvailable()) {
+        await setOnboardingCompleted(session.userId, false);
+      }
     }
   }
 

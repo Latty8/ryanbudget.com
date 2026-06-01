@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTransactionSubmit } from "@/hooks/use-transaction-mutations";
 import { cn } from "@/lib/utils";
+import type { TransactionInput } from "@/types/finance";
 
 const TransactionEntryModal = dynamic(
   () =>
@@ -17,10 +18,15 @@ const TransactionEntryModal = dynamic(
 export function AddTransactionFab() {
   const [open, setOpen] = useState(false);
   const [savedPulse, setSavedPulse] = useState(false);
+  const [draft, setDraft] = useState<Partial<TransactionInput> | undefined>();
   const submitTransaction = useTransactionSubmit();
 
   useEffect(() => {
-    const onNew = () => setOpen(true);
+    const onNew = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<TransactionInput>>).detail;
+      setDraft(detail);
+      setOpen(true);
+    };
     window.addEventListener("planner:new-transaction", onNew);
     return () => window.removeEventListener("planner:new-transaction", onNew);
   }, []);
@@ -60,7 +66,11 @@ export function AddTransactionFab() {
       {open ? (
         <TransactionEntryModal
           open={open}
-          onOpenChange={setOpen}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) setDraft(undefined);
+          }}
+          initialDraft={draft}
           onSubmit={(input) => submitTransaction(input)}
         />
       ) : null}

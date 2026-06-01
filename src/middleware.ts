@@ -33,10 +33,6 @@ export function middleware(request: NextRequest) {
   const session = request.cookies.get(SESSION_COOKIE)?.value;
   const onboarded = request.cookies.get(ONBOARDED_COOKIE)?.value === "true";
 
-  if (pathname === "/" && session && onboarded) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
   if (session && onboarded && pathname.startsWith("/login")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }

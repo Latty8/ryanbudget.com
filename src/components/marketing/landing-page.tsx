@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { PricingTable } from "@/components/billing/pricing-table";
 import { DemoLaunchButton } from "@/components/marketing/demo-launch-button";
+import { GoToAppLink } from "@/components/marketing/go-to-app-link";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { TestimonialsCarousel } from "@/components/marketing/testimonials-carousel";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
@@ -87,6 +88,7 @@ export function LandingPage() {
           >
             Sign in
           </Link>
+          <GoToAppLink />
           <DemoLaunchButton size="default" className="hidden sm:inline-flex" />
         </nav>
       </header>
@@ -126,6 +128,7 @@ export function LandingPage() {
           transition={{ delay: 0.15 }}
           className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
         >
+          <GoToAppLink variant="hero" />
           <DemoLaunchButton size="large" />
           <Link
             href="/login"

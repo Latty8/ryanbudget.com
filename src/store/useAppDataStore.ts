@@ -6,10 +6,9 @@ import { PERSIST_STORE_NAME, userPersistStorage } from "@/lib/storage/user-persi
 import { nanoid } from "nanoid";
 import {
   SYSTEM_UNCATEGORIZED_NAME,
-  createSystemUncategorizedCategory,
-  ensureSystemCategories,
-  isSystemCategory,
+  isHiddenSystemCategory,
   newCategoryId,
+  sanitizeCategoryList,
 } from "@/lib/categories/system-category";
 import {
   enrichedAccounts,
@@ -25,6 +24,7 @@ import {
 import { clearRecurringProjectionCache } from "@/lib/recurring/project-runs";
 import { demoGoals } from "@/lib/demo/sample-data";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
+import { logActivity } from "@/store/useActivityLogStore";
 import type {
   AppAccount,
   AppCategory,
@@ -110,7 +110,8 @@ export const useAppDataStore = create<AppDataState>()(
         set((state) => ({
           preferences: toSyncedPreferences({ ...state.preferences, ...patch }),
         })),
-      addAccount: (account) =>
+      addAccount: (account) => {
+        const name = account.name.trim() || "Account";
         set((state) => ({
           accounts: [
             ...state.accounts,
@@ -121,15 +122,20 @@ export const useAppDataStore = create<AppDataState>()(
               id: nanoid(),
             },
           ],
-        })),
+        }));
+        logActivity("created", "account", name);
+      },
       setAccounts: (accounts) => set({ accounts }),
-      updateAccount: (id, patch) =>
+      updateAccount: (id, patch) => {
+        const prev = get().accounts.find((row) => row.id === id);
         set((state) => ({
           accounts: state.accounts.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-        })),
-      deleteAccount: (id) =>
+        }));
+        if (prev) logActivity("updated", "account", patch.name ?? prev.name);
+      },
+      deleteAccount: (id) => {
+        const removed = get().accounts.find((row) => row.id === id);
         set((state) => {
-          const removed = state.accounts.find((row) => row.id === id);
           const accounts = state.accounts.filter((row) => row.id !== id);
           const fallbackName = accounts[0]?.name ?? "General";
           return {
@@ -141,45 +147,48 @@ export const useAppDataStore = create<AppDataState>()(
                   )
                 : state.demoTransactions,
           };
-        }),
-      addCategory: (category) =>
+        });
+        if (removed) logActivity("deleted", "account", removed.name);
+      },
+      addCategory: (category) => {
+        if (category.name.trim().toLowerCase() === SYSTEM_UNCATEGORIZED_NAME.toLowerCase()) {
+          return;
+        }
         set((state) => ({
           categories: [...state.categories, { ...category, id: newCategoryId() }],
-        })),
-      updateCategory: (id, patch) =>
+        }));
+        logActivity("created", "category", category.name.trim());
+      },
+      updateCategory: (id, patch) => {
+        const prev = get().categories.find((row) => row.id === id);
         set((state) => ({
           categories: state.categories.map((row) => {
             if (row.id !== id) return row;
-            if (isSystemCategory(row)) {
+            if (isHiddenSystemCategory(row)) return row;
+            if (patch.name?.trim().toLowerCase() === SYSTEM_UNCATEGORIZED_NAME.toLowerCase()) {
               const { name: _name, ...rest } = patch;
               return { ...row, ...rest };
             }
             return { ...row, ...patch };
           }),
-        })),
-      deleteCategory: (id) =>
-        set((state) => {
-          const removed = state.categories.find((row) => row.id === id);
-          if (!removed || isSystemCategory(removed)) return state;
-
-          const categories = state.categories.filter((row) => row.id !== id);
-          const reassigning = state.demoTransactions.some((tx) => tx.category === removed.name);
-          const hasUncategorized = categories.some((c) => c.name === SYSTEM_UNCATEGORIZED_NAME);
-          const nextCategories =
-            reassigning && !hasUncategorized
-              ? [...categories, createSystemUncategorizedCategory()]
-              : categories;
-
-          return {
-            categories: nextCategories,
-            demoTransactions: state.demoTransactions.map((tx) =>
-              tx.category === removed.name
-                ? { ...tx, category: SYSTEM_UNCATEGORIZED_NAME }
-                : tx
-            ),
-          };
-        }),
-      setCategories: (categories) => set({ categories: ensureSystemCategories(categories) }),
+        }));
+        if (prev && !isHiddenSystemCategory(prev)) {
+          logActivity("updated", "category", patch.name ?? prev.name);
+        }
+      },
+      deleteCategory: (id) => {
+        const removed = get().categories.find((row) => row.id === id);
+        if (!removed || isHiddenSystemCategory(removed)) return;
+        set((state) => ({
+          categories: state.categories.filter((row) => row.id !== id),
+          demoTransactions: state.demoTransactions.map((tx) =>
+            tx.category === removed.name ? { ...tx, category: SYSTEM_UNCATEGORIZED_NAME } : tx
+          ),
+        }));
+        logActivity("deleted", "category", removed.name);
+      },
+      setCategories: (categories) =>
+        set({ categories: sanitizeCategoryList(categories) }),
       setRecurring: (demoRecurring) => {
         clearRecurringProjectionCache();
         set({ demoRecurring });
@@ -189,20 +198,25 @@ export const useAppDataStore = create<AppDataState>()(
         set((state) => ({
           demoRecurring: [...state.demoRecurring, { ...rule, id: nanoid() }],
         }));
+        logActivity("created", "recurring", rule.name);
       },
       updateRecurring: (id, patch) => {
         clearRecurringProjectionCache();
+        const prev = get().demoRecurring.find((row) => row.id === id);
         set((state) => ({
           demoRecurring: state.demoRecurring.map((row) =>
             row.id === id ? { ...row, ...patch } : row
           ),
         }));
+        if (prev) logActivity("updated", "recurring", patch.name ?? prev.name);
       },
       deleteRecurring: (id) => {
         clearRecurringProjectionCache();
+        const removed = get().demoRecurring.find((row) => row.id === id);
         set((state) => ({
           demoRecurring: state.demoRecurring.filter((row) => row.id !== id),
         }));
+        if (removed) logActivity("deleted", "recurring", removed.name);
       },
       toggleRecurringPaused: (id) => {
         clearRecurringProjectionCache();
@@ -212,14 +226,22 @@ export const useAppDataStore = create<AppDataState>()(
           ),
         }));
       },
-      addGoal: (goal) =>
-        set((state) => ({ goals: [...state.goals, { ...goal, id: nanoid() }] })),
-      updateGoal: (id, patch) =>
+      addGoal: (goal) => {
+        set((state) => ({ goals: [...state.goals, { ...goal, id: nanoid() }] }));
+        logActivity("created", "goal", goal.name.trim());
+      },
+      updateGoal: (id, patch) => {
+        const prev = get().goals.find((row) => row.id === id);
         set((state) => ({
           goals: state.goals.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-        })),
-      deleteGoal: (id) =>
-        set((state) => ({ goals: state.goals.filter((row) => row.id !== id) })),
+        }));
+        if (prev) logActivity("updated", "goal", patch.name ?? prev.name);
+      },
+      deleteGoal: (id) => {
+        const removed = get().goals.find((row) => row.id === id);
+        set((state) => ({ goals: state.goals.filter((row) => row.id !== id) }));
+        if (removed) logActivity("deleted", "goal", removed.name);
+      },
       contributeToGoal: (id, amount) =>
         set((state) => ({
           goals: state.goals.map((row) =>
@@ -267,6 +289,10 @@ export const useAppDataStore = create<AppDataState>()(
           accounts: state.accounts,
           categories: state.categories,
           preferences: state.preferences,
+          transactions: state.demoTransactions,
+          recurring: state.demoRecurring,
+          goals: state.goals,
+          onboardingComplete: state.onboardingComplete,
         };
       },
       importBundle: (bundle) => {
@@ -274,9 +300,16 @@ export const useAppDataStore = create<AppDataState>()(
         set({
           profile: bundle.profile,
           accounts: bundle.accounts,
-          categories: bundle.categories,
-          preferences: bundle.preferences,
+          categories: sanitizeCategoryList(bundle.categories),
+          preferences: toSyncedPreferences({ ...defaultPreferences, ...bundle.preferences }),
+          ...(bundle.transactions ? { demoTransactions: bundle.transactions } : {}),
+          ...(bundle.recurring ? { demoRecurring: bundle.recurring } : {}),
+          ...(bundle.goals ? { goals: bundle.goals } : {}),
+          ...(typeof bundle.onboardingComplete === "boolean"
+            ? { onboardingComplete: bundle.onboardingComplete }
+            : {}),
         });
+        clearRecurringProjectionCache();
       },
       deleteAllData: () =>
         set({
@@ -326,7 +359,7 @@ export const useAppDataStore = create<AppDataState>()(
         };
         return {
           ...merged,
-          categories: ensureSystemCategories(merged.categories ?? []),
+          categories: sanitizeCategoryList(merged.categories ?? []),
         };
       },
     }

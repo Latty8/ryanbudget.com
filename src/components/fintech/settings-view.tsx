@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Download,
@@ -37,8 +37,15 @@ import {
   ShellSelect,
   useShellTheme,
 } from "@/components/fintech/ui";
-import { downloadTextFile, parseCsvTransactions, parseJsonBundle, transactionsToCsv } from "@/lib/data/export-import";
+import {
+  describeImportResult,
+  downloadTextFile,
+  parseJsonBundle,
+  transactionsToCsv,
+} from "@/lib/data/export-import";
+import { pushLocalStateNow } from "@/lib/supabase/sync/client";
 import { cn } from "@/lib/utils";
+import { CsvImportModal } from "@/components/fintech/csv-import-modal";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import { CURRENCY_OPTIONS } from "@/lib/currency/exchange-rates";
 import type { CurrencyCode, DateFormatPreference, WeekStartPreference } from "@/types/app-settings";
@@ -57,7 +64,7 @@ export function SettingsView() {
   const { theme, setTheme } = useFintechTheme();
   const { isLight } = useShellTheme();
   const importRef = useRef<HTMLInputElement>(null);
-  const csvRef = useRef<HTMLInputElement>(null);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
 
   const profile = useAppDataStore((s) => s.profile);
   const { t, locale, setLocale } = useTranslations();
@@ -105,25 +112,23 @@ export function SettingsView() {
   };
 
   const handleImportJson = async (file: File) => {
-    const text = await file.text();
-    const bundle = parseJsonBundle(text);
-    if (!bundle) {
-      toast.error("Invalid JSON file");
-      return;
+    try {
+      const text = await file.text();
+      const bundle = parseJsonBundle(text);
+      if (!bundle) {
+        toast.error("Could not import", {
+          description: "File is missing required fields or is not a valid Paycheck Planner export.",
+        });
+        return;
+      }
+      importBundle(bundle);
+      const synced = await pushLocalStateNow();
+      toast.success("Import complete", {
+        description: `${describeImportResult(bundle)}${synced ? " · Synced to cloud" : ""}`,
+      });
+    } catch {
+      toast.error("Import failed", { description: "Please try again with a valid JSON export." });
     }
-    importBundle(bundle);
-    toast.success("Data imported from JSON");
-  };
-
-  const handleImportCsv = async (file: File) => {
-    const text = await file.text();
-    const rows = parseCsvTransactions(text);
-    if (rows.length === 0) {
-      toast.error("No valid rows found in CSV");
-      return;
-    }
-    useAppDataStore.setState({ demoTransactions: [...demoTransactions, ...rows] });
-    toast.success(`Imported ${rows.length} transactions`);
   };
 
   const handleDeleteAll = async () => {
@@ -242,11 +247,11 @@ export function SettingsView() {
 
       <ShellCard>
         <SectionTitle
-          title="Setup"
-          description="Re-run the initial setup wizard. Onboarding only runs once per account across devices."
+          title="Testing"
+          description="Reset onboarding to run the setup wizard again. Normal users only see onboarding once."
         />
         <SetupOnboardingLink className="inline-flex rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]">
-          Run setup again
+          Reset onboarding
         </SetupOnboardingLink>
       </ShellCard>
 
@@ -363,7 +368,7 @@ export function SettingsView() {
             <Upload className="mr-1 inline h-4 w-4" />
             Import JSON
           </GhostButton>
-          <GhostButton onClick={() => csvRef.current?.click()}>
+          <GhostButton onClick={() => setCsvModalOpen(true)}>
             <Upload className="mr-1 inline h-4 w-4" />
             Import CSV
           </GhostButton>
@@ -388,18 +393,9 @@ export function SettingsView() {
             e.target.value = "";
           }}
         />
-        <input
-          ref={csvRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleImportCsv(file);
-            e.target.value = "";
-          }}
-        />
       </ShellCard>
+
+      <CsvImportModal open={csvModalOpen} onClose={() => setCsvModalOpen(false)} />
 
       <ShellCard>
         <SectionTitle title="Help" description="Guides for bi-weekly pay and recurring rules." />

@@ -21,7 +21,11 @@ import {
   getCategoryKind,
   partitionCategoriesByKind,
 } from "@/lib/categories/category-kind";
-import { isSystemCategory } from "@/lib/categories/system-category";
+import {
+  isHiddenSystemCategory,
+  sanitizeCategoryList,
+  SYSTEM_UNCATEGORIZED_NAME,
+} from "@/lib/categories/system-category";
 import { useAppDataStore } from "@/store/useAppDataStore";
 import { cn } from "@/lib/utils";
 import type { AppCategory } from "@/types/app-settings";
@@ -93,7 +97,7 @@ function CategorySection({
                   category={category}
                   kind={kind}
                   spent={spentByCategory.get(category.name) ?? 0}
-                  isSystem={isSystemCategory(category)}
+                  isSystem={isHiddenSystemCategory(category)}
                   isEditing={editingId === category.id}
                   groupOptions={groupOptions}
                   iconOptions={iconOptions}
@@ -116,7 +120,7 @@ function CategorySection({
             category={category}
             kind={kind}
             spent={spentByCategory.get(category.name) ?? 0}
-            isSystem={isSystemCategory(category)}
+            isSystem={isHiddenSystemCategory(category)}
             isEditing={editingId === category.id}
             groupOptions={groupOptions}
             iconOptions={iconOptions}
@@ -151,17 +155,17 @@ export function CategoriesView() {
     return ["Income", ...subgroups.filter((g) => g !== "Income")];
   }, [existingGroups]);
 
-  const { income, expense } = useMemo(() => partitionCategoriesByKind(categories), [categories]);
-
-  const sortedExpense = useMemo(
-    () =>
-      [...expense].sort((a, b) => {
-        const aSystem = isSystemCategory(a) ? 1 : 0;
-        const bSystem = isSystemCategory(b) ? 1 : 0;
-        return aSystem - bSystem;
-      }),
-    [expense]
+  const visibleCategories = useMemo(
+    () => sanitizeCategoryList(categories),
+    [categories]
   );
+
+  const { income, expense } = useMemo(
+    () => partitionCategoriesByKind(visibleCategories),
+    [visibleCategories]
+  );
+
+  const sortedExpense = useMemo(() => [...expense], [expense]);
 
   const spentByCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -172,10 +176,7 @@ export function CategoriesView() {
     return map;
   }, [demoTransactions]);
 
-  const userCategories = useMemo(
-    () => categories.filter((c) => !isSystemCategory(c)),
-    [categories]
-  );
+  const userCategories = visibleCategories;
 
   const iconOptionsForSelect = useMemo(() => {
     const names = new Set<string>(ICON_OPTIONS);
@@ -187,7 +188,7 @@ export function CategoriesView() {
 
   const handleDelete = (id: string, name: string) => {
     const category = categories.find((c) => c.id === id);
-    if (!category || isSystemCategory(category)) return;
+    if (!category || isHiddenSystemCategory(category)) return;
 
     const linked = demoTransactions.filter((t) => t.category === name).length;
     void confirm({
@@ -195,7 +196,7 @@ export function CategoriesView() {
       description: `"${name}" will be removed from your budget plan.`,
       warning:
         linked > 0
-          ? `${linked} transaction${linked === 1 ? "" : "s"} use this category. They will be reassigned to Uncategorized.`
+          ? `${linked} transaction${linked === 1 ? "" : "s"} will be labeled "${SYSTEM_UNCATEGORIZED_NAME}" (not shown as a budget category).`
           : "This action cannot be undone.",
       confirmLabel: "Delete",
       variant: "destructive",
@@ -289,7 +290,7 @@ export function CategoriesView() {
             ) : null}
           </div>
 
-          <CategorySection kind="income" items={income.filter((c) => !isSystemCategory(c))} {...sectionProps} />
+          <CategorySection kind="income" items={income} {...sectionProps} />
           <CategorySection kind="expense" items={sortedExpense} {...sectionProps} />
         </div>
       )}

@@ -205,6 +205,22 @@ export function TransactionsMinimalView() {
                           flashId === row.id && "row-highlight"
                         )}
                       >
+                        {row.receipts && row.receipts.length > 0 ? (
+                          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-elevated)]">
+                            {row.receipts[0].mimeType.startsWith("image/") ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={row.receipts[0].previewUrl}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center">
+                                <ReceiptText className="h-4 w-4 text-[var(--muted)]" strokeWidth={1.75} />
+                              </span>
+                            )}
+                          </span>
+                        ) : null}
                         <button
                           type="button"
                           className="min-w-0 flex-1 text-left"
@@ -216,6 +232,11 @@ export function TransactionsMinimalView() {
                           <p className={cn("mt-1 text-xs leading-relaxed", fintechMuted)}>
                             {row.category}
                             {row.account ? ` · ${row.account}` : ""}
+                            {row.receipts && row.receipts.length > 1
+                              ? ` · ${row.receipts.length} receipts`
+                              : row.receipts?.length === 1
+                                ? " · Receipt"
+                                : ""}
                           </p>
                         </button>
                         <p

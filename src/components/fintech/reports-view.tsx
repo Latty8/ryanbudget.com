@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Download, FileBarChart, Lock } from "lucide-react";
+import { Download, FileBarChart, Lock, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
 import {
   Bar,
@@ -21,7 +21,22 @@ import {
 } from "recharts";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
 import { ShareReportActions } from "@/components/fintech/share-report-actions";
-import { PageFrame, PrimaryButton, ShellCard, ShellInput, useShellTheme } from "@/components/fintech/ui";
+import { MonthlySummaryCard } from "@/components/fintech/monthly-summary-card";
+import { ReportsEmptyState } from "@/components/fintech/reports-empty-state";
+import {
+  FilterChip,
+  fintechForeground,
+  fintechMuted,
+  GhostButton,
+  PageFrame,
+  PrimaryButton,
+  SectionTitle,
+  SegmentToggle,
+  ShellCard,
+  ShellInput,
+} from "@/components/fintech/ui";
+import { ReportsChartFrame } from "@/components/fintech/reports-chart-frame";
+import { downloadTextFile, transactionsToCsv } from "@/lib/data/export-import";
 import { usePremium } from "@/hooks/use-premium";
 import {
   computeReportData,
@@ -33,6 +48,13 @@ import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import { cn } from "@/lib/utils";
 import { useShallow } from "zustand/react/shallow";
 import { useDemoMode } from "@/hooks/use-demo-mode";
+import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
+import {
+  formatReportTooltipValue,
+  reportChartAxis,
+  reportChartGrid,
+  reportTooltipStyle,
+} from "@/components/fintech/reports-chart-config";
 
 const PRESETS: { id: ReportDatePreset; label: string; premium?: boolean }[] = [
   { id: "this-month", label: "This month" },
@@ -42,7 +64,7 @@ const PRESETS: { id: ReportDatePreset; label: string; premium?: boolean }[] = [
 ];
 
 export function ReportsView() {
-  const { isLight } = useShellTheme();
+  usePageCloudSync();
   const { canUse, premium } = usePremium();
   const { demoMode } = useDemoMode();
   const advanced = canUse("pdf_export");
@@ -154,95 +176,134 @@ export function ReportsView() {
     }
   };
 
-  const gridStroke = isLight ? "#e2e8f0" : "#334155";
-  const axisStroke = isLight ? "#64748b" : "#94a3b8";
+  const tooltipProps = {
+    ...reportTooltipStyle,
+    formatter: (value: unknown, name: unknown) => formatReportTooltipValue(value, name, currency),
+  };
+
+  const hasTransactions = transactions.length > 0;
+  const hasChartData =
+    report.income > 0 ||
+    report.expenses > 0 ||
+    report.cashflow.some((p) => p.income > 0 || p.expenses > 0);
+
+  if (!hasTransactions) {
+    return (
+      <PageFrame title="Reports" description="Charts appear once you add transactions.">
+        <ReportsEmptyState
+          title="No data yet"
+          description="Add a paycheck, bills, or everyday spending — your cash flow and category charts will show up here."
+          actionLabel="Add a transaction"
+          actionHref="/transactions"
+        />
+      </PageFrame>
+    );
+  }
 
   return (
-    <PageFrame title="Reports">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className={cn("text-sm", isLight ? "text-slate-600" : "text-slate-400")}>
-          Calm insights for your pay rhythm — {range.label}
-        </p>
-        <div className="inline-flex rounded-xl border border-slate-600 p-1" role="tablist" aria-label="Pay cadence">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={cadence === "monthly"}
-            className={cn("rounded-lg px-3 py-1 text-sm", cadence === "monthly" ? "bg-sky-500 text-slate-950" : "")}
-            onClick={() => setCadence("monthly")}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={cadence === "biweekly"}
-            className={cn("rounded-lg px-3 py-1 text-sm", cadence === "biweekly" ? "bg-sky-500 text-slate-950" : "")}
-            onClick={() => setCadence("biweekly")}
-          >
-            Bi-weekly
-          </button>
-        </div>
-      </div>
+    <PageFrame
+      title="Reports"
+      description={`Calm insights for your pay rhythm — ${range.label}`}
+      action={
+        <SegmentToggle
+          value={cadence}
+          onChange={setCadence}
+          options={[
+            { value: "biweekly" as const, label: "Bi-weekly" },
+            { value: "monthly" as const, label: "Monthly" },
+          ]}
+        />
+      }
+    >
+      <div className="space-y-6 md:space-y-8">
+      <MonthlySummaryCard />
 
       <ShellCard>
-        <p className="text-sm font-medium">Date range</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <SectionTitle title="Date range" description={range.label} />
+          <div className="flex flex-wrap gap-2">
+            <GhostButton
+              className="text-xs"
+              onClick={() => {
+                const filtered = transactions.filter((t) => {
+                  const d = t.date.slice(0, 10);
+                  const start = range.start.toISOString().slice(0, 10);
+                  const end = range.end.toISOString().slice(0, 10);
+                  return d >= start && d <= end;
+                });
+                downloadTextFile(
+                  `report-transactions-${range.label.replace(/\s+/g, "-")}.csv`,
+                  transactionsToCsv(filtered),
+                  "text/csv"
+                );
+                toast.success("CSV downloaded");
+              }}
+            >
+              Export CSV
+            </GhostButton>
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {PRESETS.map((p) => (
-            <button
+            <FilterChip
               key={p.id}
-              type="button"
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition",
-                preset === p.id
-                  ? "border-sky-400 bg-sky-500/20 text-sky-200"
-                  : isLight
-                    ? "border-slate-300 text-slate-600 hover:bg-slate-50"
-                    : "border-slate-600 text-slate-300 hover:bg-neutral-900",
-                p.premium && !advanced ? "opacity-80" : ""
-              )}
+              active={preset === p.id}
               onClick={() => pickPreset(p.id)}
+              className={p.premium && !advanced ? "opacity-80" : undefined}
             >
               {p.premium && !advanced ? <Lock className="h-3 w-3" aria-hidden /> : null}
               {p.label}
-            </button>
+            </FilterChip>
           ))}
         </div>
         {preset === "custom" && advanced ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <label className="grid gap-1 text-xs text-slate-400">
+            <label className={cn("grid gap-1 text-xs", fintechMuted)}>
               From
               <ShellInput type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} />
             </label>
-            <label className="grid gap-1 text-xs text-slate-400">
+            <label className={cn("grid gap-1 text-xs", fintechMuted)}>
               To
               <ShellInput type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} />
             </label>
           </div>
         ) : null}
         {!advanced ? (
-          <p className="mt-2 text-xs text-slate-500">Free plan: This month only. Premium unlocks extended ranges.</p>
+          <p className={cn("mt-2 text-xs", fintechMuted)}>Free plan: This month only. Premium unlocks extended ranges.</p>
         ) : null}
       </ShellCard>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Income", value: report.income },
-          { label: "Expenses", value: report.expenses },
-          { label: "Net", value: report.net },
-          { label: "Net worth", value: report.balance },
+          { label: "Income", value: report.income, accent: "text-[var(--positive)]" },
+          { label: "Expenses", value: report.expenses, accent: fintechForeground },
+          { label: "Net", value: report.net, accent: report.net >= 0 ? "text-[var(--positive)]" : fintechForeground },
+          { label: "Net worth", value: report.balance, accent: fintechForeground },
         ].map((m) => (
-          <ShellCard key={m.label}>
-            <p className={cn("text-xs uppercase tracking-wide", isLight ? "text-slate-500" : "text-slate-400")}>
-              {m.label}
+          <ShellCard key={m.label} className="!p-4 sm:!p-5">
+            <p className={cn("text-xs font-semibold uppercase tracking-[0.12em]", fintechMuted)}>{m.label}</p>
+            <p className={cn("mt-2 text-2xl font-semibold tabular-nums tracking-tight", m.accent)}>
+              {formatMoney(m.value, currency)}
             </p>
-            <p className="mt-1 text-xl font-semibold">{formatMoney(m.value, currency)}</p>
           </ShellCard>
         ))}
       </div>
 
+      {!hasChartData ? (
+        <ReportsEmptyState
+          icon={ReceiptText}
+          title="Not enough activity in this range"
+          description="Try a wider date range or log income and expenses for this period to see charts."
+          actionLabel="View transactions"
+          actionHref="/transactions"
+        />
+      ) : null}
+
+      {hasChartData ? (
       <ShellCard>
-        <div className="mb-3 flex flex-wrap gap-2">
+        <p className={cn("mb-1 text-sm font-semibold", fintechForeground)}>Charts</p>
+        <p className={cn("mb-4 text-xs", fintechMuted)}>{range.label}</p>
+        <div className="mb-4 flex flex-wrap gap-2">
           {(
             [
               ["cashflow", "Cash flow"],
@@ -254,8 +315,10 @@ export function ReportsView() {
               key={key}
               type="button"
               className={cn(
-                "rounded-lg px-3 py-1 text-sm",
-                chartTab === key ? "bg-sky-500 text-slate-950" : isLight ? "text-slate-600" : "text-slate-300"
+                "rounded-[var(--radius-inner)] px-3 py-1.5 text-sm font-medium transition",
+                chartTab === key
+                  ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
               )}
               onClick={() => setChartTab(key)}
             >
@@ -265,80 +328,105 @@ export function ReportsView() {
         </div>
 
         {chartTab === "cashflow" ? (
-          <div className="h-72">
+          <ReportsChartFrame
+            isEmpty={!report.cashflow.some((p) => p.income > 0 || p.expenses > 0)}
+            empty={
+              <p className={cn("flex h-full items-center justify-center text-sm", fintechMuted)}>
+                No cash flow in this range yet.
+              </p>
+            }
+          >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={report.cashflow}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                <XAxis dataKey="label" stroke={axisStroke} />
-                <YAxis stroke={axisStroke} />
-                <Tooltip isAnimationActive={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={reportChartGrid} vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: reportChartAxis, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: reportChartAxis, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip {...tooltipProps} />
                 <Legend />
-                <Line type="monotone" dataKey="income" stroke="#22c55e" strokeWidth={2} isAnimationActive={false} />
-                <Line type="monotone" dataKey="expenses" stroke="#f472b6" strokeWidth={2} isAnimationActive={false} />
-                <Line type="monotone" dataKey="net" stroke="#38bdf8" strokeWidth={2} isAnimationActive={false} />
+                <Line type="monotone" dataKey="income" stroke="var(--chart-income)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="expenses" stroke="var(--chart-expense)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="net" stroke="var(--accent)" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+          </ReportsChartFrame>
         ) : null}
 
         {chartTab === "categories" ? (
-          <div className="h-72">
-            {report.spendingByCategory.length === 0 ? (
-              <p className="py-12 text-center text-sm text-slate-400">No spending in this range.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
+          <ReportsChartFrame isEmpty={report.spendingByCategory.length === 0}>
+            <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={report.spendingByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                  <Pie
+                    data={report.spendingByCategory}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={48}
+                    outerRadius={88}
+                    paddingAngle={2}
+                    label={({ name, percent }) =>
+                      percent && percent > 0.05 ? `${name}` : ""
+                    }
+                  >
                     {report.spendingByCategory.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip isAnimationActive={false} />
+                  <Tooltip {...tooltipProps} />
                 </PieChart>
               </ResponsiveContainer>
-            )}
-          </div>
+          </ReportsChartFrame>
         ) : null}
 
         {chartTab === "budget" ? (
-          <div className="h-72">
+          <ReportsChartFrame isEmpty={report.budgetVsActual.length === 0}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={report.budgetVsActual.slice(0, 8)}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                <XAxis dataKey="name" stroke={axisStroke} tick={{ fontSize: 11 }} />
-                <YAxis stroke={axisStroke} />
-                <Tooltip isAnimationActive={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={reportChartGrid} vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: reportChartAxis, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: reportChartAxis, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip {...tooltipProps} />
                 <Legend />
-                <Bar dataKey="budgeted" fill="#38bdf8" name="Budgeted" isAnimationActive={false} />
-                <Bar dataKey="spent" fill="#f472b6" name="Spent" isAnimationActive={false} />
+                <Bar dataKey="budgeted" fill="var(--accent)" name="Budgeted" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="spent" fill="var(--chart-expense)" name="Spent" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </ReportsChartFrame>
         ) : null}
       </ShellCard>
+      ) : null}
 
+      {hasChartData ? (
       <ShellCard>
-        <p className="text-sm font-medium">Net worth trend</p>
-        <div className="mt-3 h-56">
+        <SectionTitle title="Net worth trend" description="Balance over time in selected range" />
+        <ReportsChartFrame heightClass="h-56 md:h-64" className="mt-4">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={report.netWorthTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-              <XAxis dataKey="label" stroke={axisStroke} />
-              <YAxis stroke={axisStroke} />
-              <Tooltip isAnimationActive={false} />
-              <Line type="monotone" dataKey="netWorth" stroke="#38bdf8" strokeWidth={2} isAnimationActive={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={reportChartGrid} vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: reportChartAxis, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: reportChartAxis, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip {...tooltipProps} />
+              <Line
+                type="monotone"
+                dataKey="netWorth"
+                stroke="var(--accent)"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </ReportsChartFrame>
       </ShellCard>
+      ) : null}
 
       <ShellCard>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <FileBarChart className="h-5 w-5 text-sky-400" aria-hidden />
+            <FileBarChart className="h-5 w-5 text-[var(--accent)]" aria-hidden />
             <div>
-              <p className="text-sm font-medium">Export report</p>
-              <p className={cn("text-xs", isLight ? "text-slate-500" : "text-slate-400")}>
+              <p className={cn("text-sm font-medium", fintechForeground)}>Export report</p>
+              <p className={cn("text-xs", fintechMuted)}>
                 Branded PDF via print dialog {premium ? "(included)" : ""}
               </p>
             </div>
@@ -374,6 +462,7 @@ export function ReportsView() {
           </div>
         ) : null}
       </ShellCard>
+      </div>
     </PageFrame>
   );
 }

@@ -18,7 +18,7 @@ export function ElevatedCard({
   return (
     <Tag
       className={cn(
-        "group/card relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]",
+        "group/card relative overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)]",
         "shadow-sm transition-colors duration-200",
         "hover:border-[var(--border-strong)]",
         className

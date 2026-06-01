@@ -2,6 +2,7 @@ import type { AccountKind, RecurringFrequency } from "@/types/finance";
 
 export type TemplateFilterCategory =
   | "all"
+  | "popular"
   | "bi-weekly"
   | "monthly"
   | "debt"

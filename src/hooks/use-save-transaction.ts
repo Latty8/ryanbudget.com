@@ -8,6 +8,9 @@ import { createTransaction } from "@/lib/supabase/queries/transactions";
 import { hasSupabaseDataSync } from "@/lib/supabase/client";
 import { toastTransactionSaved } from "@/lib/feedback/app-feedback";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
+import { applyTransactionRules } from "@/lib/rules/apply-transaction-rules";
+import { logActivity } from "@/store/useActivityLogStore";
+import { useTransactionRulesStore } from "@/store/useTransactionRulesStore";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
 function appendToStore(input: TransactionInput) {
@@ -27,14 +30,18 @@ function appendToStore(input: TransactionInput) {
 /** Save a transaction — local store first; optional Supabase when ENABLE_DATA is on. */
 export function useSaveTransaction() {
   return useCallback(async (input: TransactionInput) => {
-    const validated = await createTransaction(input);
+    const rules = useTransactionRulesStore.getState().rules;
+    const { input: categorized, matchedRule } = applyTransactionRules(input, rules);
+
+    const validated = await createTransaction(categorized);
     if (!validated.ok) {
       const isSchemaError =
         validated.message.includes("schema cache") ||
         validated.message.includes("Could not find") ||
         validated.message.includes("does not exist");
       if (isSchemaError) {
-        appendToStore(input);
+        appendToStore(categorized);
+        logActivity("created", "transaction", categorized.description ?? "Transaction", matchedRule?.name);
         toastTransactionSaved();
         return { ok: true, message: "Saved locally." };
       }
@@ -42,7 +49,8 @@ export function useSaveTransaction() {
       return validated;
     }
 
-    appendToStore(input);
+    appendToStore(categorized);
+    logActivity("created", "transaction", categorized.description ?? "Transaction", matchedRule?.name);
 
     if (!hasSupabaseDataSync) {
       toastTransactionSaved();

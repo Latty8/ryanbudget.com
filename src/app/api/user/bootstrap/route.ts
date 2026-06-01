@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/read-session";
 import { isDemoUserId } from "@/lib/auth/demo-mode";
-import { hasCloudDataSync } from "@/lib/db/config";
+import { hasCloudDataSync, isMongoDBConfigured } from "@/lib/db/config";
 import { findUserById } from "@/lib/mongodb/sync";
 import {
   ensureUserProfile,
@@ -24,6 +24,18 @@ export async function GET() {
   }
 
   if (!isSyncAvailable()) {
+    if (isMongoDBConfigured()) {
+      try {
+        const mongoUser = await findUserById(session.userId);
+        return NextResponse.json({
+          ok: true,
+          onboardingCompleted: mongoUser?.onboardingCompleted === true,
+          syncEnabled: false,
+        });
+      } catch (error) {
+        console.error("[user/bootstrap] mongo onboarding", error);
+      }
+    }
     return NextResponse.json({
       ok: true,
       onboardingCompleted: false,

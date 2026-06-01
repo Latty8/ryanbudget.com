@@ -1,3 +1,4 @@
+import { sanitizeCategoryList } from "@/lib/categories/system-category";
 import { toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import { createSupabaseAdmin, hasSupabaseAdmin } from "@/lib/supabase/admin";
 import {
@@ -97,7 +98,9 @@ export async function pushRemoteState(userId: string, state: RemoteAppState): Pr
 
   const profileId = userId;
   const accountRows = state.accounts.map((a) => mapAccountToRow(profileId, a));
-  const categoryRows = state.categories.map((c) => mapCategoryToRow(profileId, c));
+  const categoryRows = sanitizeCategoryList(state.categories).map((c) =>
+    mapCategoryToRow(profileId, c)
+  );
   const transactionRows = state.transactions.map((t) => mapTransactionToRow(profileId, t));
   const recurringRows = state.recurring.map((r) => mapRecurringToRow(profileId, r));
   const goalRows = state.goals.map((g) => mapGoalToRow(profileId, g));

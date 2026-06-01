@@ -22,11 +22,11 @@ import {
   subscribeToCloudChanges,
 } from "@/lib/supabase/sync/client";
 import { applyOnboardingFromServer } from "@/lib/auth/complete-sign-in-client";
+import { logDataSync, logLocalStoreSnapshot, logRemoteSnapshot } from "@/lib/debug/data-sync-log";
 import {
   getSyncConflictContext,
   markLocalSyncClean,
   markLocalSyncDirty,
-  resetLocalSyncTracking,
 } from "@/lib/supabase/sync/sync-dirty";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
@@ -61,25 +61,50 @@ export function CloudSyncProvider() {
       lastUserId.current = user.userId;
       initialSyncDone.current = false;
 
-      resetLocalSyncTracking();
-
       try {
         await completeSignInClient(user);
 
         const bootstrap = await bootstrapUserSession();
-        await applyOnboardingFromServer(bootstrap.onboardingCompleted);
+        if (bootstrap.onboardingCompleted) {
+          await applyOnboardingFromServer(true);
+        }
 
         if (!isClientCloudSyncEnabled()) {
+          logDataSync("initial-sync-skipped", {
+            userId: user.userId,
+            reason: "client-cloud-sync-disabled",
+          });
           initialSyncDone.current = true;
           return;
         }
 
         const payload = await pullCloudState();
         const remote = payload?.state ?? null;
+        logRemoteSnapshot("pull", remote);
+        logLocalStoreSnapshot("before-initial-sync");
+
         const local = buildLocalRemoteState();
-        const action = resolveInitialSync(local, remote, payload?.revision, {
+        const remoteCount =
+          (remote?.accounts.length ?? 0) +
+          (remote?.categories.length ?? 0) +
+          (remote?.transactions.length ?? 0) +
+          (remote?.recurring.length ?? 0) +
+          (remote?.goals.length ?? 0);
+
+        let action = resolveInitialSync(local, remote, payload?.revision, {
           ...getSyncConflictContext(),
           remoteRevision: payload?.revision,
+        });
+
+        if (userChanged && remote && remoteCount > 0) {
+          action = "apply-remote";
+        }
+
+        logDataSync("initial-sync", {
+          userId: user.userId,
+          userChanged,
+          action,
+          revision: payload?.revision ?? null,
         });
 
         if (action === "apply-remote" && remote) {
@@ -92,10 +117,14 @@ export function CloudSyncProvider() {
         } else if (remote) {
           applyRemoteStateToStore(remote);
           markLocalSyncClean(remote);
+          if (useAppDataStore.getState().onboardingComplete) {
+            await applyOnboardingFromServer(true);
+          }
         }
 
         initialSyncDone.current = true;
         unsubscribeRealtime = subscribeToCloudChanges(user.userId);
+        logLocalStoreSnapshot("after-initial-sync");
       } catch (error) {
         console.error("[cloud-sync] initial sync failed", error);
         initialSyncDone.current = true;

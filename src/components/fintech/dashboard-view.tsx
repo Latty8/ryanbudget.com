@@ -5,10 +5,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO, startOfToday } from "date-fns";
 import { motion } from "framer-motion";
 import { DashboardBudgetProgress } from "@/components/fintech/dashboard-budget-progress";
 import { DashboardCashflowMinimal } from "@/components/fintech/dashboard-cashflow-minimal";
+import { MonthlySummaryCard } from "@/components/fintech/monthly-summary-card";
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { useBudgetViewPeriod } from "@/hooks/use-budget-view-period";
 import { periodLabel, periodSpentLabel } from "@/lib/budget/period";
@@ -21,7 +22,7 @@ import {
   fintechLink,
   fintechMuted,
   EmptyState,
-  fintechSurface,
+  fintechCard,
   Skeleton,
 } from "@/components/fintech/ui";
 import { computeDashboardSummary } from "@/lib/dashboard/compute-summary";
@@ -31,9 +32,9 @@ import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import type { RecurringFrequency } from "@/types/finance";
 import { useShallow } from "zustand/react/shallow";
 
-const DashboardAiInsights = dynamic(
-  () => import("@/components/fintech/dashboard-ai-insights").then((m) => ({ default: m.DashboardAiInsights })),
-  { loading: () => <Skeleton className="h-48 rounded-[var(--radius-card)]" /> }
+const AiFinancialCoach = dynamic(
+  () => import("@/components/fintech/ai-financial-coach").then((m) => ({ default: m.AiFinancialCoach })),
+  { loading: () => <Skeleton className="h-56 rounded-[var(--radius-card)]" /> }
 );
 
 const fadeUp = {
@@ -70,12 +71,46 @@ function UpcomingList({
     );
   }
 
+  const today = startOfToday();
+
   return (
     <ul className={cn("divide-y", fintechDivide)}>
-      {items.map((item) => (
-        <li key={`${item.kind}-${item.name}-${item.date}`} className="flex items-center justify-between py-3.5">
-          <div>
-            <p className={cn("text-sm font-medium", fintechForeground)}>{item.name}</p>
+      {items.map((item) => {
+        const daysUntil = differenceInCalendarDays(parseISO(item.date), today);
+        const dueLabel =
+          item.kind === "Bill"
+            ? daysUntil < 0
+              ? "Overdue"
+              : daysUntil === 0
+                ? "Due today"
+                : daysUntil <= 3
+                  ? `Due in ${daysUntil}d`
+                  : null
+            : daysUntil === 0
+              ? "Today"
+              : daysUntil > 0 && daysUntil <= 7
+                ? `In ${daysUntil}d`
+                : null;
+        const dueUrgent = item.kind === "Bill" && daysUntil >= 0 && daysUntil <= 3;
+
+        return (
+        <li key={`${item.kind}-${item.name}-${item.date}`} className="flex items-center justify-between gap-2 py-3.5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className={cn("text-sm font-medium", fintechForeground)}>{item.name}</p>
+              {dueLabel ? (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    dueUrgent || dueLabel === "Overdue"
+                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                      : "bg-[var(--surface-elevated)] text-[var(--muted)]"
+                  )}
+                >
+                  {dueLabel}
+                </span>
+              ) : null}
+            </div>
             <p className={cn("text-xs", fintechMuted)}>
               {item.kind} · {format(parseISO(item.date), "MMM d")}
             </p>
@@ -90,7 +125,8 @@ function UpcomingList({
             {formatMoney(Math.abs(item.amount), currency)}
           </p>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
@@ -98,7 +134,7 @@ function UpcomingList({
 export function DashboardView() {
   usePageCloudSync();
   const mounted = useMounted();
-  const { accounts, categories, transactions, recurring, preferences, onboardingComplete } =
+  const { accounts, categories, transactions, recurring, preferences, onboardingComplete, goals } =
     useAppDataStore(
       useShallow((s) => ({
         accounts: s.accounts,
@@ -107,6 +143,7 @@ export function DashboardView() {
         recurring: s.demoRecurring,
         preferences: s.preferences,
         onboardingComplete: s.onboardingComplete,
+        goals: s.goals,
       }))
     );
 
@@ -148,7 +185,7 @@ export function DashboardView() {
   return (
     <div className="space-y-8 pb-24 md:space-y-10 md:pb-0">
       {needsSetup ? (
-        <motion.section {...fadeUp} className={cn(fintechSurface, "p-6 text-center sm:p-8")}>
+        <motion.section {...fadeUp} className={cn(fintechCard, "p-6 text-center sm:p-8")}>
           <p className={cn("text-lg font-semibold", fintechForeground)}>Welcome — start with your paycheck</p>
           <p className={cn("mx-auto mt-2 max-w-sm text-sm leading-relaxed", fintechMuted)}>
             Tell us when you get paid and which bills repeat each month.
@@ -189,19 +226,25 @@ export function DashboardView() {
         </p>
       </motion.section>
 
+      {!needsSetup ? (
+        <motion.div {...fadeUp} transition={{ delay: 0.12 }}>
+          <MonthlySummaryCard />
+        </motion.div>
+      ) : null}
+
       <motion.div
         {...fadeUp}
         transition={{ delay: 0.15 }}
         className="grid grid-cols-2 gap-4 md:gap-6"
       >
-        <div className={cn(fintechSurface, "p-4 sm:p-5")}>
+        <div className={cn(fintechCard, "p-4 sm:p-5")}>
           <p className={fintechLabel}>Income</p>
           <p className="mt-2 text-2xl font-semibold text-[var(--positive)]">
             {formatMoney(data.incomeThisMonth, preferences.currency)}
           </p>
           <p className={cn("mt-1 text-xs", fintechMuted)}>This month</p>
         </div>
-        <div className={cn(fintechSurface, "p-4 sm:p-5")}>
+        <div className={cn(fintechCard, "p-4 sm:p-5")}>
           <p className={fintechLabel}>Expenses</p>
           <p className={cn("mt-2 text-2xl font-semibold", fintechForeground)}>
             {formatMoney(data.expensesThisMonth, preferences.currency)}
@@ -224,7 +267,7 @@ export function DashboardView() {
         <motion.section
           {...fadeUp}
           transition={{ delay: 0.2 }}
-          className={cn(fintechSurface, "p-6 md:col-span-3 md:p-8")}
+          className={cn(fintechCard, "p-6 md:col-span-3 md:p-8")}
         >
           <h2 className={cn("text-sm font-semibold", fintechForeground)}>Cash flow</h2>
           <p className={cn("mt-1 text-xs", fintechMuted)}>Income vs expenses</p>
@@ -236,7 +279,7 @@ export function DashboardView() {
         <motion.section
           {...fadeUp}
           transition={{ delay: 0.25 }}
-          className={cn(fintechSurface, "p-6 md:col-span-2 md:p-7")}
+          className={cn(fintechCard, "p-6 md:col-span-2 md:p-7")}
         >
           <h2 className={cn("text-sm font-semibold", fintechForeground)}>Coming up</h2>
           <p className={cn("mt-1 text-xs", fintechMuted)}>Paycheck & bills</p>
@@ -252,10 +295,11 @@ export function DashboardView() {
 
       {!needsSetup ? (
         <motion.div {...fadeUp} transition={{ delay: 0.3 }}>
-          <DashboardAiInsights
+          <AiFinancialCoach
             summary={data}
             categories={categories}
             transactions={transactions}
+            goals={goals}
             currency={preferences.currency}
             baselineInsights={data.insights}
           />

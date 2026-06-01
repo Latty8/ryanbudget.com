@@ -7,6 +7,7 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string;
+  onboardingCompleted: boolean;
 };
 
 export async function registerUser(input: {
@@ -28,7 +29,7 @@ export async function registerUser(input: {
 
   return {
     ok: true,
-    user: { id: String(user._id), email: user.email, name: user.name ?? name },
+    user: { id: String(user._id), email: user.email, name: user.name ?? name, onboardingCompleted: false },
   };
 }
 
@@ -54,6 +55,7 @@ export async function authenticateUser(
       id: String(user._id),
       email: user.email,
       name: user.name ?? normalized.split("@")[0] ?? "User",
+      onboardingCompleted: user.onboardingCompleted === true,
     },
   };
 }

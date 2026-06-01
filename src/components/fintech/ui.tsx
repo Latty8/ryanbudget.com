@@ -10,7 +10,7 @@ export { useShellTheme };
 
 /** Calm surface card — solid background, light border, no glass blur */
 export const fintechSurface =
-  "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-colors duration-200 hover:border-[var(--border-strong)]";
+  "rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-colors duration-200 hover:border-[var(--border-strong)]";
 export const fintechGlass = fintechSurface;
 export const fintechHero =
   "rounded-[var(--radius-card)] bg-gradient-to-br from-[var(--hero-from)] via-[var(--hero-from)] to-[var(--hero-to)] text-white shadow-sm";
@@ -205,19 +205,31 @@ export function ProgressBar({
 export const fintechModalPanel =
   "rounded-[var(--radius-card)] border border-[var(--border-strong)] bg-[var(--modal-solid)] shadow-[var(--shadow-modal)]";
 
+/** Standard app card — dashboards, lists, reports */
+export const fintechCard = cn(fintechSurface, "shadow-[var(--shadow-card)]");
+
+/** Nested metric / list panel inside a card */
+export const fintechInnerCard =
+  "rounded-[var(--radius-inner)] border border-[var(--border-subtle)] bg-[var(--surface-elevated)]";
+
 /** Neutral insight / coach sub-panel */
-export const fintechInsightBox =
-  "rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] p-3";
+export const fintechInsightBox = cn(fintechInnerCard, "p-3 md:p-4");
 
 /** Accent-tinted insight highlight */
-export const fintechInsightAccent =
-  "rounded-xl border border-[var(--accent)]/25 bg-[var(--accent-muted)] p-3";
+export const fintechInsightAccent = cn(
+  fintechInnerCard,
+  "border-[var(--accent)]/25 bg-[var(--accent-muted)] p-3 md:p-4"
+);
 
-export const fintechInsightPositive =
-  "rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3";
+export const fintechInsightPositive = cn(
+  fintechInnerCard,
+  "border-emerald-500/25 bg-emerald-500/5 p-3 md:p-4"
+);
 
-export const fintechInsightWarning =
-  "rounded-xl border border-amber-500/25 bg-amber-500/5 p-3";
+export const fintechInsightWarning = cn(
+  fintechInnerCard,
+  "border-amber-500/25 bg-amber-500/5 p-3 md:p-4"
+);
 
 export function ColorSwatchPicker({
   colors,
@@ -352,11 +364,7 @@ export function ShellCard({
 }) {
   return (
     <div
-      className={cn(
-        fintechSurface,
-        "rounded-xl p-4 sm:p-5",
-        className
-      )}
+      className={cn(fintechSurface, "shadow-[var(--shadow-card)] p-4 sm:p-5 md:p-6", className)}
     >
       {children}
     </div>

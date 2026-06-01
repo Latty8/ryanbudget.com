@@ -95,6 +95,34 @@ export const publicBudgetTemplates: PublicBudgetTemplate[] = [
     ],
   },
   {
+    id: "tpl-50-30-20",
+    slug: "50-30-20-budget",
+    name: "50/30/20 Budget",
+    description:
+      "Classic needs (50%), wants (30%), and savings/debt (20%) — easy to align with bi-weekly paychecks.",
+    author: "Paycheck Planner",
+    tags: ["popular", "starter", "50-30-20"],
+    popularity: 4100,
+    payCadence: "bi-weekly",
+    filterCategory: "starter",
+    accounts: [
+      { name: "Checking", kind: "checking" },
+      { name: "Savings", kind: "savings" },
+    ],
+    categories: [
+      { name: "Income", group: "Income", icon: "Wallet", color: "#22c55e", budgeted: 0 },
+      { name: "Needs (50%)", group: "Needs", icon: "Home", color: "#38bdf8", budgeted: 1825 },
+      { name: "Wants (30%)", group: "Wants", icon: "Utensils", color: "#fb7185", budgeted: 1095 },
+      { name: "Savings & debt (20%)", group: "Goals", icon: "PiggyBank", color: "#2dd4bf", budgeted: 730 },
+    ],
+    recurring: [
+      { name: "Paycheck", amount: 1825, cadence: "bi-weekly" },
+      { name: "Rent / mortgage", amount: 1200, cadence: "monthly" },
+      { name: "Auto savings", amount: 365, cadence: "bi-weekly" },
+    ],
+    goals: [{ name: "Emergency buffer", target: 2000, icon: "Shield", color: "#22c55e" }],
+  },
+  {
     id: "tpl-basic-monthly",
     slug: "basic-monthly-budget",
     name: "Basic Monthly Budget",
@@ -154,11 +182,13 @@ export const publicBudgetTemplates: PublicBudgetTemplate[] = [
 
 export const TEMPLATE_FILTERS: { id: TemplateFilterCategory; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "popular", label: "Popular" },
   { id: "bi-weekly", label: "Bi-weekly" },
   { id: "monthly", label: "Monthly" },
   { id: "debt", label: "Debt payoff" },
   { id: "savings", label: "Savings" },
   { id: "household", label: "Household" },
+  { id: "starter", label: "Starter" },
 ];
 
 export function getTemplateBySlug(slug: string) {
@@ -171,7 +201,10 @@ export function filterTemplates(
 ): PublicBudgetTemplate[] {
   const q = query.toLowerCase().trim();
   return publicBudgetTemplates.filter((t) => {
-    const matchesCategory = category === "all" || t.filterCategory === category;
+    const matchesCategory =
+      category === "all" ||
+      t.filterCategory === category ||
+      (category === "popular" && (t.popularity >= 3000 || t.tags.includes("popular")));
     if (!matchesCategory) return false;
     if (!q) return true;
     return (

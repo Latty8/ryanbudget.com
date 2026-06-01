@@ -143,11 +143,17 @@ export function OnboardingFlow() {
         setCategories(SUGGESTED_CATEGORIES.map((c) => ({ ...c, id: nanoid() })));
       }
     }
-    await completeOnboardingForUser();
+    try {
+      await completeOnboardingForUser();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save setup");
+      return;
+    }
     setOnboardingProgress({ step: 0, skippedSteps: [] });
     if (user) setProfile({ name: user.name, email: user.email });
     toast.success(withDemo ? "Demo loaded" : "You're ready — tap + to log spending");
-    router.push("/dashboard");
+    router.replace("/dashboard");
+    router.refresh();
   };
 
   return (

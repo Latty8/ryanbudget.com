@@ -4,7 +4,7 @@ import { FileText, Image as ImageIcon, Loader2, ScanLine, Trash2, Upload } from 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt";
-import { GhostButton } from "@/components/fintech/ui";
+import { fintechMuted, fintechSurface, GhostButton } from "@/components/fintech/ui";
 import { usePremium } from "@/hooks/use-premium";
 import { getReceiptLimits, RECEIPT_ACCEPT } from "@/lib/receipts/limits";
 import type { ReceiptScanSuggestion } from "@/lib/receipts/receipt-scan";
@@ -123,10 +123,27 @@ export function ReceiptAttachments({
     toast.success("Receipt removed");
   };
 
+  const scanPlaceholder = () => {
+    if (receipts.length === 0) {
+      toast.message("Add a receipt first", { description: "Upload a photo, then scan to auto-fill fields." });
+      return;
+    }
+    const image = receipts.find((r) => r.mimeType.startsWith("image/"));
+    if (!image) {
+      toast.message("Scan works on images", { description: "Upload a JPG or PNG receipt to scan." });
+      return;
+    }
+    if (!limits.ocr) {
+      toast.message("Receipt scanning", { description: "Premium OCR coming soon — upgrade to auto-fill from photos." });
+      return;
+    }
+    void scanReceipt(image);
+  };
+
   return (
-    <div className={cn("rounded-xl border border-slate-700 bg-neutral-950/70 p-3", compact && "p-2")}>
+    <div className={cn(fintechSurface, "p-3", compact && "p-2")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-slate-400">Receipts</p>
+        <p className={cn("text-xs font-medium", fintechMuted)}>Receipts</p>
         <div className="flex flex-wrap gap-2">
           <input
             ref={inputRef}
@@ -152,14 +169,27 @@ export function ReceiptAttachments({
             )}
             Upload
           </GhostButton>
+          <GhostButton
+            type="button"
+            className="min-h-11 min-w-[5.5rem] touch-manipulation text-xs sm:min-h-9"
+            disabled={scanning || uploading}
+            onClick={scanPlaceholder}
+          >
+            {scanning ? (
+              <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+            ) : (
+              <ScanLine className="mr-1 inline h-3 w-3" />
+            )}
+            Scan receipt
+          </GhostButton>
         </div>
       </div>
 
       {!limits.ocr ? (
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className={cn("mt-2 text-[11px]", fintechMuted)}>
           Free: up to {limits.maxFiles} files, {limits.maxFileBytes / 1024 / 1024}MB each.{" "}
           {!premium ? (
-            <span className="text-violet-300">Premium unlocks scanning & higher limits.</span>
+            <span className="text-[var(--accent)]">Premium unlocks scanning & higher limits.</span>
           ) : null}
         </p>
       ) : null}
@@ -169,7 +199,7 @@ export function ReceiptAttachments({
           {receipts.map((receipt) => (
             <li
               key={receipt.id}
-              className="group relative overflow-hidden rounded-xl border border-slate-600 bg-neutral-900"
+              className="group relative overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-elevated)]"
             >
               {receipt.mimeType.startsWith("image/") ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -179,7 +209,7 @@ export function ReceiptAttachments({
                   className="aspect-[4/3] w-full object-cover"
                 />
               ) : (
-                <div className="flex aspect-[4/3] flex-col items-center justify-center gap-1 p-2 text-slate-400">
+                <div className={cn("flex aspect-[4/3] flex-col items-center justify-center gap-1 p-2", fintechMuted)}>
                   <FileText className="h-8 w-8" />
                   <span className="line-clamp-2 text-center text-[10px]">{receipt.fileName}</span>
                 </div>
@@ -208,7 +238,12 @@ export function ReceiptAttachments({
           ))}
         </ul>
       ) : (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-slate-600 px-3 py-4 text-xs text-slate-500">
+        <div
+          className={cn(
+            "mt-3 flex items-center gap-2 rounded-lg border border-dashed border-[var(--border-subtle)] px-3 py-4 text-xs",
+            fintechMuted
+          )}
+        >
           <ImageIcon className="h-4 w-4 shrink-0" />
           Attach JPG, PNG, or PDF receipts
         </div>

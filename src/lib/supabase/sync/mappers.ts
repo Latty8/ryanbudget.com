@@ -5,6 +5,7 @@ import type {
   AppRecurringRule,
   SyncedAppPreferences,
 } from "@/types/app-settings";
+import { sanitizeCategoryList } from "@/lib/categories/system-category";
 import { defaultSyncedPreferences, toSyncedPreferences } from "@/lib/preferences/sync-preferences";
 import type {
   AccountRow,
@@ -171,7 +172,7 @@ export function mapRemoteState(input: {
     preferences: toSyncedPreferences({ ...defaultPreferences, ...(profile?.preferences ?? {}) }),
     onboardingCompleted: profile?.onboarding_completed ?? false,
     accounts: input.accounts.map(mapAccountRow),
-    categories: input.categories.map(mapCategoryRow),
+    categories: sanitizeCategoryList(input.categories.map(mapCategoryRow)),
     transactions: input.transactions.map(mapTransactionRow),
     recurring: input.recurring.map(mapRecurringRow),
     goals: input.goals.map(mapGoalRow),

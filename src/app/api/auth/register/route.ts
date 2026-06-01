@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         name: payload.name,
       },
     });
-    return attachSessionCookies(response, payload);
+    return attachSessionCookies(response, payload, { onboarded: false });
   } catch (error) {
     console.error("[auth/register]", error);
     return NextResponse.json(
