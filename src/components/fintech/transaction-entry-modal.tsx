@@ -25,7 +25,12 @@ import { VoiceTransactionEntry } from "@/components/fintech/voice-transaction-en
 import { ReceiptAttachments } from "@/components/fintech/receipt-attachments";
 
 import { inferKindFromCategory } from "@/lib/transactions/transaction-amount";
+import {
+  defaultCategoryId,
+  resolveCategoryForInput,
+} from "@/lib/transactions/resolve-category";
 import { createTransaction, suggestCategories } from "@/lib/supabase/queries/transactions";
+import type { AppCategory } from "@/types/app-settings";
 
 import { CURRENCY_OPTIONS } from "@/lib/currency/exchange-rates";
 
@@ -59,31 +64,19 @@ const tags: TransactionTag[] = ["needs", "wants", "business", "health", "family"
 
 
 
-function resolveCategoryId(name: string, options: string[]): string {
-
-  const lower = name.toLowerCase();
-
-  const exact = options.find((c) => c.toLowerCase() === lower);
-
-  if (exact) return exact;
-
-  const partial = options.find((c) => lower.includes(c.toLowerCase()) || c.toLowerCase().includes(lower));
-
-  return partial ?? options[0] ?? name;
-
+function resolveCategorySelection(ref: string, categories: AppCategory[]): string {
+  return resolveCategoryForInput(ref, categories).categoryId;
 }
 
-
-
 function defaultTransactionInput(
-  categoryOptions: string[],
+  categories: AppCategory[],
   accountOptions: { id: string }[]
 ): TransactionInput {
   return {
     amount: 0,
     date: new Date().toISOString().slice(0, 10),
     description: "",
-    categoryId: categoryOptions[0] ?? "",
+    categoryId: defaultCategoryId(categories),
     accountId: accountOptions[0]?.id ?? "",
     tags: [],
     recurring: false,
@@ -170,14 +163,6 @@ export function TransactionEntryModal({
 
   const accountOptions = storeAccounts.length > 0 ? storeAccounts : demoAccounts.map((a) => ({ ...a, kind: "checking" as const, color: "#38bdf8", icon: "Wallet" }));
 
-  const categoryOptions = useMemo(() => {
-
-    if (storeCategories.length > 0) return storeCategories.map((c) => c.name);
-
-    return demoBudgets.map((b) => b.category);
-
-  }, [storeCategories]);
-
   const categoryEntities = useMemo(
     () =>
       storeCategories.length > 0
@@ -193,19 +178,24 @@ export function TransactionEntryModal({
     [storeCategories]
   );
 
+  const categoryNameOptions = useMemo(
+    () => categoryEntities.map((c) => c.name),
+    [categoryEntities]
+  );
+
   useEffect(() => {
     if (!open) return;
     if (editTransaction) {
       setInput(transactionRecordToInput(editTransaction, accountOptions, categoryEntities));
       setReceipts(editTransaction.receipts ?? []);
     } else {
-      const base = defaultTransactionInput(categoryOptions, accountOptions);
+      const base = defaultTransactionInput(categoryEntities, accountOptions);
       if (initialDraft) {
         setInput({
           ...base,
           ...initialDraft,
           categoryId: initialDraft.categoryId
-            ? resolveCategoryId(String(initialDraft.categoryId), categoryOptions)
+            ? resolveCategorySelection(String(initialDraft.categoryId), categoryEntities)
             : base.categoryId,
           accountId: initialDraft.accountId ?? base.accountId,
         });
@@ -233,10 +223,10 @@ export function TransactionEntryModal({
         description: suggestion.description || prev.description,
         amount: suggestion.amount > 0 ? suggestion.amount : prev.amount,
         date: suggestion.date || prev.date,
-        categoryId: resolveCategoryId(suggestion.category, categoryOptions),
+        categoryId: resolveCategorySelection(suggestion.category, categoryEntities),
       }));
     },
-    [categoryOptions]
+    [categoryEntities]
   );
 
   const canSave = input.description.trim().length > 0 && input.amount > 0;
@@ -249,7 +239,7 @@ export function TransactionEntryModal({
 
   const applyNlpDraft = useCallback(
     (draft: ParsedTransactionDraft, source?: "openai" | "grok" | "rules") => {
-      const categoryId = resolveCategoryId(draft.category, categoryOptions);
+      const categoryId = resolveCategorySelection(draft.category, categoryEntities);
 
       setInput((prev) => ({
 
@@ -279,7 +269,7 @@ export function TransactionEntryModal({
 
       trackEvent("nlp_transaction_applied", { category: categoryId, source: source ?? "rules" });
     },
-    [categoryOptions]
+    [categoryEntities]
   );
 
 
@@ -465,7 +455,7 @@ export function TransactionEntryModal({
 
           {voicePanel ? (
             <VoiceTransactionEntry
-              categoryNames={categoryOptions}
+              categoryNames={categoryNameOptions}
               currencyLabel={preferences.currency}
               onApply={(draft) => {
                 setNlpPreview(draft);
@@ -754,7 +744,12 @@ export function TransactionEntryModal({
 
                   className="rounded-full border border-[var(--border)] px-2 py-1 text-xs text-[var(--foreground)] hover:border-[var(--accent)]"
 
-                  onClick={() => setInput((prev) => ({ ...prev, categoryId: suggestion }))}
+                  onClick={() =>
+                    setInput((prev) => ({
+                      ...prev,
+                      categoryId: resolveCategorySelection(suggestion, categoryEntities),
+                    }))
+                  }
 
                 >
 
@@ -784,11 +779,11 @@ export function TransactionEntryModal({
 
             >
 
-              {categoryOptions.map((category) => (
+              {categoryEntities.map((category) => (
 
-                <option key={category} value={category}>
+                <option key={category.id} value={category.id}>
 
-                  {category}
+                  {category.name}
 
                 </option>
 
@@ -1089,7 +1084,10 @@ export function TransactionEntryModal({
 
                 const result = onSubmit
                   ? await onSubmit(payload, editTransaction?.id)
-                  : await createTransaction(payload, { categories: storeCategories });
+                  : await createTransaction(payload, {
+                      categories: storeCategories,
+                      accounts: storeAccounts,
+                    });
 
                 setSaving(false);
 
@@ -1129,7 +1127,7 @@ export function TransactionEntryModal({
 
                     description: "",
 
-                    categoryId: categoryOptions[0] ?? "",
+                    categoryId: defaultCategoryId(categoryEntities),
 
                     accountId: accountOptions[0]?.id ?? "",
 

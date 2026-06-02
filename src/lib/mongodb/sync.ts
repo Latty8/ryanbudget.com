@@ -163,8 +163,8 @@ export async function pushMongoState(userId: string, state: RemoteAppState): Pro
     merchant: tx.merchant,
     amount: tx.amount,
     transactionDate: tx.date,
-    accountName: tx.account,
-    categoryName: tx.category,
+    accountName: tx.account?.trim() || "Manual",
+    categoryName: tx.category?.trim() || "Uncategorized",
     recurring: tx.recurring ?? false,
     currency: tx.currency ?? "USD",
   }));

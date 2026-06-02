@@ -8,11 +8,14 @@ import { createTransaction } from "@/lib/supabase/queries/transactions";
 import { hasSupabaseDataSync } from "@/lib/supabase/client";
 import { toastTransactionSaved } from "@/lib/feedback/app-feedback";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
+import { normalizeTransactionInput } from "@/lib/transactions/resolve-category";
 import { applyTransactionRules } from "@/lib/rules/apply-transaction-rules";
 import { logActivity } from "@/store/useActivityLogStore";
 import { useTransactionRulesStore } from "@/store/useTransactionRulesStore";
 import { isPaycheckIncome } from "@/lib/paycheck/is-paycheck-income";
 import { useAppDataStore } from "@/store/useAppDataStore";
+import { isClientCloudSyncEnabled } from "@/lib/db/client";
+import { pushLocalStateNow } from "@/lib/supabase/sync/client";
 
 function maybeOpenPaycheckWizard(input: TransactionInput) {
   const categories = useAppDataStore.getState().categories;
@@ -41,11 +44,14 @@ function appendToStore(input: TransactionInput) {
 /** Save a transaction — local store first; optional Supabase when ENABLE_DATA is on. */
 export function useSaveTransaction() {
   return useCallback(async (input: TransactionInput) => {
+    const state = useAppDataStore.getState();
     const rules = useTransactionRulesStore.getState().rules;
-    const { input: categorized, matchedRule } = applyTransactionRules(input, rules);
+    const { input: ruled, matchedRule } = applyTransactionRules(input, rules);
+    const categorized = normalizeTransactionInput(ruled, state.categories, state.accounts);
 
     const validated = await createTransaction(categorized, {
-      categories: useAppDataStore.getState().categories,
+      categories: state.categories,
+      accounts: state.accounts,
     });
     if (!validated.ok) {
       const isSchemaError =
@@ -57,6 +63,7 @@ export function useSaveTransaction() {
         logActivity("created", "transaction", categorized.description ?? "Transaction", matchedRule?.name);
         toastTransactionSaved();
         maybeOpenPaycheckWizard(categorized);
+        if (isClientCloudSyncEnabled()) void pushLocalStateNow();
         return { ok: true, message: "Saved locally." };
       }
       toast.error(validated.message);
@@ -65,6 +72,10 @@ export function useSaveTransaction() {
 
     appendToStore(categorized);
     logActivity("created", "transaction", categorized.description ?? "Transaction", matchedRule?.name);
+
+    if (isClientCloudSyncEnabled()) {
+      void pushLocalStateNow();
+    }
 
     if (!hasSupabaseDataSync) {
       toastTransactionSaved();

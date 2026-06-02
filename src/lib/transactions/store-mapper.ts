@@ -1,6 +1,7 @@
 import type { AppAccount, AppCategory, SyncedAppPreferences } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 import { signedAmountFromInput } from "@/lib/transactions/transaction-amount";
+import { resolveCategoryForInput } from "@/lib/transactions/resolve-category";
 import type { TransactionInput, TransactionRecord } from "@/types/finance";
 
 export function transactionRecordToInput(
@@ -9,12 +10,12 @@ export function transactionRecordToInput(
   categories: AppCategory[]
 ): TransactionInput {
   const account = accounts.find((a) => a.name === row.account);
-  const category = categories.find((c) => c.name === row.category);
+  const resolved = resolveCategoryForInput(row.category, categories);
   return {
     amount: Math.abs(row.amount),
     date: row.date,
     description: row.description,
-    categoryId: category?.id ?? row.category,
+    categoryId: resolved.categoryId,
     accountId: account?.id ?? accounts[0]?.id ?? "",
     kind: row.amount > 0 ? "income" : row.amount < 0 ? "expense" : undefined,
     currency: row.currency,
@@ -32,15 +33,19 @@ export function transactionInputToStoreRow(
   preferences: SyncedAppPreferences,
   existing?: Pick<DemoTransaction, "amount">
 ): DemoTransaction {
-  const account = accounts.find((a) => a.id === input.accountId);
-  const category = categories.find((c) => c.id === input.categoryId || c.name === input.categoryId);
-  const amount = signedAmountFromInput(input, categories, existing?.amount);
+  const account = accounts.find((a) => a.id === input.accountId || a.name === input.accountId);
+  const resolved = resolveCategoryForInput(input.categoryId, categories);
+  const normalizedInput: TransactionInput = {
+    ...input,
+    categoryId: resolved.categoryId,
+  };
+  const amount = signedAmountFromInput(normalizedInput, categories, existing?.amount);
 
   return {
     id,
     date: input.date,
     merchant: input.description,
-    category: category?.name ?? input.categoryId,
+    category: resolved.categoryName,
     account: account?.name ?? "Manual",
     amount,
     recurring: input.recurring,

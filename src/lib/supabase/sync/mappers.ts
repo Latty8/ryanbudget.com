@@ -86,6 +86,8 @@ export function mapTransactionRow(row: TransactionRow): DemoTransaction {
 }
 
 export function mapTransactionToRow(profileId: string, tx: DemoTransaction): TransactionRow {
+  const categoryName = tx.category?.trim() || "Uncategorized";
+  const accountName = tx.account?.trim() || "Manual";
   return {
     id: tx.id,
     profile_id: profileId,
@@ -94,8 +96,8 @@ export function mapTransactionToRow(profileId: string, tx: DemoTransaction): Tra
     transaction_date: tx.date,
     account_id: null,
     category_id: null,
-    account_name: tx.account,
-    category_name: tx.category,
+    account_name: accountName,
+    category_name: categoryName,
     recurring: tx.recurring ?? false,
     currency: tx.currency ?? "USD",
     notes: null,

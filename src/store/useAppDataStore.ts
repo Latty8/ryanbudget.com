@@ -27,6 +27,7 @@ import { advanceCadence } from "@/lib/recurring/advance-cadence";
 import { clearRecurringProjectionCache } from "@/lib/recurring/project-runs";
 import { demoGoals } from "@/lib/demo/sample-data";
 import { normalizeDemoTransactionAmount } from "@/lib/transactions/transaction-amount";
+import { resolveCategoryForInput } from "@/lib/transactions/resolve-category";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
 import { logActivity } from "@/store/useActivityLogStore";
 import type {
@@ -396,9 +397,14 @@ export const useAppDataStore = create<AppDataState>()(
           preferences: toSyncedPreferences({ ...defaultPreferences, ...current.preferences, ...p?.preferences }),
         };
         const categories = sanitizeCategoryList(merged.categories ?? []);
-        const demoTransactions = (merged.demoTransactions ?? []).map((tx) =>
-          normalizeDemoTransactionAmount(tx, categories)
-        );
+        const demoTransactions = (merged.demoTransactions ?? []).map((tx) => {
+          const amountFixed = normalizeDemoTransactionAmount(tx, categories);
+          const resolved = resolveCategoryForInput(amountFixed.category, categories);
+          return {
+            ...amountFixed,
+            category: resolved.categoryName,
+          };
+        });
         return {
           ...merged,
           categories,

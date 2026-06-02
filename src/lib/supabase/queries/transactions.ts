@@ -4,7 +4,11 @@ import { suggestCategoriesFromDescription } from "@/lib/ai/suggest-category";
 import { demoBudgets, demoTransactions } from "@/lib/demo/sample-data";
 import { hasSupabaseDataSync, supabase } from "@/lib/supabase/client";
 import { signedAmountFromInput } from "@/lib/transactions/transaction-amount";
-import type { AppCategory } from "@/types/app-settings";
+import {
+  resolveAccountForInput,
+  resolveCategoryForInput,
+} from "@/lib/transactions/resolve-category";
+import type { AppAccount, AppCategory } from "@/types/app-settings";
 import type { RecurringFrequency, SplitLine, TransactionInput, TransactionRecord } from "@/types/finance";
 
 type GetTransactionsOptions = {
@@ -71,7 +75,10 @@ function nextDateFromFrequency(startDate: string, frequency: RecurringFrequency)
 
 export type CreateTransactionOptions = {
   categories?: AppCategory[];
+  accounts?: AppAccount[];
+  profileId?: string;
 };
+
 
 export async function createTransaction(
   input: TransactionInput,
@@ -82,19 +89,32 @@ export async function createTransaction(
   if (!validateSplitAmount(input.amount, input.splits)) return { ok: false, message: "Split amounts must match total amount." };
 
   const categories = options.categories ?? [];
-  const signedAmount = signedAmountFromInput(input, categories);
+  const accounts = options.accounts ?? [];
+  const category = resolveCategoryForInput(input.categoryId, categories);
+  const account = resolveAccountForInput(input.accountId, accounts);
+  const normalizedInput: TransactionInput = {
+    ...input,
+    categoryId: category.categoryId,
+    accountId: account.accountId,
+  };
+  const signedAmount = signedAmountFromInput(normalizedInput, categories);
   const isIncome = signedAmount > 0;
 
   if (hasSupabaseDataSync && supabase) {
-    const { error } = await supabase.from("transactions").insert({
+    const row: Record<string, unknown> = {
       id: nanoid(),
       merchant: input.description,
       amount: signedAmount,
       transaction_date: input.date,
-      account_id: input.accountId,
-      category_id: input.categoryId,
+      account_id: null,
+      category_id: null,
+      account_name: account.accountName,
+      category_name: category.categoryName,
       notes: input.tags.join(","),
-    });
+    };
+    if (options.profileId) row.profile_id = options.profileId;
+
+    const { error } = await supabase.from("transactions").insert(row);
     if (error) return { ok: false, message: error.message };
 
     if (input.recurring && input.recurringFrequency) {
@@ -104,8 +124,8 @@ export async function createTransaction(
         amount: Math.abs(input.amount),
         cadence: input.recurringFrequency,
         next_run_date: nextDateFromFrequency(input.date, input.recurringFrequency),
-        account_id: input.accountId,
-        category_id: input.categoryId,
+        account_id: null,
+        category_id: null,
         is_income: isIncome,
         is_active: true,
       });
