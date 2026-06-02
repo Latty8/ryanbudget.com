@@ -24,6 +24,7 @@ import { VoiceTransactionEntry } from "@/components/fintech/voice-transaction-en
 
 import { ReceiptAttachments } from "@/components/fintech/receipt-attachments";
 
+import { inferKindFromCategory } from "@/lib/transactions/transaction-amount";
 import { createTransaction, suggestCategories } from "@/lib/supabase/queries/transactions";
 
 import { CURRENCY_OPTIONS } from "@/lib/currency/exchange-rates";
@@ -1068,14 +1069,14 @@ export function TransactionEntryModal({
 
                 setSaving(true);
 
+                const selectedCategory = categoryEntities.find(
+                  (c) => c.id === input.categoryId || c.name === input.categoryId
+                );
                 const payload: TransactionInput = {
-
                   ...input,
-
+                  kind: input.kind ?? inferKindFromCategory(selectedCategory),
                   currency: txCurrency,
-
                   receipts,
-
                 };
 
                 if (!navigator.onLine) {

@@ -33,7 +33,8 @@ export function resolveTransactionIsIncome(
   if (input.kind === "expense") return false;
 
   const category = findCategory(input, categories);
-  if (category && isIncomeCategory(category)) return true;
+  if (category) return isIncomeCategory(category);
+
   if (isPaycheckIncome(input, categories)) return true;
 
   if (existingSignedAmount != null) {

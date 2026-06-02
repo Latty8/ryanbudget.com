@@ -3,12 +3,18 @@ import type { TransactionInput } from "@/types/finance";
 
 const PAYCHECK_PATTERN = /paycheck|payroll|salary|wage|direct deposit|pay day|pay period/i;
 
-function categoryName(input: TransactionInput, categories: AppCategory[]): string {
+function categoryName(
+  input: Pick<TransactionInput, "categoryId" | "description">,
+  categories: AppCategory[]
+): string {
   const cat = categories.find((c) => c.id === input.categoryId || c.name === input.categoryId);
   return cat?.name ?? String(input.categoryId ?? "");
 }
 
-export function isPaycheckIncome(input: TransactionInput, categories: AppCategory[]): boolean {
+export function isPaycheckIncome(
+  input: Pick<TransactionInput, "categoryId" | "description">,
+  categories: AppCategory[]
+): boolean {
   const name = categoryName(input, categories).toLowerCase();
   if (name === "income" || name === "paycheck") return true;
   const desc = (input.description ?? "").trim();

@@ -29,7 +29,8 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   Housing: ["rent", "mortgage", "hoa", "landlord"],
   Entertainment: ["netflix", "spotify", "movie", "concert", "game"],
   Personal: ["amazon", "shopping", "clothing"],
-  Income: ["paycheck", "payroll", "deposit", "income", "salary"],
+  Paycheck: ["paycheck", "payroll", "salary", "wage", "direct deposit"],
+  Income: ["deposit", "income", "bonus", "refund"],
   Utilities: ["electric", "water", "internet", "phone bill"],
   Health: ["pharmacy", "cvs", "doctor", "medical"],
 };
@@ -128,7 +129,11 @@ export function parseNaturalLanguageTransaction(
   if (!Number.isFinite(amount) || amount <= 0) return null;
 
   const { category, confidence } = inferCategory(text);
-  const isIncome = category === "Income" || /\bpay(check|roll)\b/i.test(text);
+  const isIncome =
+    category === "Income" ||
+    category === "Paycheck" ||
+    /\bpay(check|roll| period)\b/i.test(text) ||
+    /\b(salary|refund|deposit)\b/i.test(text);
 
   let date = format(baseDate, "yyyy-MM-dd");
   const onMatch = text.match(ON_DAY_PATTERN);
