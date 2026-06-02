@@ -4,6 +4,7 @@ import { addDays, format, parseISO } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarClock,
+  Forward,
   Pause,
   Pencil,
   Play,
@@ -11,7 +12,8 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { RecurringUpcomingPreview } from "@/components/fintech/recurring-upcoming-preview";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { NumberField } from "@/components/fintech/number-field";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
@@ -74,7 +76,18 @@ export function RecurringMinimalView() {
   const updateRecurring = useAppDataStore((s) => s.updateRecurring);
   const deleteRecurring = useAppDataStore((s) => s.deleteRecurring);
   const toggleRecurringPaused = useAppDataStore((s) => s.toggleRecurringPaused);
+  const skipRecurringNext = useAppDataStore((s) => s.skipRecurringNext);
+  const pauseRecurringForMonths = useAppDataStore((s) => s.pauseRecurringForMonths);
   const currency = useAppDataStore((s) => s.preferences.currency);
+
+  useEffect(() => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    for (const rule of recurring) {
+      if (rule.paused && rule.pausedUntil && rule.pausedUntil <= today) {
+        updateRecurring(rule.id, { paused: false, pausedUntil: undefined });
+      }
+    }
+  }, [recurring, updateRecurring]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -204,7 +217,16 @@ export function RecurringMinimalView() {
         </PrimaryButton>
       </MotionSection>
 
-      <MotionSection delay={0.05} className="mt-6">
+      <MotionSection delay={0.04} className="mt-6">
+        <h2 className={cn("text-sm font-semibold", fintechForeground)}>Upcoming schedule</h2>
+        <p className={cn("mt-1 text-xs", fintechMuted)}>Next several months at a glance</p>
+        <div className="mt-4">
+          <RecurringUpcomingPreview rules={recurring} currency={currency} monthsAhead={4} />
+        </div>
+      </MotionSection>
+
+      <MotionSection delay={0.05} className="mt-8">
+        <h2 className={cn("mb-3 text-sm font-semibold", fintechForeground)}>Your rules</h2>
         <ul className={cn(fintechSurface, fintechDivide, "divide-y overflow-hidden")}>
           <AnimatePresence initial={false}>
             {sorted.map((rule) => {
@@ -229,6 +251,9 @@ export function RecurringMinimalView() {
                         {rule.paused ? (
                           <span className="rounded-full bg-[var(--surface-elevated)] px-2 py-0.5 text-[10px] font-medium text-[var(--muted)]">
                             Paused
+                            {rule.pausedUntil
+                              ? ` until ${format(parseISO(rule.pausedUntil), "MMM d")}`
+                              : ""}
                           </span>
                         ) : null}
                       </div>
@@ -259,6 +284,31 @@ export function RecurringMinimalView() {
                       <Pencil className="mr-1 inline h-3.5 w-3.5" />
                       Edit
                     </GhostButton>
+                    {!rule.paused ? (
+                      <GhostButton
+                        type="button"
+                        className="!min-h-0 !px-3 !py-2 !text-xs"
+                        onClick={() => {
+                          skipRecurringNext(rule.id);
+                          toast.success("Skipped next occurrence");
+                        }}
+                      >
+                        <Forward className="mr-1 inline h-3.5 w-3.5" />
+                        Skip next
+                      </GhostButton>
+                    ) : null}
+                    {!rule.paused ? (
+                      <GhostButton
+                        type="button"
+                        className="!min-h-0 !px-3 !py-2 !text-xs"
+                        onClick={() => {
+                          pauseRecurringForMonths(rule.id, 3);
+                          toast.success("Paused for 3 months");
+                        }}
+                      >
+                        Pause 3 mo
+                      </GhostButton>
+                    ) : null}
                     <GhostButton
                       type="button"
                       className="!min-h-0 !px-3 !py-2 !text-xs"

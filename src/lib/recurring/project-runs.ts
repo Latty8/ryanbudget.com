@@ -10,6 +10,9 @@ export type RecurringRuleInput = {
   cadence: RecurringFrequency;
   nextDate: string;
   active?: boolean;
+  paused?: boolean;
+  pausedUntil?: string;
+  skippedDates?: string[];
   endDate?: string;
 };
 
@@ -52,11 +55,21 @@ export function projectRecurringRuns(
 
   const generated: ProjectedRun[] = [];
 
-  for (const rule of rules.filter((r) => r.active !== false)) {
+  const today = new Date();
+
+  for (const rule of rules.filter((r) => r.active !== false && !r.paused)) {
+    if (rule.pausedUntil && isAfter(parseLocalDate(rule.pausedUntil), today)) continue;
+
     let cursor = parseLocalDate(rule.nextDate);
     const end = rule.endDate ? parseLocalDate(rule.endDate) : null;
+    const skipped = new Set(rule.skippedDates ?? []);
     for (let i = 0; i < runsPerRule; i += 1) {
       if (end && isAfter(cursor, end)) break;
+      const dateStr = formatLocalDate(cursor);
+      if (skipped.has(dateStr)) {
+        cursor = advanceCadence(cursor, rule.cadence);
+        continue;
+      }
       generated.push({
         id: `${rule.id}-${i}`,
         ruleId: rule.id,

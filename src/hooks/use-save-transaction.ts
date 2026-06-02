@@ -11,7 +11,18 @@ import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
 import { applyTransactionRules } from "@/lib/rules/apply-transaction-rules";
 import { logActivity } from "@/store/useActivityLogStore";
 import { useTransactionRulesStore } from "@/store/useTransactionRulesStore";
+import { isPaycheckIncome } from "@/lib/paycheck/is-paycheck-income";
 import { useAppDataStore } from "@/store/useAppDataStore";
+
+function maybeOpenPaycheckWizard(input: TransactionInput) {
+  const categories = useAppDataStore.getState().categories;
+  if (!isPaycheckIncome(input, categories)) return;
+  window.dispatchEvent(
+    new CustomEvent("planner:paycheck-allocate", {
+      detail: { amount: Math.abs(input.amount) },
+    })
+  );
+}
 
 function appendToStore(input: TransactionInput) {
   const state = useAppDataStore.getState();
@@ -43,6 +54,7 @@ export function useSaveTransaction() {
         appendToStore(categorized);
         logActivity("created", "transaction", categorized.description ?? "Transaction", matchedRule?.name);
         toastTransactionSaved();
+        maybeOpenPaycheckWizard(categorized);
         return { ok: true, message: "Saved locally." };
       }
       toast.error(validated.message);
@@ -54,15 +66,18 @@ export function useSaveTransaction() {
 
     if (!hasSupabaseDataSync) {
       toastTransactionSaved();
+      maybeOpenPaycheckWizard(categorized);
       return { ok: true, message: "Saved locally." };
     }
 
     if (validated.message === "Transaction saved.") {
       toastTransactionSaved();
+      maybeOpenPaycheckWizard(categorized);
       return validated;
     }
 
     toastTransactionSaved();
+    maybeOpenPaycheckWizard(categorized);
     return { ok: true, message: "Saved locally." };
   }, []);
 }

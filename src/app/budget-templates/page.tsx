@@ -1,5 +1,5 @@
-import { AppTemplatesGallery } from "@/components/fintech/app-templates-gallery";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <AppTemplatesGallery />;
+export default function BudgetTemplatesRedirectPage() {
+  redirect("/template-library");
 }

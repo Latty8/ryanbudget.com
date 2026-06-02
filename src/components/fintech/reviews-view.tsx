@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PiggyBank, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { ExportPdfButton } from "@/components/fintech/export-pdf-button";
 import { ReviewAiInsights } from "@/components/fintech/review-ai-insights";
 import {
   PageFrame,
@@ -70,7 +71,7 @@ function StatCard({
   );
 }
 
-export function ReviewsView() {
+export function ReviewsView({ embedded = false }: { embedded?: boolean }) {
   const { transactions, goals, accounts, categories, recurring, currency } = useAppDataStore(
     useShallow((s) => ({
       transactions: s.demoTransactions,
@@ -93,44 +94,73 @@ export function ReviewsView() {
   const monthOptions = reviewMonthOptions();
   const yearOptions = reviewYearOptions();
 
-  return (
-    <PageFrame
-      title="Reviews"
-      description="Monthly and yearly snapshots — compare to last period, spot trends, and get AI-powered takeaways."
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <SegmentToggle
-          value={period}
-          onChange={(next) =>
-            setSelection(
-              next === "year"
-                ? { period: "year", key: String(new Date().getFullYear()) }
-                : defaultReviewSelection()
-            )
-          }
-          options={[
-            { value: "month", label: "Monthly" },
-            { value: "year", label: "Yearly" },
-          ]}
-        />
-        <ShellSelect
-          className="w-full sm:max-w-xs"
-          value={selection.key}
-          onChange={(e) => setSelection({ period, key: e.target.value })}
-          aria-label={period === "month" ? "Select month" : "Select year"}
-        >
-          {period === "month"
-            ? monthOptions.map((key) => (
-                <option key={key} value={key}>
-                  {formatReviewMonthKey(key)}
-                </option>
-              ))
-            : yearOptions.map((y) => (
-                <option key={y} value={String(y)}>
-                  {y}
-                </option>
-              ))}
-        </ShellSelect>
+  const body = (
+    <>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <SegmentToggle
+            value={period}
+            onChange={(next) =>
+              setSelection(
+                next === "year"
+                  ? { period: "year", key: String(new Date().getFullYear()) }
+                  : defaultReviewSelection()
+              )
+            }
+            options={[
+              { value: "month", label: "Monthly" },
+              { value: "year", label: "Yearly" },
+            ]}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <ShellSelect
+              className="w-full min-w-[10rem] sm:max-w-xs"
+              value={selection.key}
+              onChange={(e) => setSelection({ period, key: e.target.value })}
+              aria-label={period === "month" ? "Select month" : "Select year"}
+            >
+              {period === "month"
+                ? monthOptions.map((key) => (
+                    <option key={key} value={key}>
+                      {formatReviewMonthKey(key)}
+                    </option>
+                  ))
+                : yearOptions.map((y) => (
+                    <option key={y} value={String(y)}>
+                      {y}
+                    </option>
+                  ))}
+            </ShellSelect>
+            <ExportPdfButton
+              variant="ghost"
+              label="Export PDF"
+              eventName="pdf_export_review"
+              buildPayload={() => ({
+                title: review.label,
+                reportKind: "review" as const,
+                cadence: period === "year" ? "yearly" : "monthly",
+                income: review.income,
+                expenses: review.expenses,
+                net: review.net,
+                balance: review.net,
+                savingsRate: review.savingsRate,
+                categories: review.topCategories.map((c) => ({
+                  name: c.name,
+                  budgeted: 0,
+                  spent: c.spent,
+                })),
+                topSpend: review.topCategories,
+                goals: review.goalHighlights.map((g) => ({
+                  name: g.name,
+                  current: g.current,
+                  target: g.target,
+                  pct: g.pct,
+                })),
+                insights: review.insights,
+              })}
+            />
+          </div>
+        </div>
       </div>
 
       <ShellCard className="mt-6 border-[var(--accent)]/15 bg-gradient-to-br from-[var(--accent)]/5 to-transparent p-5 sm:p-6">
@@ -262,6 +292,17 @@ export function ReviewsView() {
           baselineInsights={review.insights}
         />
       </div>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <PageFrame
+      title="Reviews"
+      description="Monthly and yearly snapshots — compare to last period, spot trends, and get AI-powered takeaways."
+    >
+      {body}
     </PageFrame>
   );
 }

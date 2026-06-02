@@ -1,6 +1,7 @@
 export type NotificationKind =
   | "bill_due"
   | "budget_alert"
+  | "budget_win"
   | "goal_milestone"
   | "paycheck_reminder"
   | "system";

@@ -9,6 +9,7 @@ type RecurringRow = {
   amount: number;
   cadence: string;
   nextDate: string;
+  paused?: boolean;
 };
 
 type TransactionRow = {
@@ -35,6 +36,16 @@ function make(
   };
 }
 
+function isPaycheckRule(rule: RecurringRow) {
+  return rule.amount > 0 && /payroll|paycheck|salary|wage|deposit/i.test(rule.name);
+}
+
+function isBillRule(rule: RecurringRow) {
+  if (rule.paused) return false;
+  if (isPaycheckRule(rule)) return false;
+  return true;
+}
+
 export function generateSmartNotifications(input: {
   recurring: RecurringRow[];
   categories: AppCategory[];
@@ -46,52 +57,78 @@ export function generateSmartNotifications(input: {
   const items: AppNotification[] = [];
   const monthStart = startOfMonth(now);
 
-  for (const bill of input.recurring) {
-    if (bill.amount >= 0) continue;
+  for (const bill of input.recurring.filter(isBillRule)) {
     const due = parseISO(bill.nextDate);
     const days = differenceInCalendarDays(due, now);
-    if (days >= 0 && days <= 7) {
-      items.push(
-        make(
-          "bill_due",
-          days === 0 ? `${bill.name} due today` : `${bill.name} in ${days} day${days === 1 ? "" : "s"}`,
-          `$${Math.abs(bill.amount).toFixed(2)} · ${bill.cadence}`,
-          { href: "/recurring", priority: days <= 2 ? "high" : "normal" }
-        )
-      );
-    }
+    if (days < 0 || days > 7) continue;
+
+    const amount = Math.abs(bill.amount);
+    const dueSoon = days <= 2;
+
+    items.push(
+      make(
+        "bill_due",
+        days === 0
+          ? `${bill.name} due today`
+          : days === 1
+            ? `${bill.name} due tomorrow`
+            : days === 2
+              ? `${bill.name} due in 2 days`
+              : `${bill.name} in ${days} days`,
+        `$${amount.toFixed(2)} · ${bill.cadence}${dueSoon ? " · plan cash before it hits" : ""}`,
+        {
+          href: "/recurring",
+          priority: dueSoon ? "high" : "normal",
+        }
+      )
+    );
   }
 
-  const paycheck = input.recurring.find(
-    (r) => r.amount > 0 && (r.cadence === "bi-weekly" || /pay/i.test(r.name))
-  );
-  if (paycheck) {
+  const paychecks = input.recurring.filter(isPaycheckRule);
+  for (const paycheck of paychecks) {
     const days = differenceInCalendarDays(parseISO(paycheck.nextDate), now);
-    if (days >= 0 && days <= 3) {
-      items.push(
-        make(
-          "paycheck_reminder",
-          days === 0 ? "Paycheck day" : `Paycheck in ${days} day${days === 1 ? "" : "s"}`,
-          `${paycheck.name}: $${paycheck.amount.toFixed(2)} expected`,
-          { href: "/dashboard", priority: "high" }
-        )
-      );
-    }
+    if (days < 0 || days > 5) continue;
+
+    const biweekly = paycheck.cadence === "bi-weekly";
+    const remind =
+      days === 0 ||
+      days === 1 ||
+      days === 2 ||
+      (biweekly && days === 5);
+
+    if (!remind) continue;
+
+    items.push(
+      make(
+        "paycheck_reminder",
+        days === 0
+          ? "Paycheck day"
+          : days === 1
+            ? "Paycheck tomorrow"
+            : `Paycheck in ${days} days`,
+        `${paycheck.name}: $${paycheck.amount.toFixed(2)} expected${biweekly ? " · bi-weekly" : ""}`,
+        {
+          href: "/dashboard",
+          priority: days <= 2 ? "high" : "normal",
+        }
+      )
+    );
   }
 
   for (const cat of input.categories) {
+    if (cat.name === "Income") continue;
     const spent = input.transactions
       .filter((t) => t.amount < 0 && t.category === cat.name && parseISO(t.date) >= monthStart)
       .reduce((s, t) => s + Math.abs(t.amount), 0);
     if (cat.budgeted <= 0) continue;
     const pct = (spent / cat.budgeted) * 100;
-    if (pct >= 85 && pct < 100) {
+    if (pct >= 80 && pct < 100) {
       items.push(
         make(
           "budget_alert",
           `Close to ${cat.name} limit`,
-          `You've used ${Math.round(pct)}% of your $${cat.budgeted.toFixed(0)} budget this month.`,
-          { href: "/budgets", priority: "normal" }
+          `You've used ${Math.round(pct)}% of your $${cat.budgeted.toFixed(0)} monthly budget.`,
+          { href: "/budgets", priority: pct >= 90 ? "high" : "normal" }
         )
       );
     } else if (pct >= 100) {
@@ -99,7 +136,7 @@ export function generateSmartNotifications(input: {
         make(
           "budget_alert",
           `${cat.name} over budget`,
-          `Spent $${spent.toFixed(0)} of $${cat.budgeted.toFixed(0)} — consider pausing discretionary spend.`,
+          `Spent $${spent.toFixed(0)} of $${cat.budgeted.toFixed(0)} — review discretionary spending.`,
           { href: "/budgets", priority: "high" }
         )
       );
@@ -108,42 +145,81 @@ export function generateSmartNotifications(input: {
 
   for (const goal of input.goals) {
     const pct = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
+    const remaining = Math.max(0, goal.target - goal.current);
+    const daysLeft = differenceInCalendarDays(parseISO(goal.targetDate), now);
+
+    if (pct >= 100) {
+      items.push(
+        make(
+          "goal_milestone",
+          `Fund complete: ${goal.name}`,
+          "You reached this sinking fund target — nice work!",
+          { href: "/goals", priority: "high" }
+        )
+      );
+      continue;
+    }
+
+    if (pct >= 75 && pct < 100) {
+      items.push(
+        make(
+          "goal_milestone",
+          `${goal.name} almost funded`,
+          `${Math.round(pct)}% complete · $${remaining.toFixed(0)} to go.`,
+          { href: "/goals" }
+        )
+      );
+      continue;
+    }
+
     if (pct >= 50 && pct < 75) {
       items.push(
         make(
           "goal_milestone",
           `${goal.name} halfway there`,
-          `${Math.round(pct)}% funded — $${(goal.target - goal.current).toFixed(0)} to go.`,
+          `${Math.round(pct)}% funded — keep your per-paycheck contributions steady.`,
           { href: "/goals" }
         )
       );
-    } else if (pct >= 100) {
+      continue;
+    }
+
+    if (daysLeft > 0 && daysLeft <= 45 && pct < 40) {
       items.push(
         make(
           "goal_milestone",
-          `Goal reached: ${goal.name}`,
-          "Congratulations — you hit your savings target!",
-          { href: "/goals", priority: "high" }
+          `${goal.name} needs attention`,
+          `Target in ${daysLeft} days but only ${Math.round(pct)}% funded — bump your next allocation.`,
+          { href: "/goals", priority: daysLeft <= 14 ? "high" : "normal" }
         )
       );
     }
   }
 
-  if (items.length === 0) {
+  const spendCategories = input.categories.filter((c) => c.name !== "Income" && c.budgeted > 0);
+  const totalBudgeted = spendCategories.reduce((s, c) => s + c.budgeted, 0);
+  const totalSpent = input.transactions
+    .filter((t) => t.amount < 0 && parseISO(t.date) >= monthStart)
+    .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+  if (totalBudgeted > 0 && totalSpent < totalBudgeted * 0.85 && now.getDate() >= 10) {
+    const headroom = totalBudgeted - totalSpent;
     items.push(
       make(
-        "system",
-        "You're all caught up",
-        `No urgent alerts for ${format(now, "MMM d")}. We'll notify you about bills and budgets here.`,
+        "budget_win",
+        "You're under budget this month!",
+        `$${headroom.toFixed(0)} below your planned spending — room to save or treat yourself wisely.`,
         { href: "/dashboard", priority: "low" }
       )
     );
   }
 
-  return items.slice(0, 12);
+  const priorityOrder = { high: 0, normal: 1, low: 2 };
+  return items
+    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+    .slice(0, 14);
 }
 
-/** Stable fingerprint to avoid duplicate notifications on refresh */
 export function notificationFingerprint(n: Pick<AppNotification, "kind" | "title" | "body">) {
   return `${n.kind}:${n.title}:${n.body}`;
 }

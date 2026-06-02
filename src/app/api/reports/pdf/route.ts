@@ -14,10 +14,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Premium required for PDF export" }, { status: 403 });
   }
 
-  const body = (await request.json()) as PdfReportPayload;
-  const html = buildPdfReportHtml(body);
+  let body: PdfReportPayload;
+  try {
+    body = (await request.json()) as PdfReportPayload;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-  return new NextResponse(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
+  try {
+    const html = buildPdfReportHtml(body);
+    return new NextResponse(html, {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  } catch (err) {
+    console.error("[reports/pdf]", err);
+    return NextResponse.json({ error: "Failed to build report" }, { status: 500 });
+  }
 }

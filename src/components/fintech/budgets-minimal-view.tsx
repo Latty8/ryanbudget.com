@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CircleDollarSign, Plus } from "lucide-react";
+import { CircleDollarSign, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { toastBudgetSaved } from "@/lib/feedback/app-feedback";
 import {
@@ -22,6 +22,11 @@ import {
   sumBudgetTotals,
   type BudgetPeriod,
 } from "@/lib/budget/period";
+import {
+  buildAutoRolloverPatches,
+  currentBudgetPeriodKey,
+} from "@/lib/budget/rollover";
+import { useBudgetRolloverStore } from "@/store/useBudgetRolloverStore";
 import { CATEGORY_PRESETS, presetToCategory } from "@/lib/categories/category-presets";
 import { useConfirm } from "@/components/providers/confirm-dialog-provider";
 import {
@@ -41,13 +46,14 @@ import {
   ProgressRing,
   SegmentToggle,
   ShellInput,
+  ShellSelect,
 } from "@/components/fintech/ui";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { useBudgetPeriodPreference, useBudgetViewPeriod, useSetBudgetPeriodPreference } from "@/hooks/use-budget-view-period";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
-import type { BudgetPeriodPreference } from "@/types/app-settings";
+import type { BudgetPeriodPreference, CategoryBudgetBehavior } from "@/types/app-settings";
 
 const QUICK_PRESETS = CATEGORY_PRESETS.filter((p) =>
   ["utilities", "groceries", "gas", "subscriptions", "restaurants", "entertainment"].includes(p.presetId)
@@ -75,16 +81,44 @@ export function BudgetsMinimalView() {
     createBudgetAmountFormState({ monthly: 100, source: "bi-weekly" })
   );
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [formBehavior, setFormBehavior] = useState<CategoryBudgetBehavior>("fixed");
 
   const expenseCategories = useMemo(
     () => categories.filter((c) => c.name !== "Income" && c.name !== "Uncategorized"),
     [categories]
   );
 
+  const globalRollover = useBudgetRolloverStore((s) => s.globalRolloverEnabled);
+  const setGlobalRollover = useBudgetRolloverStore((s) => s.setGlobalRolloverEnabled);
+  const lastPeriodKey = useBudgetRolloverStore((s) => s.lastAppliedPeriodKey);
+  const setLastPeriodKey = useBudgetRolloverStore((s) => s.setLastAppliedPeriodKey);
+
   const rows = useMemo(
-    () => computeCategoryBudgetRows(categories, transactions, viewPeriod),
-    [categories, transactions, viewPeriod]
+    () =>
+      computeCategoryBudgetRows(categories, transactions, viewPeriod, {
+        globalRolloverEnabled: globalRollover,
+      }),
+    [categories, transactions, viewPeriod, globalRollover]
   );
+
+  useEffect(() => {
+    const key = currentBudgetPeriodKey(viewPeriod);
+    if (lastPeriodKey === null) {
+      setLastPeriodKey(key);
+      return;
+    }
+    if (lastPeriodKey === key) return;
+    const latestCategories = useAppDataStore.getState().categories;
+    const latestTx = useAppDataStore.getState().demoTransactions;
+    const latestRows = computeCategoryBudgetRows(latestCategories, latestTx, viewPeriod, {
+      globalRolloverEnabled: globalRollover,
+    });
+    const patches = buildAutoRolloverPatches(latestCategories, latestRows, globalRollover);
+    for (const patch of patches) {
+      updateCategory(patch.id, { rolloverBalance: patch.rolloverBalance });
+    }
+    setLastPeriodKey(key);
+  }, [lastPeriodKey, viewPeriod, globalRollover, updateCategory, setLastPeriodKey]);
 
   const displayRows = useMemo(
     () =>
@@ -94,7 +128,31 @@ export function BudgetsMinimalView() {
     [rows]
   );
 
-  const { totalBudgeted, totalSpent, totalLeft, overallPct } = sumBudgetTotals(displayRows);
+  const { totalBudgeted, totalSpent, totalLeft, totalRollover, overallPct } =
+    sumBudgetTotals(displayRows);
+
+  const resetAllRollovers = () => {
+    for (const cat of categories) {
+      if ((cat.rolloverBalance ?? 0) > 0) {
+        updateCategory(cat.id, { rolloverBalance: 0 });
+      }
+    }
+    toast.success("Rollover balances cleared");
+  };
+
+  const applyRolloverNow = () => {
+    const patches = buildAutoRolloverPatches(categories, rows, globalRollover);
+    if (patches.length === 0) {
+      toast.message("Nothing to roll over", {
+        description: "Only categories with leftover funds and rollover enabled qualify.",
+      });
+      return;
+    }
+    for (const patch of patches) {
+      updateCategory(patch.id, { rolloverBalance: patch.rolloverBalance });
+    }
+    toast.success(`Rolled over ${patches.length} categor${patches.length === 1 ? "y" : "ies"}`);
+  };
 
   const setViewPeriod = (value: BudgetPeriodPreference) => {
     setBudgetPeriodPref(value);
@@ -108,8 +166,10 @@ export function BudgetsMinimalView() {
   };
 
   const openEdit = (id: string, name: string, monthlyBudgeted: number) => {
+    const cat = categories.find((c) => c.id === id);
     setEditingId(id);
     setFormName(name);
+    setFormBehavior(cat?.budgetBehavior ?? "fixed");
     setAmountForm({
       amounts: budgetAmountsFromMonthly(monthlyBudgeted),
       source: "bi-weekly",
@@ -145,7 +205,7 @@ export function BudgetsMinimalView() {
       return;
     }
     if (editingId) {
-      updateCategory(editingId, { budgeted: monthly });
+      updateCategory(editingId, { budgeted: monthly, budgetBehavior: formBehavior });
       setFlashId(editingId);
       toastBudgetSaved(true);
     } else {
@@ -265,6 +325,8 @@ export function BudgetsMinimalView() {
           setAmountForm={setAmountForm}
           onQuickPreset={applyQuickPreset}
           onClose={() => setModalOpen(false)}
+          formBehavior={formBehavior}
+          setFormBehavior={setFormBehavior}
           onSave={saveBudget}
         />
       </PageFrame>
@@ -283,8 +345,48 @@ export function BudgetsMinimalView() {
         </div>
       </MotionSection>
 
-      <MotionSection delay={0.05} className="mt-6">
+      <MotionSection delay={0.05} className="mt-6 space-y-4">
+        <div
+          className={cn(
+            fintechSurface,
+            "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+          )}
+        >
+          <div>
+            <p className={cn("text-sm font-medium", fintechForeground)}>Budget rollover</p>
+            <p className={cn("mt-1 text-xs", fintechMuted)}>
+              Carry unused funds to the next period. Per-category: set behavior to Rollover in edit.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={globalRollover}
+                onChange={(e) => setGlobalRollover(e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+              />
+              All categories
+            </label>
+            <GhostButton type="button" className="!text-xs" onClick={applyRolloverNow}>
+              Rollover now
+            </GhostButton>
+            <GhostButton type="button" className="!text-xs" onClick={resetAllRollovers}>
+              <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
+              Reset
+            </GhostButton>
+          </div>
+        </div>
         {summaryCard}
+        {totalRollover > 0 ? (
+          <p className={cn("text-center text-xs", fintechMuted)}>
+            Includes{" "}
+            <span className="font-medium text-[var(--accent)]">
+              {formatMoney(totalRollover, preferences.currency)}
+            </span>{" "}
+            rolled over from prior periods
+          </p>
+        ) : null}
       </MotionSection>
 
       <MotionSection delay={0.1} className="mt-6">
@@ -328,6 +430,8 @@ export function BudgetsMinimalView() {
         setAmountForm={setAmountForm}
         onQuickPreset={applyQuickPreset}
         onClose={() => setModalOpen(false)}
+        formBehavior={formBehavior}
+        setFormBehavior={setFormBehavior}
         onSave={saveBudget}
       />
     </PageFrame>
@@ -344,6 +448,8 @@ function BudgetModal({
   onQuickPreset,
   onClose,
   onSave,
+  formBehavior,
+  setFormBehavior,
 }: {
   open: boolean;
   editingId: string | null;
@@ -354,6 +460,8 @@ function BudgetModal({
   onQuickPreset: (presetId: string) => void;
   onClose: () => void;
   onSave: () => void;
+  formBehavior: CategoryBudgetBehavior;
+  setFormBehavior: (v: CategoryBudgetBehavior) => void;
 }) {
   return (
     <ModalOverlay
@@ -393,7 +501,7 @@ function BudgetModal({
                     onClick={() => onQuickPreset(preset.presetId)}
                     className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2 text-xs font-medium transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
                   >
-                    <CategoryIconBadge name={preset.icon} color={preset.color} size="sm" />
+                    <CategoryIconBadge icon={preset.icon} color={preset.color} size="sm" />
                     {preset.name}
                   </button>
                 ))}
@@ -404,6 +512,19 @@ function BudgetModal({
           <p className={cn("text-sm font-medium", fintechForeground)}>{formName}</p>
         )}
         <BudgetAmountForm state={amountForm} onChange={setAmountForm} />
+        {editingId ? (
+          <label className="grid gap-1.5">
+            <FieldLabel>Budget behavior</FieldLabel>
+            <ShellSelect
+              value={formBehavior}
+              onChange={(e) => setFormBehavior(e.target.value as CategoryBudgetBehavior)}
+            >
+              <option value="fixed">Fixed (no rollover)</option>
+              <option value="rollover">Rollover unused</option>
+              <option value="flexible">Flexible</option>
+            </ShellSelect>
+          </label>
+        ) : null}
       </div>
     </ModalOverlay>
   );

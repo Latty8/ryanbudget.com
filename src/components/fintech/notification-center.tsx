@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, CheckCheck, X } from "lucide-react";
+import { Bell, CheckCheck, Clock, X } from "lucide-react";
 import { fintechIconButton, fintechMuted, fintechSurface } from "@/components/fintech/ui";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { useNotificationEngine } from "@/hooks/use-notification-engine";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const kindColors: Record<string, string> = {
   bill_due: "text-amber-600 dark:text-amber-400",
   budget_alert: "text-rose-600 dark:text-rose-400",
+  budget_win: "text-[var(--positive)]",
   goal_milestone: "text-[var(--positive)]",
   paycheck_reminder: "text-[var(--accent)]",
   system: "text-[var(--muted)]",
@@ -27,6 +28,7 @@ export function NotificationCenter() {
   const markRead = useNotificationStore((s) => s.markRead);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const dismiss = useNotificationStore((s) => s.dismiss);
+  const snooze = useNotificationStore((s) => s.snooze);
   const pushEnabled = useNotificationStore((s) => s.pushEnabled);
   const setPushEnabled = useNotificationStore((s) => s.setPushEnabled);
 
@@ -104,7 +106,9 @@ export function NotificationCenter() {
 
           <ul className="max-h-[min(60dvh,20rem)] overflow-y-auto overscroll-contain">
             {notifications.length === 0 ? (
-              <li className={cn("px-4 py-8 text-center text-sm", fintechMuted)}>No notifications yet</li>
+              <li className={cn("px-4 py-8 text-center text-sm", fintechMuted)}>
+                You&apos;re all caught up — we&apos;ll alert you about bills, budgets, and paychecks here.
+              </li>
             ) : (
               notifications.map((n) => (
                 <li
@@ -113,6 +117,12 @@ export function NotificationCenter() {
                     "border-b border-[var(--border-subtle)] px-3 py-3 last:border-0",
                     !n.read && "bg-[var(--surface-elevated)]"
                   )}
+                  onClick={() => !n.read && markRead(n.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !n.read) markRead(n.id);
+                  }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -127,9 +137,31 @@ export function NotificationCenter() {
                         </Link>
                       ) : null}
                     </div>
-                    <button type="button" className={fintechIconButton} onClick={() => dismiss(n.id)} aria-label="Dismiss">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex shrink-0 flex-col gap-0.5">
+                      <button
+                        type="button"
+                        className={fintechIconButton}
+                        onClick={() => {
+                          snooze(n, 24);
+                          markRead(n.id);
+                        }}
+                        aria-label="Snooze 24 hours"
+                        title="Snooze 24h"
+                      >
+                        <Clock className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        className={fintechIconButton}
+                        onClick={() => {
+                          markRead(n.id);
+                          dismiss(n.id);
+                        }}
+                        aria-label="Dismiss"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))

@@ -71,7 +71,7 @@ export function SidebarMoreNav({ collapsed, onNavigate }: Props) {
   }
 
   return (
-    <div className="pt-1">
+    <div className="mt-2 border-t border-[var(--border-subtle)] pt-2">
       <button
         type="button"
         aria-expanded={open}

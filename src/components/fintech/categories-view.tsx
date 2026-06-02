@@ -30,24 +30,12 @@ import { useAppDataStore } from "@/store/useAppDataStore";
 import { cn } from "@/lib/utils";
 import type { AppCategory } from "@/types/app-settings";
 
-const ICON_OPTIONS = [
-  "Wallet",
-  "Home",
-  "ShoppingCart",
-  "Car",
-  "Utensils",
-  "Music",
-  "Zap",
-  "PiggyBank",
-] as const;
-
 function CategorySection({
   kind,
   items,
   spentByCategory,
   editingId,
   groupOptions,
-  iconOptions,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -58,7 +46,6 @@ function CategorySection({
   spentByCategory: Map<string, number>;
   editingId: string | null;
   groupOptions: string[];
-  iconOptions: string[];
   onStartEdit: (id: string) => void;
   onCancelEdit: () => void;
   onSave: (id: string, patch: Partial<AppCategory>) => void;
@@ -100,7 +87,6 @@ function CategorySection({
                   isSystem={isHiddenSystemCategory(category)}
                   isEditing={editingId === category.id}
                   groupOptions={groupOptions}
-                  iconOptions={iconOptions}
                   onStartEdit={() => onStartEdit(category.id)}
                   onCancelEdit={onCancelEdit}
                   onSave={(patch) => onSave(category.id, patch)}
@@ -123,7 +109,6 @@ function CategorySection({
             isSystem={isHiddenSystemCategory(category)}
             isEditing={editingId === category.id}
             groupOptions={groupOptions}
-            iconOptions={iconOptions}
             onStartEdit={() => onStartEdit(category.id)}
             onCancelEdit={onCancelEdit}
             onSave={(patch) => onSave(category.id, patch)}
@@ -178,14 +163,6 @@ export function CategoriesView() {
 
   const userCategories = visibleCategories;
 
-  const iconOptionsForSelect = useMemo(() => {
-    const names = new Set<string>(ICON_OPTIONS);
-    for (const cat of categories) {
-      if (cat.icon) names.add(cat.icon);
-    }
-    return [...names].sort();
-  }, [categories]);
-
   const handleDelete = (id: string, name: string) => {
     const category = categories.find((c) => c.id === id);
     if (!category || isHiddenSystemCategory(category)) return;
@@ -225,7 +202,6 @@ export function CategoriesView() {
   const sectionProps = {
     editingId,
     groupOptions,
-    iconOptions: iconOptionsForSelect,
     spentByCategory,
     onStartEdit: (id: string) => setEditingId((current) => (current === id ? null : id)),
     onCancelEdit: () => setEditingId(null),

@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { CategoryIconBadge } from "@/components/fintech/category-icon";
 import { NumberField } from "@/components/fintech/number-field";
 import { ElevatedCard } from "@/components/fintech/elevated-card";
+import { CategoryAppearancePicker } from "@/components/fintech/category-appearance-picker";
 import {
-  ColorSwatchPicker,
   FieldLabel,
   GhostButton,
   PrimaryButton,
@@ -18,7 +18,6 @@ import {
   fintechIconButton,
   fintechMuted,
 } from "@/components/fintech/ui";
-import { ENTITY_COLOR_SWATCHES } from "@/lib/fintech/color-swatches";
 import type { CategoryKind } from "@/lib/categories/category-kind";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
@@ -31,7 +30,6 @@ type CategoryRowProps = {
   isSystem: boolean;
   isEditing: boolean;
   groupOptions: string[];
-  iconOptions: string[];
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSave: (patch: Partial<AppCategory>) => void;
@@ -74,7 +72,6 @@ function CategoryEditForm({
   draft,
   setDraft,
   groupOptions,
-  iconOptions,
   isSystem,
   onCancel,
   onSave,
@@ -82,7 +79,6 @@ function CategoryEditForm({
   draft: AppCategory;
   setDraft: React.Dispatch<React.SetStateAction<AppCategory>>;
   groupOptions: string[];
-  iconOptions: string[];
   isSystem: boolean;
   onCancel: () => void;
   onSave: () => void;
@@ -116,29 +112,7 @@ function CategoryEditForm({
             ))}
           </ShellSelect>
         </label>
-        <label className="grid gap-1.5">
-          <FieldLabel>Icon</FieldLabel>
-          <ShellSelect
-            value={draft.icon}
-            onChange={(e) => setDraft((s) => ({ ...s, icon: e.target.value }))}
-            aria-label="Category icon"
-          >
-            {iconOptions.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </ShellSelect>
-        </label>
-        <label className="grid gap-1.5">
-          <FieldLabel>Color</FieldLabel>
-          <ColorSwatchPicker
-            colors={ENTITY_COLOR_SWATCHES}
-            value={draft.color}
-            onChange={(color) => setDraft((s) => ({ ...s, color }))}
-          />
-        </label>
-        <label className="grid gap-1.5">
+        <label className="grid gap-1.5 sm:col-span-2 lg:col-span-3">
           <FieldLabel>Monthly budget</FieldLabel>
           <NumberField
             value={draft.budgeted}
@@ -147,6 +121,13 @@ function CategoryEditForm({
           />
         </label>
       </div>
+      <CategoryAppearancePicker
+        icon={draft.icon}
+        color={draft.color}
+        previewName={draft.name}
+        onIconChange={(icon) => setDraft((s) => ({ ...s, icon }))}
+        onColorChange={(color) => setDraft((s) => ({ ...s, color }))}
+      />
       <div className="flex flex-wrap items-center justify-end gap-2">
         <GhostButton type="button" onClick={onCancel}>
           Cancel
@@ -241,7 +222,6 @@ export function CategoryRow({
   isSystem,
   isEditing,
   groupOptions,
-  iconOptions,
   onStartEdit,
   onCancelEdit,
   onSave,
@@ -277,7 +257,7 @@ export function CategoryRow({
         >
           <td className="py-3 pl-4 pr-3">
             <div className="flex items-center gap-3">
-              <CategoryIconBadge name={category.icon} color={category.color} size="sm" />
+              <CategoryIconBadge icon={category.icon} color={category.color} size="sm" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-[var(--foreground)]">{category.name}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -315,7 +295,6 @@ export function CategoryRow({
                 draft={draft}
                 setDraft={setDraft}
                 groupOptions={groupOptions}
-                iconOptions={iconOptions}
                 isSystem={isSystem}
                 onCancel={onCancelEdit}
                 onSave={handleSave}
@@ -330,7 +309,7 @@ export function CategoryRow({
   return (
     <ElevatedCard accentColor={category.color} className={cn("min-h-[132px]", isEditing && "border-[var(--border-strong)]")}>
       <div className={cn(fintechCardBody, "flex items-start gap-3")}>
-        <CategoryIconBadge name={category.icon} color={category.color} size="md" />
+        <CategoryIconBadge icon={category.icon} color={category.color} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -366,7 +345,6 @@ export function CategoryRow({
           draft={draft}
           setDraft={setDraft}
           groupOptions={groupOptions}
-          iconOptions={iconOptions}
           isSystem={isSystem}
           onCancel={onCancelEdit}
           onSave={handleSave}

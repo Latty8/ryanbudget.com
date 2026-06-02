@@ -1,5 +1,6 @@
 "use client";
 
+import { addHours } from "date-fns";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
@@ -12,10 +13,13 @@ type NotificationState = {
   notifications: AppNotification[];
   pushEnabled: boolean;
   lastSyncedAt: string | null;
+  /** Fingerprint → ISO snooze expiry (syncs across tabs via persist) */
+  snoozedUntil: Record<string, string>;
   syncFromAppData: (data: Parameters<typeof generateSmartNotifications>[0]) => void;
   markRead: (id: string) => void;
   markAllRead: () => void;
   dismiss: (id: string) => void;
+  snooze: (notification: AppNotification, hours?: number) => void;
   setPushEnabled: (enabled: boolean) => void;
   unreadCount: () => number;
 };
@@ -26,22 +30,33 @@ export const useNotificationStore = create<NotificationState>()(
       notifications: [],
       pushEnabled: false,
       lastSyncedAt: null,
+      snoozedUntil: {},
 
       syncFromAppData: (data) => {
         const generated = generateSmartNotifications(data);
-        const existing = get().notifications;
-        const fingerprints = new Set(existing.map((n) => notificationFingerprint(n)));
+        const now = Date.now();
+        const { snoozedUntil } = get();
 
-        const merged: AppNotification[] = [...existing];
-        for (const next of generated) {
-          const fp = notificationFingerprint(next);
-          if (fingerprints.has(fp)) continue;
-          fingerprints.add(fp);
-          merged.unshift(next);
-        }
+        const readFingerprints = new Set(
+          get()
+            .notifications.filter((n) => n.read)
+            .map((n) => notificationFingerprint(n))
+        );
+
+        const notifications = generated
+          .filter((n) => {
+            const fp = notificationFingerprint(n);
+            const until = snoozedUntil[fp];
+            if (!until) return true;
+            return new Date(until).getTime() <= now;
+          })
+          .map((n) => ({
+            ...n,
+            read: readFingerprints.has(notificationFingerprint(n)),
+          }));
 
         set({
-          notifications: merged.slice(0, 40),
+          notifications,
           lastSyncedAt: new Date().toISOString(),
         });
       },
@@ -62,6 +77,17 @@ export const useNotificationStore = create<NotificationState>()(
         set((state) => ({
           notifications: state.notifications.filter((n) => n.id !== id),
         })),
+
+      snooze: (notification, hours = 24) => {
+        const fp = notificationFingerprint(notification);
+        set((state) => ({
+          snoozedUntil: {
+            ...state.snoozedUntil,
+            [fp]: addHours(new Date(), hours).toISOString(),
+          },
+          notifications: state.notifications.filter((n) => n.id !== notification.id),
+        }));
+      },
 
       setPushEnabled: (pushEnabled) => set({ pushEnabled }),
 

@@ -3,6 +3,7 @@ import {
   BarChart3,
   CircleDollarSign,
   History,
+  Images,
   LayoutDashboard,
   LayoutTemplate,
   PiggyBank,
@@ -94,15 +95,17 @@ const NAV: PaletteItem[] = [
   nav("nav-dashboard", "Dashboard", "/dashboard", "Overview & insights", ["home", "overview"], LayoutDashboard),
   nav("nav-transactions", "Transactions", "/transactions", "Activity & receipts", ["spending", "expenses"], ReceiptText),
   nav("nav-budgets", "Budgets", "/budgets", "Plan by category", ["budget", "envelope"], CircleDollarSign),
+  nav("nav-recurring", "Paycheck Planner", "/recurring", "Bills & paychecks", ["bills", "paycheck", "planner"], RefreshCw),
+  nav("nav-insights", "Insights", "/insights", "Trends, reviews, net worth & health", ["analytics", "insights", "trends"], BarChart3),
+  nav("nav-insights-reviews", "Monthly review", "/insights?tab=reviews", "Insights · reviews", ["review", "monthly"], Sparkles),
+  nav("nav-insights-health", "Financial health", "/insights?tab=health", "Insights · health score", ["health", "score"], Sparkles),
   nav("nav-accounts", "Accounts", "/accounts", "Wallets & balances", ["wallet", "bank"], Wallet),
   nav("nav-categories", "Categories", "/categories", "Groups & limits", ["tags"], Tags),
-  nav("nav-recurring", "Paycheck Planner", "/recurring", "Bills & paychecks", ["bills", "paycheck", "planner"], RefreshCw),
-  nav("nav-reviews", "Reviews", "/reviews", "Monthly & yearly summary", ["review", "insights"], Sparkles),
-  nav("nav-templates", "Budget templates", "/budget-templates", "Import starter plans", ["template", "50/30/20", "snowball"], LayoutTemplate),
+  nav("nav-templates", "Templates", "/template-library", "Budget plans & quick transactions", ["template", "50/30/20", "quick"], LayoutTemplate),
   nav("nav-goals", "Sinking Funds", "/goals", "Vacation, holidays, repairs", ["savings", "goals", "funds"], PiggyBank),
-  nav("nav-reports", "Reports", "/reports", "Charts & PDF", ["analytics", "charts"], BarChart3),
-  nav("nav-net-worth", "Net Worth", "/net-worth", "Assets & liabilities", ["wealth", "balance sheet"], Scale),
+  nav("nav-insights-networth", "Net worth", "/insights?tab=net-worth", "Insights · balance sheet", ["wealth", "assets"], Scale),
   nav("nav-rules", "Rules", "/rules", "Auto-categorize transactions", ["categorize", "merchant"], Wand2),
+  nav("nav-receipts", "Receipts", "/receipts", "Receipt gallery & vault", ["receipt", "attachments", "images"], Images),
   nav("nav-activity", "Activity Log", "/activity", "Recent changes", ["history", "audit"], History),
   nav("nav-household", "Household", "/household", "Shared planning", ["family"], Users),
   nav("nav-settings", "Settings", "/settings", "Profile & data", ["preferences"], Settings),
@@ -199,10 +202,10 @@ const REPORTS: PaletteItem[] = [
     id: "rep-main",
     section: "Reports",
     title: "Go to Reports",
-    subtitle: "Cash flow & net worth",
+    subtitle: "Insights · cash flow & charts",
     keywords: ["report", "analytics", "charts"],
     icon: BarChart3,
-    href: "/reports",
+    href: "/insights?tab=reports",
     rank: RANK.report,
   },
 ];
@@ -282,12 +285,12 @@ export function buildPaletteItems(input: {
       ACTIONS[1],
       ACTIONS[3],
       ACTIONS[4],
-      NAV.find((n) => n.id === "nav-reports")!,
-      NAV.find((n) => n.id === "nav-budgets")!,
-      NAV.find((n) => n.id === "nav-accounts")!,
-      NAV.find((n) => n.id === "nav-transactions")!,
+      NAV.find((n) => n.id === "nav-insights"),
+      NAV.find((n) => n.id === "nav-budgets"),
+      NAV.find((n) => n.id === "nav-recurring"),
+      NAV.find((n) => n.id === "nav-transactions"),
       SETTINGS[0],
-    ];
+    ].filter((item): item is PaletteItem => item != null);
   }
 
   const entityItems: PaletteItem[] = [];
@@ -410,6 +413,7 @@ export const SECTION_ORDER: PaletteSection[] = [
 export function groupPaletteItems(items: PaletteItem[]): Array<{ section: PaletteSection; items: PaletteItem[] }> {
   const map = new Map<PaletteSection, PaletteItem[]>();
   for (const item of items) {
+    if (!item?.section) continue;
     const list = map.get(item.section) ?? [];
     list.push(item);
     map.set(item.section, list);

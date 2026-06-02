@@ -19,6 +19,7 @@ export function AddTransactionFab() {
   const [open, setOpen] = useState(false);
   const [savedPulse, setSavedPulse] = useState(false);
   const [draft, setDraft] = useState<Partial<TransactionInput> | undefined>();
+  const [startVoice, setStartVoice] = useState(false);
   const submitTransaction = useTransactionSubmit();
 
   useEffect(() => {
@@ -27,8 +28,16 @@ export function AddTransactionFab() {
       setDraft(detail);
       setOpen(true);
     };
+    const onVoice = () => {
+      setStartVoice(true);
+      setOpen(true);
+    };
     window.addEventListener("planner:new-transaction", onNew);
-    return () => window.removeEventListener("planner:new-transaction", onNew);
+    window.addEventListener("planner:new-transaction-voice", onVoice);
+    return () => {
+      window.removeEventListener("planner:new-transaction", onNew);
+      window.removeEventListener("planner:new-transaction-voice", onVoice);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,9 +77,13 @@ export function AddTransactionFab() {
           open={open}
           onOpenChange={(next) => {
             setOpen(next);
-            if (!next) setDraft(undefined);
+            if (!next) {
+              setDraft(undefined);
+              setStartVoice(false);
+            }
           }}
           initialDraft={draft}
+          startVoice={startVoice}
           onSubmit={(input) => submitTransaction(input)}
         />
       ) : null}

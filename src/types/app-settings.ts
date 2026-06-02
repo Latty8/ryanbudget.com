@@ -55,6 +55,10 @@ export type AppRecurringRule = {
   nextDate: string;
   /** When true, excluded from projections and dashboard "coming up" */
   paused?: boolean;
+  /** Skip this date only (yyyy-MM-dd) — occurrence not projected */
+  skippedDates?: string[];
+  /** Auto-resume after this date (yyyy-MM-dd) when set via timed pause */
+  pausedUntil?: string;
 };
 
 export type CategoryBudgetBehavior = "fixed" | "flexible" | "percentage" | "rollover";
@@ -69,6 +73,8 @@ export type AppCategory = {
   budgeted: number;
   /** How this category behaves in the budget; defaults to fixed */
   budgetBehavior?: CategoryBudgetBehavior;
+  /** Unused budget carried into the current period */
+  rolloverBalance?: number;
 };
 
 export type SyncedAppPreferences = {

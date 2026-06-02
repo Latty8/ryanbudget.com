@@ -1,5 +1,5 @@
-import { ReportsView } from "@/components/fintech/reports-view";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <ReportsView />;
+export default function ReportsRedirectPage() {
+  redirect("/insights?tab=reports");
 }

@@ -74,40 +74,7 @@ export const CATEGORY_PRESETS: CategoryPreset[] = [
 
 export const CATEGORY_COLOR_OPTIONS = [...ENTITY_COLOR_SWATCHES];
 
-export const CATEGORY_ICON_NAMES = [
-  "Home",
-  "Building2",
-  "Zap",
-  "Droplets",
-  "Wifi",
-  "Smartphone",
-  "ShoppingCart",
-  "Utensils",
-  "Coffee",
-  "Car",
-  "Fuel",
-  "Bus",
-  "Shield",
-  "Wrench",
-  "Repeat",
-  "Tv",
-  "Gamepad2",
-  "ShoppingBag",
-  "User",
-  "Heart",
-  "Dumbbell",
-  "PawPrint",
-  "PiggyBank",
-  "ShieldCheck",
-  "Plane",
-  "Landmark",
-  "CreditCard",
-  "GraduationCap",
-  "CircleDollarSign",
-  "Sparkles",
-  "Wallet",
-  "Music",
-] as const;
+export { CATEGORY_ICON_NAMES } from "@/lib/categories/category-icon-registry";
 
 export function categoryGroupsForSelect(existingGroups: string[] = []) {
   const merged = new Set<string>([...CATEGORY_GROUPS, ...existingGroups]);

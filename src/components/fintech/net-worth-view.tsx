@@ -43,7 +43,7 @@ const emptyManual = () => ({
   includeInChart: true,
 });
 
-export function NetWorthView() {
+export function NetWorthView({ embedded = false }: { embedded?: boolean }) {
   const confirm = useConfirm();
   const accounts = useAppDataStore((s) => s.accounts);
   const currency = useAppDataStore((s) => s.preferences.currency);
@@ -88,8 +88,8 @@ export function NetWorthView() {
     setForm(emptyManual());
   };
 
-  return (
-    <PageFrame title="Net Worth" description="Assets minus liabilities — synced from accounts plus anything you track manually.">
+  const body = (
+    <>
       <div className="grid gap-4 sm:grid-cols-3">
         <ShellCard className="p-4 sm:p-5">
           <p className={cn("text-xs font-semibold uppercase tracking-wide", fintechMuted)}>Net worth</p>
@@ -241,6 +241,14 @@ export function NetWorthView() {
           <PrimaryButton onClick={saveManual}>Save</PrimaryButton>
         </div>
       </ModalOverlay>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <PageFrame title="Net Worth" description="Assets minus liabilities — synced from accounts plus anything you track manually.">
+      {body}
     </PageFrame>
   );
 }

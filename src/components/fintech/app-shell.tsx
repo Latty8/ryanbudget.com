@@ -8,6 +8,7 @@ import { AddTransactionFab } from "@/components/fintech/add-transaction-fab";
 import { DemoModeBanner } from "@/components/fintech/demo-mode-banner";
 import { FinanceSidebar } from "@/components/fintech/finance-sidebar";
 import { GlobalSearchPalette, GlobalSearchTrigger } from "@/components/fintech/global-search";
+import { PaycheckAllocationHost } from "@/components/fintech/paycheck-allocation-wizard";
 import { NotificationCenter } from "@/components/fintech/notification-center";
 import { RefreshDataButton } from "@/components/fintech/refresh-data-button";
 import { ThemeToggle } from "@/components/fintech/theme-toggle";
@@ -145,6 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <AddTransactionFab />
         <GlobalSearchPalette />
+        <PaycheckAllocationHost />
       </div>
 
       {mobileDrawerOpen ? (

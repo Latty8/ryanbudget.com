@@ -1,5 +1,5 @@
-import { ReviewsView } from "@/components/fintech/reviews-view";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <ReviewsView />;
+export default function ReviewsRedirectPage() {
+  redirect("/insights?tab=reviews");
 }

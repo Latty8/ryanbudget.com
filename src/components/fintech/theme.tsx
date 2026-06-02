@@ -2,53 +2,87 @@
 
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
-type FintechTheme = "dark" | "light";
+export type FintechTheme = "light" | "dark" | "system";
+
+type ResolvedTheme = "light" | "dark";
 
 type FintechThemeContextValue = {
   theme: FintechTheme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (value: FintechTheme) => void;
   isLight: boolean;
 };
 
 const FintechThemeContext = createContext<FintechThemeContextValue | null>(null);
 
-function readStoredTheme(): FintechTheme {
-  if (typeof window === "undefined") return "light";
-  const saved = localStorage.getItem("fintech-theme");
-  return saved === "dark" ? "dark" : "light";
+function systemPrefersDark(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-function applyThemeToDocument(theme: FintechTheme) {
-  document.documentElement.dataset.theme = theme;
+function readStoredTheme(): FintechTheme {
+  if (typeof window === "undefined") return "system";
+  const saved = localStorage.getItem("fintech-theme");
+  if (saved === "dark" || saved === "light" || saved === "system") return saved;
+  return "light";
+}
+
+function resolveTheme(theme: FintechTheme): ResolvedTheme {
+  if (theme === "system") return systemPrefersDark() ? "dark" : "light";
+  return theme;
+}
+
+function applyThemeToDocument(resolved: ResolvedTheme) {
+  document.documentElement.dataset.theme = resolved;
 }
 
 export function FintechThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<FintechTheme>("light");
+  const [theme, setThemeState] = useState<FintechTheme>("system");
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
   const [ready, setReady] = useState(false);
 
   useLayoutEffect(() => {
     const stored = readStoredTheme();
     setThemeState(stored);
-    applyThemeToDocument(stored);
+    const resolved = resolveTheme(stored);
+    setResolvedTheme(resolved);
+    applyThemeToDocument(resolved);
     setReady(true);
   }, []);
 
+  useEffect(() => {
+    if (!ready || theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      const resolved = resolveTheme("system");
+      setResolvedTheme(resolved);
+      applyThemeToDocument(resolved);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [theme, ready]);
+
   useLayoutEffect(() => {
     if (!ready) return;
-    applyThemeToDocument(theme);
+    const resolved = resolveTheme(theme);
+    setResolvedTheme(resolved);
+    applyThemeToDocument(resolved);
   }, [theme, ready]);
 
   const value = useMemo<FintechThemeContextValue>(
     () => ({
       theme,
-      isLight: theme === "light",
+      resolvedTheme,
+      isLight: resolvedTheme === "light",
       setTheme: (next) => {
         setThemeState(next);
         localStorage.setItem("fintech-theme", next);
-        applyThemeToDocument(next);
+        const resolved = resolveTheme(next);
+        setResolvedTheme(resolved);
+        applyThemeToDocument(resolved);
       },
     }),
-    [theme]
+    [theme, resolvedTheme]
   );
 
   return <FintechThemeContext.Provider value={value}>{children}</FintechThemeContext.Provider>;

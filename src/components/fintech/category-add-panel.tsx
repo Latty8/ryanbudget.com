@@ -1,12 +1,12 @@
 "use client";
 
-import { Plus, Sparkles, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CategoryIconBadge } from "@/components/fintech/category-icon";
 import { NumberField } from "@/components/fintech/number-field";
+import { CategoryAppearancePicker } from "@/components/fintech/category-appearance-picker";
 import {
-  ColorSwatchPicker,
   FieldLabel,
   fintechMuted,
   PrimaryButton,
@@ -23,8 +23,6 @@ import {
 } from "@/lib/categories/category-kind";
 import {
   BUDGET_BEHAVIOR_OPTIONS,
-  CATEGORY_COLOR_OPTIONS,
-  CATEGORY_ICON_NAMES,
   CATEGORY_PRESETS,
   presetToCategory,
   type CategoryPreset,
@@ -40,7 +38,7 @@ const emptyDraft = (): Draft => ({
   kind: "expense",
   group: "Miscellaneous",
   icon: "Sparkles",
-  color: CATEGORY_COLOR_OPTIONS[0],
+  color: "#38bdf8",
   budgeted: 0,
   budgetBehavior: "fixed",
 });
@@ -202,7 +200,7 @@ export function CategoryAddPanel({
                   onClick={() => applyPreset(preset)}
                   className="flex items-center gap-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5 text-left transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]"
                 >
-                  <CategoryIconBadge name={preset.icon} color={preset.color} size="sm" />
+                  <CategoryIconBadge icon={preset.icon} color={preset.color} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-[var(--foreground)]">
                       {preset.name}
@@ -281,20 +279,7 @@ export function CategoryAddPanel({
                 ))}
               </ShellSelect>
             </label>
-            <label className="grid gap-1.5">
-              <FieldLabel>Icon</FieldLabel>
-              <ShellSelect
-                value={draft.icon}
-                onChange={(e) => setDraft((s) => ({ ...s, icon: e.target.value }))}
-              >
-                {CATEGORY_ICON_NAMES.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </ShellSelect>
-            </label>
-            <label className="grid gap-1.5">
+            <label className="grid gap-1.5 sm:col-span-2 lg:col-span-3">
               <FieldLabel>Monthly budget</FieldLabel>
               <NumberField
                 value={draft.budgeted}
@@ -302,28 +287,13 @@ export function CategoryAddPanel({
               />
             </label>
           </div>
-          <div>
-            <FieldLabel>Color</FieldLabel>
-            <ColorSwatchPicker
-              className="mt-2"
-              colors={CATEGORY_COLOR_OPTIONS}
-              value={draft.color}
-              onChange={(color) => setDraft((s) => ({ ...s, color }))}
-            />
-          </div>
-          <div className="flex items-center gap-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] px-3 py-2.5">
-            <CategoryIconBadge name={draft.icon} color={draft.color} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[var(--foreground)]">
-                {draft.name.trim() || "Preview"}
-              </p>
-              <p className="truncate text-xs text-[var(--muted)]">
-                {draft.kind === "income" ? "Income" : draft.group} ·{" "}
-                {BUDGET_BEHAVIOR_OPTIONS.find((b) => b.value === draft.budgetBehavior)?.label}
-              </p>
-            </div>
-            <Sparkles className="h-4 w-4 text-[var(--muted)]" aria-hidden />
-          </div>
+          <CategoryAppearancePicker
+            icon={draft.icon}
+            color={draft.color}
+            previewName={draft.name.trim() || "Preview"}
+            onIconChange={(icon) => setDraft((s) => ({ ...s, icon }))}
+            onColorChange={(color) => setDraft((s) => ({ ...s, color }))}
+          />
           <PrimaryButton type="button" onClick={saveCustom}>
             <Plus className="mr-1 inline h-4 w-4" />
             Add custom category

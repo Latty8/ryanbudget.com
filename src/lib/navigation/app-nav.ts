@@ -2,7 +2,10 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Ellipsis,
+  Grid3x3,
+  HeartPulse,
   History,
+  Images,
   LayoutDashboard,
   LayoutTemplate,
   PiggyBank,
@@ -11,11 +14,12 @@ import {
   Scale,
   Settings,
   Sparkles,
+  LineChart,
   Tags,
   Users,
-  Wallet,
   CircleDollarSign,
   Wand2,
+  Wallet,
 } from "lucide-react";
 
 export type NavItem = {
@@ -27,28 +31,34 @@ export type NavItem = {
 
 export const APP_HOME = "/dashboard";
 
+/** Six sidebar destinations: five links + More (dropdown). */
 export const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ReceiptText },
   { href: "/budgets", label: "Budgets", icon: CircleDollarSign },
-  { href: "/accounts", label: "Accounts", icon: Wallet },
-  { href: "/categories", label: "Categories", icon: Tags },
   { href: "/recurring", label: "Paycheck Planner", icon: RefreshCw },
-  { href: "/reviews", label: "Reviews", icon: Sparkles },
+  { href: "/insights", label: "Insights", icon: LineChart, description: "Trends, reviews, net worth & health" },
 ];
 
+/** Everything else — accounts, setup, templates, and tools. */
 export const MORE_NAV: NavItem[] = [
   {
-    href: "/budget-templates",
-    label: "Templates",
-    icon: LayoutTemplate,
-    description: "Import bi-weekly & 50/30/20 plans",
+    href: "/accounts",
+    label: "Accounts",
+    icon: Wallet,
+    description: "Wallets & balances",
   },
   {
-    href: "/reports",
-    label: "Reports",
-    icon: BarChart3,
-    description: "Charts, cash flow & exports",
+    href: "/categories",
+    label: "Categories",
+    icon: Tags,
+    description: "Groups, icons & budgets",
+  },
+  {
+    href: "/template-library",
+    label: "Templates",
+    icon: LayoutTemplate,
+    description: "Budget plans & quick transactions",
   },
   {
     href: "/goals",
@@ -57,10 +67,10 @@ export const MORE_NAV: NavItem[] = [
     description: "Vacation, holidays, repairs",
   },
   {
-    href: "/net-worth",
-    label: "Net Worth",
-    icon: Scale,
-    description: "Assets, liabilities & trend",
+    href: "/receipts",
+    label: "Receipts",
+    icon: Images,
+    description: "Receipt gallery & attachments",
   },
   {
     href: "/rules",
@@ -84,21 +94,48 @@ export const MORE_NAV: NavItem[] = [
     href: "/settings",
     label: "Settings",
     icon: Settings,
-    description: "Currency, data & preferences",
+    description: "Profile, data & preferences",
   },
+];
+
+export type InsightsTabId =
+  | "trends"
+  | "reviews"
+  | "reports"
+  | "heatmap"
+  | "net-worth"
+  | "health";
+
+export const INSIGHTS_TABS: { id: InsightsTabId; label: string; icon: LucideIcon }[] = [
+  { id: "trends", label: "Trends", icon: LineChart },
+  { id: "reviews", label: "Reviews", icon: Sparkles },
+  { id: "reports", label: "Reports", icon: BarChart3 },
+  { id: "heatmap", label: "Heatmap", icon: Grid3x3 },
+  { id: "net-worth", label: "Net worth", icon: Scale },
+  { id: "health", label: "Health", icon: HeartPulse },
 ];
 
 const MORE_HREFS = new Set(MORE_NAV.map((item) => item.href));
 
+/** Legacy analytics routes merged into /insights */
+const LEGACY_INSIGHTS_PATHS = new Set(["/reviews", "/reports", "/net-worth"]);
+
+export function isInsightsActive(pathname: string): boolean {
+  if (pathname === "/insights" || pathname.startsWith("/insights/")) return true;
+  return LEGACY_INSIGHTS_PATHS.has(pathname);
+}
+
 export function isMoreNavActive(pathname: string): boolean {
   if (pathname === "/more") return true;
   if (pathname.startsWith("/household")) return true;
-  if (pathname.startsWith("/budget-templates")) return true;
+  if (pathname.startsWith("/template-library")) return true;
+  if (pathname.startsWith("/transaction-templates") || pathname.startsWith("/budget-templates")) return true;
   return MORE_NAV.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 }
 
 export function isNavItemActive(href: string, pathname: string): boolean {
   if (href === "/more") return isMoreNavActive(pathname);
+  if (href === "/insights") return isInsightsActive(pathname);
   if (MORE_HREFS.has(href)) return pathname === href || pathname.startsWith(`${href}/`);
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -107,7 +144,8 @@ export const MOBILE_NAV: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/transactions", label: "Activity", icon: ReceiptText },
   { href: "/budgets", label: "Budgets", icon: CircleDollarSign },
-  { href: "/accounts", label: "Accounts", icon: Wallet },
+  { href: "/recurring", label: "Planner", icon: RefreshCw },
+  { href: "/insights", label: "Insights", icon: LineChart },
   { href: "/more", label: "More", icon: Ellipsis },
 ];
 

@@ -20,6 +20,7 @@ import { ModalPortal } from "@/components/ui/modal-portal";
 import { toastTransactionSaved } from "@/lib/feedback/app-feedback";
 
 import { NlpTransactionPreview } from "@/components/fintech/nlp-transaction-preview";
+import { VoiceTransactionEntry } from "@/components/fintech/voice-transaction-entry";
 
 import { ReceiptAttachments } from "@/components/fintech/receipt-attachments";
 
@@ -104,6 +105,8 @@ export function TransactionEntryModal({
 
   initialDraft,
 
+  startVoice = false,
+
 }: {
 
   open: boolean;
@@ -118,6 +121,9 @@ export function TransactionEntryModal({
 
   /** Prefill fields when opened from calendar or quick actions */
   initialDraft?: Partial<TransactionInput>;
+
+  /** Open with voice capture panel expanded */
+  startVoice?: boolean;
 
 }) {
 
@@ -142,6 +148,8 @@ export function TransactionEntryModal({
   const [nlpPreview, setNlpPreview] = useState<ParsedTransactionDraft | null>(null);
 
   const [nlpSource, setNlpSource] = useState<"openai" | "grok" | "rules" | null>(null);
+
+  const [voicePanel, setVoicePanel] = useState(false);
 
   const [goalContributionId, setGoalContributionId] = useState("");
 
@@ -209,8 +217,9 @@ export function TransactionEntryModal({
     setNlpText("");
     setNlpPreview(null);
     setMessage(null);
+    setVoicePanel(Boolean(startVoice && !editTransaction));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening or switching edit target
-  }, [open, editTransaction?.id, initialDraft]);
+  }, [open, editTransaction?.id, initialDraft, startVoice]);
 
 
 
@@ -450,6 +459,19 @@ export function TransactionEntryModal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5">
 
         <div className="grid gap-3 pb-4">
+
+          {voicePanel ? (
+            <VoiceTransactionEntry
+              categoryNames={categoryOptions}
+              currencyLabel={preferences.currency}
+              onApply={(draft) => {
+                setNlpPreview(draft);
+                setNlpSource("rules");
+                setVoicePanel(false);
+              }}
+              onCancel={() => setVoicePanel(false)}
+            />
+          ) : null}
 
           <label className="grid gap-1">
 
@@ -693,13 +715,13 @@ export function TransactionEntryModal({
 
                 className={cn(fintechIconButton, "absolute right-1 top-1/2 -translate-y-1/2 !min-h-10 !min-w-10")}
 
-                aria-label="Voice input coming soon"
+                aria-label="Voice input"
 
-                onClick={() => toast.message("Voice input", { description: "Coming soon — use natural language text for now." })}
+                onClick={() => setVoicePanel((v) => !v)}
 
               >
 
-                <Mic className="h-4 w-4" />
+                <Mic className={cn("h-4 w-4", voicePanel && "text-[var(--accent)]")} />
 
               </button>
 

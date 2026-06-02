@@ -23,7 +23,7 @@ import {
 import type { TemplateFilterCategory } from "@/types/budget-template";
 import { cn } from "@/lib/utils";
 
-export function AppTemplatesGallery() {
+export function AppTemplatesGallery({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TemplateFilterCategory>("popular");
@@ -40,11 +40,8 @@ export function AppTemplatesGallery() {
     router.push("/budgets");
   };
 
-  return (
-    <PageFrame
-      title="Template gallery"
-      description="Browse proven budgets and import one into your planner — bi-weekly, 50/30/20, debt snowball, and more."
-    >
+  const body = (
+    <>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <ShellInput
@@ -116,6 +113,17 @@ export function AppTemplatesGallery() {
           })}
         </ul>
       )}
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <PageFrame
+      title="Template gallery"
+      description="Browse proven budgets and import one into your planner — bi-weekly, 50/30/20, debt snowball, and more."
+    >
+      {body}
     </PageFrame>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Download, FileBarChart, Lock, ReceiptText } from "lucide-react";
+import { FileBarChart, Lock, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
 import {
   Bar,
@@ -36,6 +36,7 @@ import {
   ShellInput,
 } from "@/components/fintech/ui";
 import { ReportsChartFrame } from "@/components/fintech/reports-chart-frame";
+import { ExportPdfButton } from "@/components/fintech/export-pdf-button";
 import { downloadTextFile, transactionsToCsv } from "@/lib/data/export-import";
 import { usePremium } from "@/hooks/use-premium";
 import {
@@ -43,7 +44,6 @@ import {
   resolveReportRange,
   type ReportDatePreset,
 } from "@/lib/reports/compute-report-data";
-import { trackEvent } from "@/lib/analytics";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
 import { cn } from "@/lib/utils";
 import { useShallow } from "zustand/react/shallow";
@@ -63,7 +63,7 @@ const PRESETS: { id: ReportDatePreset; label: string; premium?: boolean }[] = [
   { id: "custom", label: "Custom range", premium: true },
 ];
 
-export function ReportsView() {
+export function ReportsView({ embedded = false }: { embedded?: boolean }) {
   usePageCloudSync();
   const { canUse, premium } = usePremium();
   const { demoMode } = useDemoMode();
@@ -85,7 +85,6 @@ export function ReportsView() {
   const [preset, setPreset] = useState<ReportDatePreset>("this-month");
   const [customStart, setCustomStart] = useState(format(new Date(), "yyyy-MM-01"));
   const [customEnd, setCustomEnd] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [exporting, setExporting] = useState(false);
   const [chartTab, setChartTab] = useState<"cashflow" | "categories" | "budget">("cashflow");
 
   const range = useMemo(
@@ -116,65 +115,38 @@ export function ReportsView() {
   };
 
   const fetchReportHtml = async () => {
-    const response = await fetch("/api/reports/pdf", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-premium": premium || demoMode ? "true" : "false",
-        "x-demo": demoMode ? "true" : "false",
-      },
-      body: JSON.stringify({
-        title: range.label,
-        cadence,
-        income: report.income,
-        expenses: report.expenses,
-        net: report.net,
-        balance: report.balance,
-        cashflow: report.cashflow,
-        categories: report.budgetVsActual.map((c) => ({
-          name: c.name,
-          budgeted: c.budgeted,
-          spent: c.spent,
-        })),
-        goals: goals.map((g) => ({
-          name: g.name,
-          current: g.current,
-          target: g.target,
-          pct: g.target > 0 ? (g.current / g.target) * 100 : 0,
-        })),
-        recurring: recurring.map((r) => ({
-          name: r.name,
-          amount: r.amount,
-          cadence: r.cadence,
-          nextDate: r.nextDate,
-        })),
-      }),
-    });
-    if (!response.ok) return null;
-    return response.text();
+    const { fetchPdfReportHtml } = await import("@/lib/reports/export-pdf-client");
+    const result = await fetchPdfReportHtml(buildPdfPayload(), { premium: !!premium, demoMode });
+    return "html" in result ? result.html : null;
   };
 
-  const exportPdf = async () => {
-    if (!canUse("pdf_export")) return;
-    setExporting(true);
-    try {
-      const html = await fetchReportHtml();
-      if (!html) throw new Error("Export failed");
-      const win = window.open("", "_blank");
-      if (win) {
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        win.print();
-        toast.success("Report opened — use Print to save as PDF");
-        trackEvent("pdf_export", { cadence, preset });
-      }
-    } catch {
-      toast.error("Could not generate PDF");
-    } finally {
-      setExporting(false);
-    }
-  };
+  const buildPdfPayload = () => ({
+    title: range.label,
+    reportKind: "reports" as const,
+    cadence,
+    income: report.income,
+    expenses: report.expenses,
+    net: report.net,
+    balance: report.balance,
+    categories: report.budgetVsActual.map((c) => ({
+      name: c.name,
+      budgeted: c.budgeted,
+      spent: c.spent,
+    })),
+    cashflow: report.cashflow,
+    goals: goals.map((g) => ({
+      name: g.name,
+      current: g.current,
+      target: g.target,
+      pct: g.target > 0 ? (g.current / g.target) * 100 : 0,
+    })),
+    recurring: recurring.map((r) => ({
+      name: r.name,
+      amount: r.amount,
+      cadence: r.cadence,
+      nextDate: r.nextDate,
+    })),
+  });
 
   const tooltipProps = {
     ...reportTooltipStyle,
@@ -187,34 +159,37 @@ export function ReportsView() {
     report.expenses > 0 ||
     report.cashflow.some((p) => p.income > 0 || p.expenses > 0);
 
+  const cadenceToggle = (
+    <SegmentToggle
+      value={cadence}
+      onChange={setCadence}
+      options={[
+        { value: "biweekly" as const, label: "Bi-weekly" },
+        { value: "monthly" as const, label: "Monthly" },
+      ]}
+    />
+  );
+
   if (!hasTransactions) {
+    const empty = (
+      <ReportsEmptyState
+        title="No data yet"
+        description="Add a paycheck, bills, or everyday spending — your cash flow and category charts will show up here."
+        actionLabel="Add a transaction"
+        actionHref="/transactions"
+      />
+    );
+    if (embedded) return empty;
     return (
       <PageFrame title="Reports" description="Charts appear once you add transactions.">
-        <ReportsEmptyState
-          title="No data yet"
-          description="Add a paycheck, bills, or everyday spending — your cash flow and category charts will show up here."
-          actionLabel="Add a transaction"
-          actionHref="/transactions"
-        />
+        {empty}
       </PageFrame>
     );
   }
 
-  return (
-    <PageFrame
-      title="Reports"
-      description={`Calm insights for your pay rhythm — ${range.label}`}
-      action={
-        <SegmentToggle
-          value={cadence}
-          onChange={setCadence}
-          options={[
-            { value: "biweekly" as const, label: "Bi-weekly" },
-            { value: "monthly" as const, label: "Monthly" },
-          ]}
-        />
-      }
-    >
+  const body = (
+    <>
+      {embedded ? <div className="mb-4 flex justify-end">{cadenceToggle}</div> : null}
       <div className="space-y-6 md:space-y-8">
       <MonthlySummaryCard />
 
@@ -433,10 +408,11 @@ export function ReportsView() {
           </div>
           {canUse("pdf_export") ? (
             <div className="flex flex-wrap gap-2">
-              <PrimaryButton disabled={exporting} onClick={() => void exportPdf()}>
-                <Download className="mr-1 inline h-4 w-4" />
-                {exporting ? "Generating…" : "Export PDF"}
-              </PrimaryButton>
+              <ExportPdfButton
+                variant="primary"
+                buildPayload={buildPdfPayload}
+                eventName="pdf_export"
+              />
               <ShareReportActions
                 reportTitle={range.label}
                 ownerName={profile.name}
@@ -463,6 +439,18 @@ export function ReportsView() {
         ) : null}
       </ShellCard>
       </div>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <PageFrame
+      title="Reports"
+      description={`Calm insights for your pay rhythm — ${range.label}`}
+      action={cadenceToggle}
+    >
+      {body}
     </PageFrame>
   );
 }

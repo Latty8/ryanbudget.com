@@ -1,5 +1,5 @@
-import { NetWorthView } from "@/components/fintech/net-worth-view";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <NetWorthView />;
+export default function NetWorthRedirectPage() {
+  redirect("/insights?tab=net-worth");
 }

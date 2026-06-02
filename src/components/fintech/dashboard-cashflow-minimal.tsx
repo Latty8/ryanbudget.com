@@ -19,9 +19,17 @@ type Props = {
 };
 
 export function DashboardCashflowMinimal({ data, currency }: Props) {
+  if (!data.length) {
+    return (
+      <p className="flex h-56 items-center justify-center text-sm text-[var(--muted)]">
+        Not enough history yet
+      </p>
+    );
+  }
+
   return (
-    <div className="h-56 w-full md:h-64">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-56 min-h-56 w-full min-w-0 md:h-64">
+      <ResponsiveContainer width="100%" height="100%" minHeight={224}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis

@@ -1,11 +1,11 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { Mic, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
 import { useMemo } from "react";
-import { differenceInCalendarDays, format, parseISO, startOfToday } from "date-fns";
+import { differenceInCalendarDays, format, parseISO, startOfMonth, startOfToday } from "date-fns";
 import { motion } from "framer-motion";
 import { DashboardBudgetProgress } from "@/components/fintech/dashboard-budget-progress";
 import { DashboardCashflowMinimal } from "@/components/fintech/dashboard-cashflow-minimal";
@@ -25,7 +25,17 @@ import {
   fintechCard,
   Skeleton,
 } from "@/components/fintech/ui";
+import { ExportPdfButton } from "@/components/fintech/export-pdf-button";
+import { DashboardCustomizeButton } from "@/components/fintech/dashboard-customize-panel";
+import {
+  selectEnabledWidgetKey,
+  useDashboardWidgetsStore,
+  type DashboardWidgetId,
+} from "@/store/useDashboardWidgetsStore";
+import { computeCategoryBudgetRows } from "@/lib/budget/period";
 import { computeDashboardSummary } from "@/lib/dashboard/compute-summary";
+import { buildNetWorthItems, sumNetWorth } from "@/lib/net-worth/compute-net-worth";
+import { useNetWorthStore } from "@/store/useNetWorthStore";
 import { useMounted } from "@/components/use-mounted";
 import { cn } from "@/lib/utils";
 import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
@@ -37,10 +47,35 @@ const AiFinancialCoach = dynamic(
   { loading: () => <Skeleton className="h-56 rounded-[var(--radius-card)]" /> }
 );
 
+const FinancialHealthScore = dynamic(
+  () =>
+    import("@/components/fintech/financial-health-score").then((m) => ({
+      default: m.FinancialHealthScore,
+    })),
+  { loading: () => <Skeleton className="h-36 rounded-[var(--radius-card)]" />, ssr: false }
+);
+
 const fadeUp = {
   initial: { opacity: 0, y: 12 },
   animate: { opacity: 1, y: 0 },
 };
+
+const DEFAULT_ENABLED_WIDGETS: DashboardWidgetId[] = [
+  "financial_health",
+  "balance",
+  "money_left",
+  "monthly_summary",
+  "income_expenses",
+  "budget_progress",
+  "cashflow",
+  "upcoming",
+  "ai_insights",
+];
+
+function parseEnabledWidgetKey(key: string): DashboardWidgetId[] {
+  if (!key) return [];
+  return key.split("\0").filter(Boolean) as DashboardWidgetId[];
+}
 
 function UpcomingList({
   paychecks,
@@ -146,6 +181,16 @@ export function DashboardView() {
         goals: s.goals,
       }))
     );
+  const manualNetItems = useNetWorthStore((s) => s.manualItems);
+  const netSnapshots = useNetWorthStore((s) => s.snapshots);
+  /** Primitive selector — arrays from filter/map break getServerSnapshot (infinite loop). */
+  const enabledWidgetKey = useDashboardWidgetsStore(selectEnabledWidgetKey);
+  const enabledWidgetIds = useMemo(
+    () => parseEnabledWidgetKey(enabledWidgetKey),
+    [enabledWidgetKey]
+  );
+  const widgetOn = (id: DashboardWidgetId) => enabledWidgetIds.includes(id);
+  const anyWidgetEnabled = enabledWidgetIds.length > 0;
 
   const budgetPeriod = useBudgetViewPeriod(recurring);
 
@@ -172,6 +217,35 @@ export function DashboardView() {
   const needsSetup = !onboardingComplete || accounts.length === 0;
   const underBudget = Math.max(0, data.moneyLeftToSpend);
 
+  const budgetRows = useMemo(
+    () => computeCategoryBudgetRows(categories, transactions, budgetPeriod),
+    [categories, transactions, budgetPeriod]
+  );
+
+  const netWorthPdf = useMemo(() => {
+    const items = buildNetWorthItems(accounts, manualNetItems);
+    const { netWorth } = sumNetWorth(items);
+    const sorted = [...netSnapshots].sort((a, b) => a.date.localeCompare(b.date));
+    const prior = sorted.length >= 2 ? sorted[sorted.length - 2] : sorted[0];
+    const change = prior ? netWorth - prior.netWorth : undefined;
+    return { netWorth, change };
+  }, [accounts, manualNetItems, netSnapshots]);
+
+  const spendingChartPdf = useMemo(() => {
+    const monthStart = startOfMonth(new Date());
+    const byCat = new Map<string, number>();
+    for (const t of transactions) {
+      if (t.amount >= 0 || parseISO(t.date) < monthStart) continue;
+      byCat.set(t.category, (byCat.get(t.category) ?? 0) + Math.abs(t.amount));
+    }
+    const total = [...byCat.values()].reduce((s, v) => s + v, 0);
+    if (total <= 0) return [];
+    return [...byCat.entries()]
+      .map(([name, spent]) => ({ name, spent, pct: (spent / total) * 100 }))
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 8);
+  }, [transactions]);
+
   if (!mounted) {
     return (
       <div className="space-y-8">
@@ -184,6 +258,80 @@ export function DashboardView() {
 
   return (
     <div className="space-y-8 pb-24 md:space-y-10 md:pb-0">
+      <div className="flex flex-wrap justify-end gap-2">
+        <DashboardCustomizeButton />
+        <button
+          type="button"
+          aria-label="Add transaction by voice"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-3 py-2 text-xs font-medium text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          onClick={() => window.dispatchEvent(new CustomEvent("planner:new-transaction-voice"))}
+        >
+          <Mic className="h-4 w-4" />
+          Voice
+        </button>
+        <ExportPdfButton
+          variant="ghost"
+          label="Export PDF"
+          eventName="pdf_export_dashboard"
+          buildPayload={() => ({
+            title: `Dashboard · ${format(new Date(), "MMMM yyyy")}`,
+            reportKind: "dashboard" as const,
+            cadence: budgetPeriod === "bi-weekly" ? "biweekly" : "monthly",
+            income: data.incomeThisMonth,
+            expenses: data.expensesThisMonth,
+            net: data.incomeThisMonth - data.expensesThisMonth,
+            balance: data.totalBalance,
+            savingsRate:
+              data.incomeThisMonth > 0
+                ? ((data.incomeThisMonth - data.expensesThisMonth) / data.incomeThisMonth) * 100
+                : 0,
+            categories: budgetRows.map((r) => ({
+              name: r.name,
+              budgeted: r.budgeted,
+              spent: r.spent,
+            })),
+            cashflow: data.cashflow.map((p) => ({
+              label: p.month,
+              income: p.income,
+              expenses: p.expenses,
+              net: p.income - p.expenses,
+            })),
+            goals: goals.map((g) => ({
+              name: g.name,
+              current: g.current,
+              target: g.target,
+              pct: g.target > 0 ? (g.current / g.target) * 100 : 0,
+            })),
+            recurring: recurring
+              .filter((r) => !r.paused)
+              .map((r) => ({
+                name: r.name,
+                amount: r.amount,
+                cadence: r.cadence,
+                nextDate: r.nextDate,
+              })),
+            netWorth: netWorthPdf.netWorth,
+            netWorthChange: netWorthPdf.change,
+            spendingChart: spendingChartPdf,
+            topSpend: spendingChartPdf,
+          })}
+        />
+      </div>
+      {!anyWidgetEnabled && !needsSetup ? (
+        <motion.section {...fadeUp} className={cn(fintechCard, "p-6 text-center sm:p-8")}>
+          <p className={cn("text-lg font-semibold", fintechForeground)}>Dashboard is empty</p>
+          <p className={cn("mx-auto mt-2 max-w-sm text-sm leading-relaxed", fintechMuted)}>
+            All widgets are hidden. Open Customize and turn on balance, money left, or other sections.
+          </p>
+        </motion.section>
+      ) : null}
+
+      {widgetOn("financial_health") && !needsSetup && mounted ? (
+        <motion.div {...fadeUp} transition={{ delay: 0.04 }}>
+          <FinancialHealthScore />
+        </motion.div>
+      ) : null}
+
       {needsSetup ? (
         <motion.section {...fadeUp} className={cn(fintechCard, "p-6 text-center sm:p-8")}>
           <p className={cn("text-lg font-semibold", fintechForeground)}>Welcome — start with your paycheck</p>
@@ -196,13 +344,16 @@ export function DashboardView() {
         </motion.section>
       ) : null}
 
-      <motion.header {...fadeUp} transition={{ delay: 0.05 }} className="space-y-2">
-        <p className={fintechLabel}>Current balance</p>
-        <p className={cn("text-4xl md:text-5xl", fintechDisplay)}>
-          {formatMoney(data.totalBalance, preferences.currency)}
-        </p>
-      </motion.header>
+      {widgetOn("balance") ? (
+        <motion.header {...fadeUp} transition={{ delay: 0.05 }} className="space-y-2">
+          <p className={fintechLabel}>Current balance</p>
+          <p className={cn("text-4xl md:text-5xl", fintechDisplay)}>
+            {formatMoney(data.totalBalance, preferences.currency)}
+          </p>
+        </motion.header>
+      ) : null}
 
+      {widgetOn("money_left") ? (
       <motion.section
         {...fadeUp}
         transition={{ delay: 0.1 }}
@@ -225,13 +376,15 @@ export function DashboardView() {
             : null}
         </p>
       </motion.section>
+      ) : null}
 
-      {!needsSetup ? (
+      {!needsSetup && widgetOn("monthly_summary") ? (
         <motion.div {...fadeUp} transition={{ delay: 0.12 }}>
           <MonthlySummaryCard />
         </motion.div>
       ) : null}
 
+      {widgetOn("income_expenses") ? (
       <motion.div
         {...fadeUp}
         transition={{ delay: 0.15 }}
@@ -252,8 +405,9 @@ export function DashboardView() {
           <p className={cn("mt-1 text-xs", fintechMuted)}>This month</p>
         </div>
       </motion.div>
+      ) : null}
 
-      {!needsSetup && data.categoryProgress.length > 0 ? (
+      {!needsSetup && data.categoryProgress.length > 0 && widgetOn("budget_progress") ? (
         <motion.div {...fadeUp} transition={{ delay: 0.18 }}>
           <DashboardBudgetProgress
             categories={data.categoryProgress}
@@ -263,7 +417,9 @@ export function DashboardView() {
         </motion.div>
       ) : null}
 
+      {(widgetOn("cashflow") || widgetOn("upcoming")) ? (
       <div className="grid gap-6 md:grid-cols-5 md:gap-8">
+        {widgetOn("cashflow") ? (
         <motion.section
           {...fadeUp}
           transition={{ delay: 0.2 }}
@@ -271,15 +427,21 @@ export function DashboardView() {
         >
           <h2 className={cn("text-sm font-semibold", fintechForeground)}>Cash flow</h2>
           <p className={cn("mt-1 text-xs", fintechMuted)}>Income vs expenses</p>
-          <div className="mt-6">
-            <DashboardCashflowMinimal data={data.cashflow} currency={preferences.currency} />
+          <div className="mt-6 min-h-56 w-full min-w-0">
+            {mounted ? (
+              <DashboardCashflowMinimal data={data.cashflow} currency={preferences.currency} />
+            ) : (
+              <Skeleton className="h-56 w-full rounded-[var(--radius-inner)]" />
+            )}
           </div>
         </motion.section>
+        ) : null}
 
+        {widgetOn("upcoming") ? (
         <motion.section
           {...fadeUp}
           transition={{ delay: 0.25 }}
-          className={cn(fintechCard, "p-6 md:col-span-2 md:p-7")}
+          className={cn(fintechCard, "p-6 md:col-span-2 md:p-7", !widgetOn("cashflow") && "md:col-span-5")}
         >
           <h2 className={cn("text-sm font-semibold", fintechForeground)}>Coming up</h2>
           <p className={cn("mt-1 text-xs", fintechMuted)}>Paycheck & bills</p>
@@ -291,9 +453,29 @@ export function DashboardView() {
             />
           </div>
         </motion.section>
+        ) : null}
       </div>
+      ) : null}
 
-      {!needsSetup ? (
+      {widgetOn("net_worth") && !needsSetup ? (
+        <motion.div {...fadeUp} transition={{ delay: 0.28 }} className={cn(fintechCard, "p-5")}>
+          <p className={fintechLabel}>Net worth</p>
+          <p className={cn("mt-2 text-2xl font-semibold tabular-nums", fintechForeground)}>
+            {formatMoney(netWorthPdf.netWorth, preferences.currency)}
+          </p>
+          {netWorthPdf.change != null ? (
+            <p className={cn("mt-1 text-xs", fintechMuted)}>
+              {netWorthPdf.change >= 0 ? "+" : ""}
+              {formatMoney(netWorthPdf.change, preferences.currency)} vs last snapshot
+            </p>
+          ) : null}
+          <Link href="/insights?tab=net-worth" className={cn("mt-3 inline-block text-xs font-medium", fintechLink)}>
+            View details
+          </Link>
+        </motion.div>
+      ) : null}
+
+      {!needsSetup && widgetOn("ai_insights") ? (
         <motion.div {...fadeUp} transition={{ delay: 0.3 }}>
           <AiFinancialCoach
             summary={data}

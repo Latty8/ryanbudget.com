@@ -1,6 +1,7 @@
 import { format, startOfMonth, subDays } from "date-fns";
 import type { AppCategory } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
+import { categoryUsesRollover, getCategoryRolloverBalance } from "@/lib/budget/rollover";
 
 /** How the user thinks about their budget limits (stored monthly in category.budgeted). */
 export type BudgetPeriod = "monthly" | "weekly" | "bi-weekly";
@@ -147,19 +148,33 @@ export type CategoryBudgetRow = {
   color: string;
   group: string;
   monthlyBudgeted: number;
+  /** Base envelope for this period (excludes rollover) */
   budgeted: number;
+  /** Carried forward from prior period(s) */
+  rollover: number;
+  /** budgeted + rollover */
+  effectiveBudgeted: number;
   spent: number;
   remaining: number;
   pct: number;
   over: boolean;
+  rolloverEnabled: boolean;
+};
+
+export type ComputeBudgetRowsOptions = {
+  globalRolloverEnabled?: boolean;
+  now?: Date;
 };
 
 export function computeCategoryBudgetRows(
   categories: AppCategory[],
   transactions: DemoTransaction[],
   period: BudgetPeriod,
-  now = new Date()
+  options: ComputeBudgetRowsOptions = {}
 ): CategoryBudgetRow[] {
+  const now = options.now ?? new Date();
+  const globalRollover = options.globalRolloverEnabled ?? false;
+
   return categories
     .filter((c) => c.name !== "Income")
     .map((cat) => {
@@ -173,8 +188,12 @@ export function computeCategoryBudgetRows(
         .reduce((s, t) => s + Math.abs(t.amount), 0);
 
       const budgeted = periodAmountFromMonthly(cat.budgeted, period);
-      const remaining = budgeted - spent;
-      const pct = budgeted > 0 ? (spent / budgeted) * 100 : 0;
+      const rollover = categoryUsesRollover(cat, globalRollover)
+        ? getCategoryRolloverBalance(cat)
+        : 0;
+      const effectiveBudgeted = budgeted + rollover;
+      const remaining = effectiveBudgeted - spent;
+      const pct = effectiveBudgeted > 0 ? (spent / effectiveBudgeted) * 100 : 0;
 
       return {
         id: cat.id,
@@ -184,19 +203,24 @@ export function computeCategoryBudgetRows(
         group: cat.group,
         monthlyBudgeted: cat.budgeted,
         budgeted,
+        rollover,
+        effectiveBudgeted,
         spent,
         remaining,
         pct,
         over: remaining < 0,
+        rolloverEnabled: categoryUsesRollover(cat, globalRollover),
       };
     });
 }
 
 export function sumBudgetTotals(rows: CategoryBudgetRow[]) {
-  const totalBudgeted = rows.reduce((s, r) => s + r.budgeted, 0);
+  const totalBudgeted = rows.reduce((s, r) => s + r.effectiveBudgeted, 0);
+  const totalRollover = rows.reduce((s, r) => s + r.rollover, 0);
   const totalSpent = rows.reduce((s, r) => s + r.spent, 0);
   return {
     totalBudgeted,
+    totalRollover,
     totalSpent,
     totalLeft: Math.max(0, totalBudgeted - totalSpent),
     overallPct: totalBudgeted > 0 ? Math.min(100, (totalSpent / totalBudgeted) * 100) : 0,

@@ -33,27 +33,19 @@ import type { CurrencyCode } from "@/types/app-settings";
 
 
 export type BudgetCardRow = {
-
   id: string;
-
   name: string;
-
   icon: string;
-
   spent: number;
-
   budgeted: number;
-
+  rollover?: number;
+  effectiveBudgeted?: number;
   remaining: number;
-
   pct: number;
-
   over: boolean;
-
   monthlyBudgeted: number;
-
   color: string;
-
+  rolloverEnabled?: boolean;
 };
 
 
@@ -150,7 +142,7 @@ export function BudgetCategoryCard({
 
         <div className="flex items-start gap-3">
 
-          <CategoryIconBadge name={row.icon} color={row.color} size="md" />
+          <CategoryIconBadge icon={row.icon} color={row.color} size="md" />
 
           <div className="min-w-0 flex-1">
 
@@ -159,10 +151,13 @@ export function BudgetCategoryCard({
               <div className="min-w-0 flex-1">
 
                 <p className={cn("truncate text-[15px] font-semibold leading-snug", fintechForeground)}>
-
                   {row.name}
-
                 </p>
+                {row.rollover && row.rollover > 0 ? (
+                  <p className="mt-0.5 text-[10px] font-medium text-[var(--accent)]">
+                    +{formatMoney(row.rollover, currency)} rolled over
+                  </p>
+                ) : null}
 
                 <p
 
@@ -246,7 +241,7 @@ export function BudgetCategoryCard({
 
               {" / "}
 
-              {formatMoney(row.budgeted, currency)}
+              {formatMoney(row.effectiveBudgeted ?? row.budgeted, currency)}
 
             </p>
 

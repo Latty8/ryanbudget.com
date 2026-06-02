@@ -1,15 +1,22 @@
 export type PdfReportPayload = {
   title: string;
+  reportKind?: "dashboard" | "reports" | "review";
   cadence?: string;
   generatedAt?: string;
   income: number;
   expenses: number;
   net?: number;
   balance: number;
+  savingsRate?: number;
   categories: Array<{ name: string; budgeted: number; spent: number }>;
   cashflow?: Array<{ label: string; income: number; expenses: number; net: number }>;
+  topSpend?: Array<{ name: string; spent: number; pct: number }>;
   goals?: Array<{ name: string; current: number; target: number; pct: number }>;
   recurring?: Array<{ name: string; amount: number; cadence: string; nextDate: string }>;
+  insights?: string[];
+  netWorth?: number;
+  netWorthChange?: number;
+  spendingChart?: Array<{ name: string; spent: number; pct: number }>;
 };
 
 function escapeHtml(value: string) {
@@ -24,13 +31,35 @@ function barWidth(pct: number) {
   return Math.min(100, Math.max(0, pct));
 }
 
+function money(n: unknown) {
+  const v = typeof n === "number" && Number.isFinite(n) ? n : 0;
+  return v.toFixed(2);
+}
+
+function formatGeneratedAt(iso?: string) {
+  const date = iso ? new Date(iso) : new Date();
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export function buildPdfReportHtml(body: PdfReportPayload): string {
   const period = body.title;
   const net = body.net ?? body.income - body.expenses;
-  const cadenceLabel = body.cadence === "biweekly" ? "Bi-weekly view" : "Monthly view";
-  const generated =
-    body.generatedAt ??
-    new Date().toLocaleDateString("en-US", { dateStyle: "long", timeStyle: "short" });
+  const cadenceLabel =
+    body.cadence === "biweekly"
+      ? "Bi-weekly view"
+      : body.reportKind === "review"
+        ? "Period review"
+        : "Monthly view";
+  const kindLabel =
+    body.reportKind === "review"
+      ? "Financial review"
+      : body.reportKind === "dashboard"
+        ? "Dashboard snapshot"
+        : "Financial report";
+  const generated = body.generatedAt ? formatGeneratedAt(body.generatedAt) : formatGeneratedAt();
 
   const categoryRows = (body.categories ?? [])
     .map((c) => {
@@ -38,9 +67,9 @@ export function buildPdfReportHtml(body: PdfReportPayload): string {
       const pct = c.budgeted > 0 ? (c.spent / c.budgeted) * 100 : 0;
       return `<tr>
         <td>${escapeHtml(c.name)}</td>
-        <td>$${c.budgeted.toFixed(2)}</td>
-        <td>$${c.spent.toFixed(2)}</td>
-        <td style="color:${remaining < 0 ? "#e11d48" : "#059669"}">$${remaining.toFixed(2)}</td>
+        <td>$${money(c.budgeted)}</td>
+        <td>$${money(c.spent)}</td>
+        <td style="color:${remaining < 0 ? "#e11d48" : "#059669"}">$${money(remaining)}</td>
         <td><div class="bar-track"><div class="bar-fill" style="width:${barWidth(pct)}%;background:${pct > 100 ? "#e11d48" : "#0ea5e9"}"></div></div></td>
       </tr>`;
     })
@@ -50,9 +79,9 @@ export function buildPdfReportHtml(body: PdfReportPayload): string {
     .map(
       (p) => `<tr>
         <td>${escapeHtml(p.label)}</td>
-        <td style="color:#059669">$${p.income.toFixed(2)}</td>
-        <td style="color:#e11d48">$${p.expenses.toFixed(2)}</td>
-        <td>$${p.net.toFixed(2)}</td>
+        <td style="color:#059669">$${money(p.income)}</td>
+        <td style="color:#e11d48">$${money(p.expenses)}</td>
+        <td>$${money(p.net)}</td>
       </tr>`
     )
     .join("");
@@ -61,10 +90,35 @@ export function buildPdfReportHtml(body: PdfReportPayload): string {
     .map(
       (g) => `<tr>
         <td>${escapeHtml(g.name)}</td>
-        <td>$${g.current.toFixed(2)}</td>
-        <td>$${g.target.toFixed(2)}</td>
-        <td>${Math.round(g.pct)}%</td>
+        <td>$${money(g.current)}</td>
+        <td>$${money(g.target)}</td>
+        <td>${Math.round(Number.isFinite(g.pct) ? g.pct : 0)}%</td>
       </tr>`
+    )
+    .join("");
+
+  const topSpendRows = (body.topSpend ?? [])
+    .map(
+      (c) => `<tr>
+        <td>${escapeHtml(c.name)}</td>
+        <td>$${money(c.spent)}</td>
+        <td>${Math.round(Number.isFinite(c.pct) ? c.pct : 0)}%</td>
+        <td><div class="bar-track"><div class="bar-fill" style="width:${barWidth(c.pct)}%"></div></div></td>
+      </tr>`
+    )
+    .join("");
+
+  const insightList = (body.insights ?? [])
+    .map((line) => `<li>${escapeHtml(line)}</li>`)
+    .join("");
+
+  const spendingChartBars = (body.spendingChart ?? [])
+    .map(
+      (c) => `<div class="chart-row">
+        <span class="chart-label">${escapeHtml(c.name)}</span>
+        <div class="bar-track chart-bar"><div class="bar-fill" style="width:${barWidth(c.pct)}%"></div></div>
+        <span class="chart-val">$${money(c.spent).replace(/\.00$/, "")} (${Math.round(Number.isFinite(c.pct) ? c.pct : 0)}%)</span>
+      </div>`
     )
     .join("");
 
@@ -72,7 +126,7 @@ export function buildPdfReportHtml(body: PdfReportPayload): string {
     .map(
       (r) => `<tr>
         <td>${escapeHtml(r.name)}</td>
-        <td style="color:${r.amount >= 0 ? "#059669" : "#e11d48"}">$${Math.abs(r.amount).toFixed(2)}</td>
+        <td style="color:${r.amount >= 0 ? "#059669" : "#e11d48"}">$${money(Math.abs(Number(r.amount) || 0))}</td>
         <td>${escapeHtml(r.cadence)}</td>
         <td>${escapeHtml(r.nextDate)}</td>
       </tr>`
@@ -100,6 +154,10 @@ export function buildPdfReportHtml(body: PdfReportPayload): string {
   td { border-bottom: 1px solid #e2e8f0; padding: 0.45rem; vertical-align: middle; }
   .bar-track { height: 6px; background: #e2e8f0; border-radius: 99px; overflow: hidden; min-width: 60px; }
   .bar-fill { height: 100%; border-radius: 99px; }
+  .chart-row { display: grid; grid-template-columns: 7rem 1fr 5rem; gap: 0.5rem; align-items: center; margin: 0.35rem 0; font-size: 0.78rem; }
+  .chart-label { color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chart-bar { min-width: 80px; }
+  .chart-val { text-align: right; color: #64748b; font-size: 0.72rem; tabular-nums; }
   footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.7rem; color: #94a3b8; text-align: center; }
   @media print { body { padding: 0.75rem; } header { break-after: avoid; } }
 </style></head><body>
@@ -108,21 +166,53 @@ export function buildPdfReportHtml(body: PdfReportPayload): string {
       <div class="logo" aria-hidden="true"></div>
       <div>
         <h1>Paycheck Planner</h1>
-        <p class="subtitle">${escapeHtml(period)} · ${cadenceLabel}</p>
+        <p class="subtitle">${escapeHtml(kindLabel)} · ${escapeHtml(period)} · ${cadenceLabel}</p>
       </div>
     </div>
     <p class="meta">Generated ${escapeHtml(generated)}</p>
   </header>
 
   <section aria-label="Summary">
-    <h2>Dashboard summary</h2>
+    <h2>Summary</h2>
     <div class="metrics">
-      <div class="metric"><strong>Net worth</strong><span>$${(body.balance ?? 0).toFixed(2)}</span></div>
-      <div class="metric"><strong>Income</strong><span style="color:#059669">$${(body.income ?? 0).toFixed(2)}</span></div>
-      <div class="metric"><strong>Expenses</strong><span style="color:#e11d48">$${(body.expenses ?? 0).toFixed(2)}</span></div>
-      <div class="metric"><strong>Net cash flow</strong><span>$${net.toFixed(2)}</span></div>
+      <div class="metric"><strong>Balance</strong><span>$${money(body.balance)}</span></div>
+      <div class="metric"><strong>Income</strong><span style="color:#059669">$${money(body.income)}</span></div>
+      <div class="metric"><strong>Expenses</strong><span style="color:#e11d48">$${money(body.expenses)}</span></div>
+      <div class="metric"><strong>Net</strong><span style="color:${net >= 0 ? "#059669" : "#e11d48"}">$${money(net)}</span></div>
     </div>
+    ${
+      body.savingsRate != null
+        ? `<p style="margin-top:0.75rem;font-size:0.85rem;color:#64748b">Savings rate: <strong>${Math.round(Number.isFinite(body.savingsRate) ? body.savingsRate : 0)}%</strong> of income</p>`
+        : ""
+    }
+    ${
+      body.netWorth != null
+        ? `<p style="margin-top:0.5rem;font-size:0.85rem;color:#64748b">Net worth: <strong>$${money(body.netWorth)}</strong>${
+            body.netWorthChange != null
+              ? ` <span style="color:${body.netWorthChange >= 0 ? "#059669" : "#e11d48"}">(${body.netWorthChange >= 0 ? "+" : ""}$${money(body.netWorthChange)} vs prior snapshot)</span>`
+              : ""
+          }</p>`
+        : ""
+    }
   </section>
+
+  ${
+    spendingChartBars
+      ? `<section><h2>Spending by category</h2><div style="margin-top:0.5rem">${spendingChartBars}</div></section>`
+      : ""
+  }
+
+  ${
+    insightList
+      ? `<section><h2>Insights</h2><ul style="margin:0.5rem 0;padding-left:1.25rem;font-size:0.85rem;color:#475569">${insightList}</ul></section>`
+      : ""
+  }
+
+  ${
+    topSpendRows
+      ? `<section><h2>Top spending</h2><table><thead><tr><th>Category</th><th>Spent</th><th>Share</th><th></th></tr></thead><tbody>${topSpendRows}</tbody></table></section>`
+      : ""
+  }
 
   ${
     cashflowRows

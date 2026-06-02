@@ -21,6 +21,9 @@ import {
   defaultSyncedPreferences,
   toSyncedPreferences,
 } from "@/lib/preferences/sync-preferences";
+import { addMonths, format } from "date-fns";
+import { formatLocalDate, parseLocalDate } from "@/lib/dates/parse-local-date";
+import { advanceCadence } from "@/lib/recurring/advance-cadence";
 import { clearRecurringProjectionCache } from "@/lib/recurring/project-runs";
 import { demoGoals } from "@/lib/demo/sample-data";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
@@ -69,6 +72,8 @@ type AppDataState = {
   updateRecurring: (id: string, patch: Partial<Omit<AppRecurringRule, "id">>) => void;
   deleteRecurring: (id: string) => void;
   toggleRecurringPaused: (id: string) => void;
+  skipRecurringNext: (id: string) => void;
+  pauseRecurringForMonths: (id: string, months: number) => void;
   setOnboardingProgress: (patch: Partial<OnboardingProgress>) => void;
   completeOnboarding: () => void;
   restartOnboarding: () => void;
@@ -222,9 +227,41 @@ export const useAppDataStore = create<AppDataState>()(
         clearRecurringProjectionCache();
         set((state) => ({
           demoRecurring: state.demoRecurring.map((row) =>
-            row.id === id ? { ...row, paused: !row.paused } : row
+            row.id === id
+              ? { ...row, paused: !row.paused, pausedUntil: undefined }
+              : row
           ),
         }));
+      },
+      skipRecurringNext: (id) => {
+        clearRecurringProjectionCache();
+        const rule = get().demoRecurring.find((row) => row.id === id);
+        if (!rule) return;
+        const skipDate = rule.nextDate;
+        const next = formatLocalDate(advanceCadence(parseLocalDate(rule.nextDate), rule.cadence));
+        set((state) => ({
+          demoRecurring: state.demoRecurring.map((row) =>
+            row.id === id
+              ? {
+                  ...row,
+                  nextDate: next,
+                  skippedDates: [...(row.skippedDates ?? []), skipDate].slice(-24),
+                }
+              : row
+          ),
+        }));
+        logActivity("updated", "recurring", rule.name, "Skipped next occurrence");
+      },
+      pauseRecurringForMonths: (id, months) => {
+        clearRecurringProjectionCache();
+        const until = format(addMonths(new Date(), months), "yyyy-MM-dd");
+        set((state) => ({
+          demoRecurring: state.demoRecurring.map((row) =>
+            row.id === id ? { ...row, paused: true, pausedUntil: until } : row
+          ),
+        }));
+        const rule = get().demoRecurring.find((row) => row.id === id);
+        if (rule) logActivity("updated", "recurring", rule.name, `Paused until ${until}`);
       },
       addGoal: (goal) => {
         set((state) => ({ goals: [...state.goals, { ...goal, id: nanoid() }] }));

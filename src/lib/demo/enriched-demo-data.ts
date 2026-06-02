@@ -1,5 +1,15 @@
 import type { AppAccount, AppCategory } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
+import { DEMO_RECEIPT_PLACEHOLDER_URL } from "@/lib/receipts/demo-receipt-placeholder";
+
+const demoReceipt = (id: string, fileName: string) => ({
+  id,
+  fileName,
+  mimeType: "image/jpeg",
+  sizeBytes: 240_000,
+  previewUrl: DEMO_RECEIPT_PLACEHOLDER_URL,
+  uploadedAt: "2026-05-26T12:00:00.000Z",
+});
 
 /** Realistic demo dataset: bi-weekly paychecks, monthly bills, weekly spending. */
 export const enrichedAccounts: AppAccount[] = [
@@ -20,12 +30,39 @@ export const enrichedCategories: AppCategory[] = [
 ];
 
 export const enrichedTransactions: DemoTransaction[] = [
-  { id: "t1", date: "2026-05-26", merchant: "Trader Joe's", category: "Groceries", account: "Main Checking", amount: -84.37, recurring: false },
+  {
+    id: "t1",
+    date: "2026-05-26",
+    merchant: "Trader Joe's",
+    category: "Groceries",
+    account: "Main Checking",
+    amount: -84.37,
+    recurring: false,
+    receipts: [demoReceipt("rc-t1", "trader-joes-0526.jpg")],
+  },
   { id: "t2", date: "2026-05-25", merchant: "Payroll Deposit", category: "Income", account: "Main Checking", amount: 1825, recurring: true },
-  { id: "t3", date: "2026-05-24", merchant: "Shell", category: "Transportation", account: "Rewards Credit Card", amount: -52.86, recurring: false },
+  {
+    id: "t3",
+    date: "2026-05-24",
+    merchant: "Shell",
+    category: "Transportation",
+    account: "Rewards Credit Card",
+    amount: -52.86,
+    recurring: false,
+    receipts: [demoReceipt("rc-t3", "shell-gas-0524.jpg")],
+  },
   { id: "t4", date: "2026-05-22", merchant: "Spotify", category: "Entertainment", account: "Rewards Credit Card", amount: -11.99, recurring: true },
   { id: "t5", date: "2026-05-21", merchant: "Rent", category: "Housing", account: "Main Checking", amount: -1200, recurring: true },
-  { id: "t6", date: "2026-05-19", merchant: "Chipotle", category: "Dining", account: "Rewards Credit Card", amount: -14.5, recurring: false },
+  {
+    id: "t6",
+    date: "2026-05-19",
+    merchant: "Chipotle",
+    category: "Dining",
+    account: "Rewards Credit Card",
+    amount: -14.5,
+    recurring: false,
+    receipts: [demoReceipt("rc-t6", "chipotle-receipt.pdf"), demoReceipt("rc-t6b", "chipotle-itemized.pdf")],
+  },
   { id: "t7", date: "2026-05-18", merchant: "Electric Co", category: "Utilities", account: "Main Checking", amount: -98.2, recurring: true },
   { id: "t8", date: "2026-05-11", merchant: "Payroll Deposit", category: "Income", account: "Main Checking", amount: 1825, recurring: true },
   { id: "t9", date: "2026-05-10", merchant: "Kroger", category: "Groceries", account: "Main Checking", amount: -129.96, recurring: false },
