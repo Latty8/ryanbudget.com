@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "@/types/app-settings";
+import type { CategoryKind } from "@/lib/categories/category-kind";
 import type { TransactionReceipt } from "@/types/receipts";
 
 export type AccountKind = "checking" | "savings" | "credit" | "cash" | "investment";
@@ -80,6 +81,8 @@ export type TransactionInput = {
   description: string;
   categoryId: string;
   accountId: string;
+  /** Explicit income vs expense when category alone is ambiguous. */
+  kind?: CategoryKind;
   currency?: CurrencyCode;
   tags: TransactionTag[];
   recurring: boolean;

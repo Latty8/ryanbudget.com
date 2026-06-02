@@ -153,10 +153,10 @@ function UpcomingList({
           <p
             className={cn(
               "text-sm font-semibold tabular-nums",
-              item.kind === "Paycheck" ? "text-[var(--positive)]" : fintechForeground
+              item.amount > 0 ? "text-[var(--positive)]" : item.amount < 0 ? "text-rose-500 dark:text-rose-400" : fintechForeground
             )}
           >
-            {item.kind === "Paycheck" ? "+" : "−"}
+            {item.amount > 0 ? "+" : item.amount < 0 ? "−" : ""}
             {formatMoney(Math.abs(item.amount), currency)}
           </p>
         </li>

@@ -260,6 +260,8 @@ export function TransactionEntryModal({
 
         categoryId,
 
+        kind: draft.type,
+
         date: draft.date,
 
         recurring: Boolean(draft.recurring),
@@ -1086,7 +1088,7 @@ export function TransactionEntryModal({
 
                 const result = onSubmit
                   ? await onSubmit(payload, editTransaction?.id)
-                  : await createTransaction(payload);
+                  : await createTransaction(payload, { categories: storeCategories });
 
                 setSaving(false);
 

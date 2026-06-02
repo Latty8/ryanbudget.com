@@ -44,7 +44,9 @@ export function useSaveTransaction() {
     const rules = useTransactionRulesStore.getState().rules;
     const { input: categorized, matchedRule } = applyTransactionRules(input, rules);
 
-    const validated = await createTransaction(categorized);
+    const validated = await createTransaction(categorized, {
+      categories: useAppDataStore.getState().categories,
+    });
     if (!validated.ok) {
       const isSchemaError =
         validated.message.includes("schema cache") ||

@@ -21,7 +21,11 @@ import { useDeleteTransaction, useTransactionSubmit } from "@/hooks/use-transact
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { groupTransactionsByDate } from "@/lib/transactions/group-by-date";
 import { cn } from "@/lib/utils";
-import { formatMoneyWithSource, useAppDataStore } from "@/store/useAppDataStore";
+import {
+  formatTransactionAmountWithSource,
+  transactionAmountClassName,
+} from "@/lib/transactions/format-transaction-display";
+import { useAppDataStore } from "@/store/useAppDataStore";
 import type { TransactionRecord } from "@/types/finance";
 
 function mapStoreTransactions(
@@ -242,10 +246,14 @@ export function TransactionsMinimalView() {
                         <p
                           className={cn(
                             "shrink-0 text-right text-[15px] font-semibold tabular-nums tracking-tight",
-                            row.amount >= 0 ? "text-[var(--positive)]" : fintechForeground
+                            transactionAmountClassName(row.amount)
                           )}
                         >
-                          {formatMoneyWithSource(row.amount, primaryCurrency, row.currency)}
+                          {formatTransactionAmountWithSource(
+                            row.amount,
+                            primaryCurrency,
+                            row.currency
+                          )}
                         </p>
                         <div
                           className="flex shrink-0 gap-1"

@@ -26,7 +26,9 @@ export function useUpdateTransaction() {
       return { ok: true, message: "Updated locally." };
     }
 
-    const cloudResult = await createTransaction(categorized);
+    const cloudResult = await createTransaction(categorized, {
+      categories: useAppDataStore.getState().categories,
+    });
     if (cloudResult.ok) {
       toastTransactionSaved({ edit: true });
       return cloudResult;

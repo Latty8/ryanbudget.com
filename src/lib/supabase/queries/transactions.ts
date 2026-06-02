@@ -3,6 +3,8 @@ import { nanoid } from "nanoid";
 import { suggestCategoriesFromDescription } from "@/lib/ai/suggest-category";
 import { demoBudgets, demoTransactions } from "@/lib/demo/sample-data";
 import { hasSupabaseDataSync, supabase } from "@/lib/supabase/client";
+import { signedAmountFromInput } from "@/lib/transactions/transaction-amount";
+import type { AppCategory } from "@/types/app-settings";
 import type { RecurringFrequency, SplitLine, TransactionInput, TransactionRecord } from "@/types/finance";
 
 type GetTransactionsOptions = {
@@ -67,16 +69,27 @@ function nextDateFromFrequency(startDate: string, frequency: RecurringFrequency)
   return format(addMonths(date, 1), "yyyy-MM-dd");
 }
 
-export async function createTransaction(input: TransactionInput): Promise<{ ok: boolean; message: string }> {
+export type CreateTransactionOptions = {
+  categories?: AppCategory[];
+};
+
+export async function createTransaction(
+  input: TransactionInput,
+  options: CreateTransactionOptions = {}
+): Promise<{ ok: boolean; message: string }> {
   if (!input.description.trim()) return { ok: false, message: "Description is required." };
   if (input.amount <= 0) return { ok: false, message: "Amount must be greater than 0." };
   if (!validateSplitAmount(input.amount, input.splits)) return { ok: false, message: "Split amounts must match total amount." };
+
+  const categories = options.categories ?? [];
+  const signedAmount = signedAmountFromInput(input, categories);
+  const isIncome = signedAmount > 0;
 
   if (hasSupabaseDataSync && supabase) {
     const { error } = await supabase.from("transactions").insert({
       id: nanoid(),
       merchant: input.description,
-      amount: -Math.abs(input.amount),
+      amount: signedAmount,
       transaction_date: input.date,
       account_id: input.accountId,
       category_id: input.categoryId,
@@ -93,7 +106,7 @@ export async function createTransaction(input: TransactionInput): Promise<{ ok: 
         next_run_date: nextDateFromFrequency(input.date, input.recurringFrequency),
         account_id: input.accountId,
         category_id: input.categoryId,
-        is_income: false,
+        is_income: isIncome,
         is_active: true,
       });
     }

@@ -26,6 +26,7 @@ import { formatLocalDate, parseLocalDate } from "@/lib/dates/parse-local-date";
 import { advanceCadence } from "@/lib/recurring/advance-cadence";
 import { clearRecurringProjectionCache } from "@/lib/recurring/project-runs";
 import { demoGoals } from "@/lib/demo/sample-data";
+import { normalizeDemoTransactionAmount } from "@/lib/transactions/transaction-amount";
 import { transactionInputToStoreRow } from "@/lib/transactions/store-mapper";
 import { logActivity } from "@/store/useActivityLogStore";
 import type {
@@ -394,9 +395,14 @@ export const useAppDataStore = create<AppDataState>()(
           ...p,
           preferences: toSyncedPreferences({ ...defaultPreferences, ...current.preferences, ...p?.preferences }),
         };
+        const categories = sanitizeCategoryList(merged.categories ?? []);
+        const demoTransactions = (merged.demoTransactions ?? []).map((tx) =>
+          normalizeDemoTransactionAmount(tx, categories)
+        );
         return {
           ...merged,
-          categories: sanitizeCategoryList(merged.categories ?? []),
+          categories,
+          demoTransactions,
         };
       },
     }

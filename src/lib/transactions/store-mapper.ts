@@ -1,5 +1,6 @@
 import type { AppAccount, AppCategory, SyncedAppPreferences } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
+import { signedAmountFromInput } from "@/lib/transactions/transaction-amount";
 import type { TransactionInput, TransactionRecord } from "@/types/finance";
 
 export function transactionRecordToInput(
@@ -15,6 +16,7 @@ export function transactionRecordToInput(
     description: row.description,
     categoryId: category?.id ?? row.category,
     accountId: account?.id ?? accounts[0]?.id ?? "",
+    kind: row.amount > 0 ? "income" : row.amount < 0 ? "expense" : undefined,
     currency: row.currency,
     tags: row.tags ?? [],
     recurring: row.recurring,
@@ -28,13 +30,11 @@ export function transactionInputToStoreRow(
   accounts: AppAccount[],
   categories: AppCategory[],
   preferences: SyncedAppPreferences,
-  existing?: Pick<DemoTransaction, "amount" | "currency">
+  existing?: Pick<DemoTransaction, "amount">
 ): DemoTransaction {
   const account = accounts.find((a) => a.id === input.accountId);
   const category = categories.find((c) => c.id === input.categoryId || c.name === input.categoryId);
-  const isIncome =
-    category?.name === "Income" || (existing?.amount != null && existing.amount > 0);
-  const amount = isIncome ? Math.abs(input.amount) : -Math.abs(input.amount);
+  const amount = signedAmountFromInput(input, categories, existing?.amount);
 
   return {
     id,

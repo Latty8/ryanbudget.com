@@ -13,7 +13,11 @@ import {
 import { PALETTE_SECTION_LABELS } from "@/lib/command-palette/labels";
 import { loadRecentPalette, recordPaletteSelection } from "@/lib/command-palette/recent";
 import { fintechForeground, fintechIconButton, fintechMuted, fintechSurface } from "@/components/fintech/ui";
-import { formatMoney, useAppDataStore } from "@/store/useAppDataStore";
+import {
+  formatTransactionAmountDisplay,
+  transactionAmountClassName,
+} from "@/lib/transactions/format-transaction-display";
+import { useAppDataStore } from "@/store/useAppDataStore";
 import { useTransactionRulesStore } from "@/store/useTransactionRulesStore";
 import { cn } from "@/lib/utils";
 import { useShallow } from "zustand/react/shallow";
@@ -268,10 +272,10 @@ export function GlobalSearchPalette() {
                                 <span
                                   className={cn(
                                     "shrink-0 text-sm font-semibold tabular-nums",
-                                    row.amount >= 0 ? "text-[var(--positive)]" : fintechForeground
+                                    transactionAmountClassName(row.amount)
                                   )}
                                 >
-                                  {formatMoney(row.amount, currency)}
+                                  {formatTransactionAmountDisplay(row.amount, currency)}
                                 </span>
                               ) : row.section === "Actions" ? (
                                 <kbd className="hidden rounded border border-[var(--border-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--muted)] sm:inline">

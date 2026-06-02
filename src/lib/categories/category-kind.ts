@@ -33,9 +33,12 @@ const INCOME_NAMES = new Set(
   [
     "income",
     "paycheck",
+    "paychecks",
     "salary",
+    "wages",
     "bonus",
     "refund",
+    "refunds",
     "side income",
     "side hustle",
     "freelance",
