@@ -4,11 +4,14 @@ import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useDemoMode } from "@/hooks/use-demo-mode";
+import { isDemoSession } from "@/lib/auth/demo-mode";
 import { useAppDataStore } from "@/store/useAppDataStore";
 
 export function DemoModeBanner() {
-  const { demoMode } = useDemoMode();
+  const { user } = useAuth();
+  const { demoMode, exitDemoMode } = useDemoMode();
   const loadDemoData = useAppDataStore((s) => s.loadDemoData);
   const [dismissed, setDismissed] = useState(false);
 
@@ -38,12 +41,25 @@ export function DemoModeBanner() {
           >
             Reload demo data
           </button>
-          <Link
-            href="/settings"
-            className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium hover:bg-white/25"
-          >
-            Connect real account
-          </Link>
+          {user && !isDemoSession(user) ? (
+            <button
+              type="button"
+              onClick={() => {
+                exitDemoMode();
+                toast.success("Demo mode turned off");
+              }}
+              className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium hover:bg-white/25"
+            >
+              Exit demo mode
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-lg bg-white/15 px-3 py-1 text-xs font-medium hover:bg-white/25"
+            >
+              Sign in with real account
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setDismissed(true)}

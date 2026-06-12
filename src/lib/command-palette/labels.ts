@@ -6,7 +6,7 @@ export const PALETTE_SECTION_LABELS: Record<PaletteSection, string> = {
   Wallets: "Wallets",
   Categories: "Categories",
   Budgets: "Budgets",
-  Goals: "Sinking funds",
+  Goals: "Funds & debts",
   Rules: "Rules",
   Navigate: "Navigation",
   Actions: "Quick actions",

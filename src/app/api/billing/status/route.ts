@@ -17,7 +17,7 @@ export async function GET() {
     }
   }
 
-  if (demoCookie || isDemoSession(session)) {
+  if (isDemoSession(session) || (demoCookie && !session)) {
     return NextResponse.json({ tier: "premium", status: "active" });
   }
 

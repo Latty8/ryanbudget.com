@@ -10,7 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
-import { isDemoSession, readClientDemoMode, setClientDemoMode } from "@/lib/auth/demo-mode";
+import {
+  isDemoSession,
+  resolveClientDemoMode,
+  setClientDemoMode,
+} from "@/lib/auth/demo-mode";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
 
 type DemoModeContextValue = {
@@ -33,7 +37,10 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
   const [demoMode, setDemoMode] = useState(false);
 
   const sync = useCallback(() => {
-    const active = readClientDemoMode() || isDemoSession(user);
+    if (user && !isDemoSession(user)) {
+      setClientDemoMode(false);
+    }
+    const active = resolveClientDemoMode(user);
     setDemoMode(active);
     if (active) ensureDemoPremium();
   }, [user]);

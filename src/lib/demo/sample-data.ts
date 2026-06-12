@@ -42,6 +42,15 @@ export const demoRecurring = [
 ];
 
 export const demoGoals = [
-  { id: "g1", name: "Emergency Fund", current: 4200, target: 8000 },
-  { id: "g2", name: "Summer Trip", current: 950, target: 1800 },
+  { id: "g1", name: "Emergency Fund", current: 4200, target: 8000, kind: "sinking" as const },
+  { id: "g2", name: "Summer Trip", current: 950, target: 1800, kind: "sinking" as const },
+  {
+    id: "g3",
+    name: "Car Loan",
+    kind: "debt" as const,
+    current: 12400,
+    target: 18000,
+    monthlyPayment: 425,
+    interestRateApy: 5.9,
+  },
 ];

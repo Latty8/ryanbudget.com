@@ -56,6 +56,12 @@ export type DashboardSummary = {
   expensesThisMonth: number;
   projectedEndOfMonthBalance: number;
   moneyLeftToSpend: number;
+  /** Envelope budget remaining (category limits minus spent) */
+  envelopeLeftToSpend: number;
+  /** Cash-timing aware spendable before next paycheck */
+  cashFlowSafeToSpend: number | null;
+  cashFlowTimingWarning: boolean;
+  cashFlowLowestBalance: number | null;
   daysUntilNextPaycheck: number | null;
   daysUntilBroke: number | null;
   billsBeforeNextPaycheck: number;

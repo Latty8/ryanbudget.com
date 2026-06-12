@@ -62,9 +62,9 @@ export const MORE_NAV: NavItem[] = [
   },
   {
     href: "/goals",
-    label: "Sinking Funds",
+    label: "Funds & Debts",
     icon: PiggyBank,
-    description: "Vacation, holidays, repairs",
+    description: "Sinking funds & debt payoff",
   },
   {
     href: "/receipts",

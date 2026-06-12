@@ -14,6 +14,7 @@ export const defaultSyncedPreferences: SyncedAppPreferences = {
 export const defaultDeviceUiPreferences: DeviceUiPreferences = {
   budgetPeriod: "bi-weekly",
   budgetViewDensity: "comfortable",
+  biweeklyIncomeMonthlyBills: true,
 };
 
 /** Strip device-only fields before cloud sync / fingerprint. */
@@ -36,5 +37,8 @@ export function extractDeviceUiPreferences(
   const out: Partial<DeviceUiPreferences> = {};
   if (prefs.budgetPeriod) out.budgetPeriod = prefs.budgetPeriod;
   if (prefs.budgetViewDensity) out.budgetViewDensity = prefs.budgetViewDensity;
+  if (typeof prefs.biweeklyIncomeMonthlyBills === "boolean") {
+    out.biweeklyIncomeMonthlyBills = prefs.biweeklyIncomeMonthlyBills;
+  }
   return out;
 }

@@ -28,18 +28,28 @@ export type AppAccount = {
 
 export type SinkingFundType = "general" | "vacation" | "holiday" | "emergency" | "repair" | "other";
 
+export type FundKind = "sinking" | "debt";
+
 export type AppGoal = {
   id: string;
+  /** Sinking fund (save toward target) or debt (pay down balance) */
+  kind?: FundKind;
   name: string;
+  /** Sinking: target amount. Debt: optional original balance for progress. */
   target: number;
+  /** Sinking: amount saved. Debt: remaining balance owed. */
   current: number;
   targetDate: string;
   icon: string;
   color: string;
-  /** Optional planned monthly contribution */
+  /** Optional planned monthly contribution (sinking) */
   monthlyContribution?: number;
   fundType?: SinkingFundType;
   notes?: string;
+  /** Debt: required minimum or planned payment per month */
+  monthlyPayment?: number;
+  /** Debt: annual percentage rate (optional) */
+  interestRateApy?: number;
 };
 
 export type OnboardingProgress = {
@@ -88,6 +98,8 @@ export type SyncedAppPreferences = {
 export type DeviceUiPreferences = {
   budgetPeriod: BudgetPeriodPreference;
   budgetViewDensity: BudgetViewDensity;
+  /** Align cash flow & safe-to-spend for bi-weekly pay with monthly bills */
+  biweeklyIncomeMonthlyBills?: boolean;
 };
 
 /** @deprecated Use SyncedAppPreferences + DeviceUiPreferences */

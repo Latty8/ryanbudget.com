@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
@@ -34,7 +34,9 @@ import {
 } from "@/store/useDashboardWidgetsStore";
 import { computeCategoryBudgetRows } from "@/lib/budget/period";
 import { computeDashboardSummary } from "@/lib/dashboard/compute-summary";
+import { CashFlowAlignment } from "@/components/fintech/cash-flow-alignment";
 import { buildNetWorthItems, sumNetWorth } from "@/lib/net-worth/compute-net-worth";
+import { useDeviceUiStore } from "@/store/useDeviceUiStore";
 import { useNetWorthStore } from "@/store/useNetWorthStore";
 import { useMounted } from "@/components/use-mounted";
 import { cn } from "@/lib/utils";
@@ -193,6 +195,7 @@ export function DashboardView() {
   const anyWidgetEnabled = enabledWidgetIds.length > 0;
 
   const budgetPeriod = useBudgetViewPeriod(recurring);
+  const biweeklyIncomeMonthlyBills = useDeviceUiStore((s) => s.biweeklyIncomeMonthlyBills ?? true);
 
   const data = useMemo(
     () =>
@@ -201,6 +204,8 @@ export function DashboardView() {
         categories,
         transactions,
         budgetPeriod,
+        biweeklyIncomeMonthlyBills,
+        fullRecurring: recurring.filter((r) => !r.paused),
         recurring: recurring
           .filter((r) => !r.paused)
           .map((r) => ({
@@ -211,7 +216,7 @@ export function DashboardView() {
             nextDate: r.nextDate,
           })),
       }),
-    [accounts, categories, transactions, recurring, budgetPeriod]
+    [accounts, categories, transactions, recurring, budgetPeriod, biweeklyIncomeMonthlyBills]
   );
 
   const needsSetup = !onboardingComplete || accounts.length === 0;
@@ -260,15 +265,6 @@ export function DashboardView() {
     <div className="space-y-8 pb-24 md:space-y-10 md:pb-0">
       <div className="flex flex-wrap justify-end gap-2">
         <DashboardCustomizeButton />
-        <button
-          type="button"
-          aria-label="Add transaction by voice"
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--border-subtle)] px-3 py-2 text-xs font-medium text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          onClick={() => window.dispatchEvent(new CustomEvent("planner:new-transaction-voice"))}
-        >
-          <Mic className="h-4 w-4" />
-          Voice
-        </button>
         <ExportPdfButton
           variant="ghost"
           label="Export PDF"
@@ -368,14 +364,27 @@ export function DashboardView() {
           {formatMoney(data.moneyLeftToSpend, preferences.currency)}
         </p>
         <p className="mt-3 max-w-md text-sm text-white/60">
-          {data.daysUntilNextPaycheck != null
-            ? `Before your next paycheck in ${data.daysUntilNextPaycheck} days.`
-            : "Based on your budgets and spending this month."}
-          {underBudget > 0 && data.daysUntilNextPaycheck != null
+          {biweeklyIncomeMonthlyBills && data.cashFlowSafeToSpend != null
+            ? `Cash-flow aware — accounts for bills due before your next paycheck.`
+            : data.daysUntilNextPaycheck != null
+              ? `Before your next paycheck in ${data.daysUntilNextPaycheck} days.`
+              : "Based on your budgets and spending this month."}
+          {data.cashFlowTimingWarning ? (
+            <span className="mt-1 block text-amber-200/90">
+              Heads up: balance may dip mid-month before income arrives — see Budget Alignment below.
+            </span>
+          ) : null}
+          {underBudget > 0 && data.daysUntilNextPaycheck != null && !data.cashFlowTimingWarning
             ? ` You're about ${formatMoney(underBudget, preferences.currency)} under budget.`
             : null}
         </p>
       </motion.section>
+      ) : null}
+
+      {!needsSetup && biweeklyIncomeMonthlyBills ? (
+        <motion.div {...fadeUp} transition={{ delay: 0.11 }}>
+          <CashFlowAlignment compact />
+        </motion.div>
       ) : null}
 
       {!needsSetup && widgetOn("monthly_summary") ? (

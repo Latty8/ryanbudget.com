@@ -1,5 +1,5 @@
-import { DebtsPage as DebtsScreen } from "@/components/planner/pages/DebtsPage";
+import { redirect } from "next/navigation";
 
 export default function DebtsPage() {
-  return <DebtsScreen />;
+  redirect("/goals");
 }

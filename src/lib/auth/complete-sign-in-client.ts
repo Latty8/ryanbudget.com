@@ -1,6 +1,6 @@
 import { setClientDemoMode } from "@/lib/auth/demo-mode";
 import type { SessionPayload } from "@/lib/auth/session";
-import { isDemoUserId } from "@/lib/auth/demo-mode";
+import { isDemoSession, isDemoUserId } from "@/lib/auth/demo-mode";
 import { logDataSync, logLocalStoreSnapshot } from "@/lib/debug/data-sync-log";
 import { bootstrapUserSession } from "@/lib/supabase/sync/client";
 import {
@@ -37,7 +37,7 @@ export async function completeSignInClient(user: SessionPayload) {
     previousUserId,
   });
 
-  setClientDemoMode(user.isDemo === true);
+  setClientDemoMode(isDemoSession(user));
   setPersistUserId(user.userId);
 
   if (userChanged) {

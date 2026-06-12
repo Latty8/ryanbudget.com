@@ -19,6 +19,7 @@ type DeviceUiState = DeviceUiPreferences & {
   _legacyMigrated?: boolean;
   setBudgetPeriod: (budgetPeriod: BudgetPeriodPreference) => void;
   setBudgetViewDensity: (budgetViewDensity: BudgetViewDensity) => void;
+  setBiweeklyIncomeMonthlyBills: (enabled: boolean) => void;
 };
 
 function deviceUiStorageKey() {
@@ -48,6 +49,8 @@ export const useDeviceUiStore = create<DeviceUiState>()(
       _legacyMigrated: false,
       setBudgetPeriod: (budgetPeriod) => set({ budgetPeriod }),
       setBudgetViewDensity: (budgetViewDensity) => set({ budgetViewDensity }),
+      setBiweeklyIncomeMonthlyBills: (biweeklyIncomeMonthlyBills) =>
+        set({ biweeklyIncomeMonthlyBills }),
     }),
     {
       name: "device-ui",
@@ -55,6 +58,7 @@ export const useDeviceUiStore = create<DeviceUiState>()(
       partialize: (state) => ({
         budgetPeriod: state.budgetPeriod,
         budgetViewDensity: state.budgetViewDensity,
+        biweeklyIncomeMonthlyBills: state.biweeklyIncomeMonthlyBills,
         _legacyMigrated: state._legacyMigrated,
       }),
     }

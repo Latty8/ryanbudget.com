@@ -1,5 +1,5 @@
-import { GoalsView } from "@/components/fintech/goals-view";
+import { FundsDebtsView } from "@/components/fintech/funds-debts-view";
 
 export default function Page() {
-  return <GoalsView />;
+  return <FundsDebtsView />;
 }

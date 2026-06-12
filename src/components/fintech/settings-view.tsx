@@ -26,7 +26,7 @@ import {
   useBudgetPeriodPreference,
   useSetBudgetPeriodPreference,
 } from "@/hooks/use-budget-view-period";
-import { setClientDemoMode } from "@/lib/auth/demo-mode";
+import { isDemoSession, setClientDemoMode } from "@/lib/auth/demo-mode";
 import { resetSignInClientState } from "@/lib/auth/complete-sign-in-client";
 import { setPersistUserId } from "@/lib/storage/user-persist";
 import { useSubscriptionStore } from "@/store/useSubscriptionStore";
@@ -39,6 +39,7 @@ import {
   FieldLabel,
   GhostButton,
   fintechLink,
+  fintechForeground,
   fintechMuted,
   PageFrame,
   PrimaryButton,
@@ -91,7 +92,7 @@ const SECTIONS: {
 export function SettingsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setUser } = useAuth();
+  const { user, setUser } = useAuth();
   const { premium, demoMode } = usePremium();
   const confirm = useConfirm();
   const { exitDemoMode } = useDemoMode();
@@ -119,6 +120,8 @@ export function SettingsView() {
   const setBudgetPeriod = useSetBudgetPeriodPreference();
   const budgetViewDensity = useDeviceUiStore((s) => s.budgetViewDensity);
   const setBudgetViewDensity = useDeviceUiStore((s) => s.setBudgetViewDensity);
+  const biweeklyIncomeMonthlyBills = useDeviceUiStore((s) => s.biweeklyIncomeMonthlyBills ?? true);
+  const setBiweeklyIncomeMonthlyBills = useDeviceUiStore((s) => s.setBiweeklyIncomeMonthlyBills);
 
   const pushEnabled = useNotificationStore((s) => s.pushEnabled);
   const setPushEnabled = useNotificationStore((s) => s.setPushEnabled);
@@ -380,6 +383,33 @@ export function SettingsView() {
                     <option value="compact">Compact</option>
                   </ShellSelect>
                 </div>
+                <div className="grid gap-1 sm:col-span-2">
+                  <label className="inline-flex min-h-10 cursor-pointer items-start gap-3 rounded-xl border border-[var(--border-subtle)] px-3.5 py-3">
+                    <input
+                      id="biweekly-bills"
+                      type="checkbox"
+                      checked={biweeklyIncomeMonthlyBills}
+                      onChange={(e) => {
+                        setBiweeklyIncomeMonthlyBills(e.target.checked);
+                        toast.success(
+                          e.target.checked
+                            ? "Cash flow alignment enabled"
+                            : "Using envelope-only money left"
+                        );
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+                    />
+                    <span>
+                      <span className={cn("text-sm font-medium", fintechForeground)}>
+                        My income is bi-weekly, bills are monthly
+                      </span>
+                      <span className={cn("mt-0.5 block text-xs", fintechMuted)}>
+                        Adjusts Money Left and shows cash flow warnings when bill timing pinches
+                        your balance mid-month.
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </div>
               <p className={cn("mt-4 text-xs", fintechMuted)}>
                 Preview: {formatMoney(1234.56, preferences.currency)}
@@ -402,7 +432,7 @@ export function SettingsView() {
                 <ul className={cn("mt-3 space-y-1.5 text-sm", fintechMuted)}>
                   <li>· Upcoming bills & recurring paychecks</li>
                   <li>· Category budget warnings & wins</li>
-                  <li>· Sinking fund milestones</li>
+                  <li>· Fund & debt milestones</li>
                 </ul>
               </ShellCard>
               <ShellCard>
@@ -532,26 +562,49 @@ export function SettingsView() {
                 <ShellCard className="border-emerald-500/30">
                   <SectionTitle
                     title="Demo mode"
-                    description="Premium is unlocked. Connect a real account when you're ready."
+                    description={
+                      user && !isDemoSession(user)
+                        ? "You're signed in, but demo mode is still active on this device. Exit to use your real data and plan."
+                        : "Premium is unlocked with sample data. Sign in with your real account when you're ready."
+                    }
                   />
                   <div className="flex flex-wrap gap-2">
-                    <PrimaryButton
-                      onClick={() => {
-                        loadDemoData();
-                        toast.success("Bi-weekly demo data loaded");
-                      }}
-                    >
-                      Reload demo data
-                    </PrimaryButton>
-                    <GhostButton
-                      onClick={() => {
-                        exitDemoMode();
-                        toast.info("Sign in with your real email to leave demo mode");
-                        router.push("/login");
-                      }}
-                    >
-                      Use real account
-                    </GhostButton>
+                    {isDemoSession(user) ? (
+                      <>
+                        <PrimaryButton
+                          onClick={() => {
+                            loadDemoData();
+                            toast.success("Bi-weekly demo data loaded");
+                          }}
+                        >
+                          Reload demo data
+                        </PrimaryButton>
+                        <GhostButton
+                          onClick={async () => {
+                            await fetch("/api/auth/session", { method: "DELETE" });
+                            resetSignInClientState();
+                            setPersistUserId(null);
+                            setClientDemoMode(false);
+                            exitDemoMode();
+                            setUser(null);
+                            toast.info("Sign in with your real email to continue");
+                            router.push("/login");
+                          }}
+                        >
+                          Sign in with real account
+                        </GhostButton>
+                      </>
+                    ) : (
+                      <PrimaryButton
+                        onClick={() => {
+                          exitDemoMode();
+                          void syncFromServer();
+                          toast.success("Demo mode turned off — using your account");
+                        }}
+                      >
+                        Exit demo mode
+                      </PrimaryButton>
+                    )}
                   </div>
                 </ShellCard>
               ) : null}

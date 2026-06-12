@@ -5,8 +5,10 @@ import {
   transactionInBudgetPeriod,
   type BudgetPeriod,
 } from "@/lib/budget/period";
+import { computeCashFlowSummary } from "@/lib/cashflow/compute-cash-flow";
 import { buildPaycheckProjections } from "@/lib/recurring/build-paychecks";
 import { generateInsights, computeDaysUntilBroke, computeDaysUntilPaycheck } from "@/lib/insights/generate-insights";
+import type { AppRecurringRule } from "@/types/app-settings";
 import type { AppAccount, AppCategory } from "@/types/app-settings";
 import type { DemoTransaction } from "@/lib/demo/sample-data";
 import type {
@@ -58,6 +60,9 @@ export function computeDashboardSummary(input: {
   transactions: DemoTransaction[];
   recurring: RecurringRule[];
   budgetPeriod?: BudgetPeriod;
+  /** When true, moneyLeftToSpend accounts for bill timing vs bi-weekly pay */
+  biweeklyIncomeMonthlyBills?: boolean;
+  fullRecurring?: AppRecurringRule[];
 }): DashboardSummary {
   const budgetPeriod = input.budgetPeriod ?? "bi-weekly";
   const totalBalance = input.accounts.reduce((sum, account) => sum + account.balance, 0);
@@ -103,7 +108,27 @@ export function computeDashboardSummary(input: {
     : 0;
 
   const diningSpent = categoryProgress.find((c) => c.name === "Dining")?.spent ?? 0;
-  const moneyLeftToSpend = Math.max(0, totalBudgeted - totalSpent);
+  const envelopeLeftToSpend = Math.max(0, totalBudgeted - totalSpent);
+
+  let cashFlowSafeToSpend: number | null = null;
+  let cashFlowTimingWarning = false;
+  let cashFlowLowestBalance: number | null = null;
+
+  if (input.biweeklyIncomeMonthlyBills && input.fullRecurring) {
+    const cashFlow = computeCashFlowSummary({
+      startingBalance: totalBalance,
+      recurring: input.fullRecurring.filter((r) => !r.paused),
+    });
+    cashFlowSafeToSpend = cashFlow.safeToSpend;
+    cashFlowTimingWarning = cashFlow.timingWarning;
+    cashFlowLowestBalance = cashFlow.lowestBalance;
+  }
+
+  const moneyLeftToSpend =
+    cashFlowSafeToSpend != null
+      ? Math.max(0, Math.min(envelopeLeftToSpend, cashFlowSafeToSpend))
+      : envelopeLeftToSpend;
+
   const insights = generateInsights({
     moneyLeftToSpend,
     expensesThisMonth: budgetPeriod === "monthly" ? expensesThisMonth : periodExpenses,
@@ -120,6 +145,10 @@ export function computeDashboardSummary(input: {
     expensesThisMonth: expensesThisMonth || totalSpent,
     projectedEndOfMonthBalance: totalBalance + (incomeThisMonth || 3650) - (totalBudgeted || expensesThisMonth),
     moneyLeftToSpend,
+    envelopeLeftToSpend,
+    cashFlowSafeToSpend,
+    cashFlowTimingWarning,
+    cashFlowLowestBalance,
     daysUntilNextPaycheck,
     daysUntilBroke,
     billsBeforeNextPaycheck,

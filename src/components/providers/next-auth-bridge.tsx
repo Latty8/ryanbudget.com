@@ -22,13 +22,13 @@ export function NextAuthBridge() {
       const res = await fetch("/api/auth/bridge", { method: "POST", credentials: "include" });
       if (!res.ok) return;
       const body = (await res.json()) as {
-        user?: { userId: string; email: string; name: string };
+        user?: { userId: string; email: string; name: string; isDemo?: boolean };
       };
       if (!body.user) return;
 
       bridged.current = true;
       setUser(body.user);
-      await completeSignInClient(body.user);
+      await completeSignInClient({ ...body.user, isDemo: body.user.isDemo ?? false });
     })();
   }, [session, status, user?.userId, setUser]);
 

@@ -49,6 +49,7 @@ import {
   ShellSelect,
 } from "@/components/fintech/ui";
 import { SetupOnboardingLink } from "@/components/fintech/setup-onboarding-link";
+import { CashFlowAlignment } from "@/components/fintech/cash-flow-alignment";
 import { usePageCloudSync } from "@/hooks/use-page-cloud-sync";
 import { useBudgetPeriodPreference, useBudgetViewPeriod, useSetBudgetPeriodPreference } from "@/hooks/use-budget-view-period";
 import { cn } from "@/lib/utils";
@@ -378,6 +379,7 @@ export function BudgetsMinimalView() {
           </div>
         </div>
         {summaryCard}
+        <CashFlowAlignment />
         {totalRollover > 0 ? (
           <p className={cn("text-center text-xs", fintechMuted)}>
             Includes{" "}

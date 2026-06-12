@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Loader2, Mic, Plus, Sparkles, X } from "lucide-react";
+import { Loader2, Plus, Sparkles, X } from "lucide-react";
 
 import { motion } from "framer-motion";
 
@@ -20,8 +20,6 @@ import { ModalPortal } from "@/components/ui/modal-portal";
 import { toastTransactionSaved } from "@/lib/feedback/app-feedback";
 
 import { NlpTransactionPreview } from "@/components/fintech/nlp-transaction-preview";
-import { VoiceTransactionEntry } from "@/components/fintech/voice-transaction-entry";
-
 import { ReceiptAttachments } from "@/components/fintech/receipt-attachments";
 
 import { inferKindFromCategory } from "@/lib/transactions/transaction-amount";
@@ -99,8 +97,6 @@ export function TransactionEntryModal({
 
   initialDraft,
 
-  startVoice = false,
-
 }: {
 
   open: boolean;
@@ -115,9 +111,6 @@ export function TransactionEntryModal({
 
   /** Prefill fields when opened from calendar or quick actions */
   initialDraft?: Partial<TransactionInput>;
-
-  /** Open with voice capture panel expanded */
-  startVoice?: boolean;
 
 }) {
 
@@ -142,8 +135,6 @@ export function TransactionEntryModal({
   const [nlpPreview, setNlpPreview] = useState<ParsedTransactionDraft | null>(null);
 
   const [nlpSource, setNlpSource] = useState<"openai" | "grok" | "rules" | null>(null);
-
-  const [voicePanel, setVoicePanel] = useState(false);
 
   const [goalContributionId, setGoalContributionId] = useState("");
 
@@ -208,9 +199,8 @@ export function TransactionEntryModal({
     setNlpText("");
     setNlpPreview(null);
     setMessage(null);
-    setVoicePanel(Boolean(startVoice && !editTransaction));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening or switching edit target
-  }, [open, editTransaction?.id, initialDraft, startVoice]);
+  }, [open, editTransaction?.id, initialDraft]);
 
 
 
@@ -453,19 +443,6 @@ export function TransactionEntryModal({
 
         <div className="grid gap-3 pb-4">
 
-          {voicePanel ? (
-            <VoiceTransactionEntry
-              categoryNames={categoryNameOptions}
-              currencyLabel={preferences.currency}
-              onApply={(draft) => {
-                setNlpPreview(draft);
-                setNlpSource("rules");
-                setVoicePanel(false);
-              }}
-              onCancel={() => setVoicePanel(false)}
-            />
-          ) : null}
-
           <label className="grid gap-1">
 
             <span className="text-xs text-[var(--muted)]">Natural language</span>
@@ -692,7 +669,7 @@ export function TransactionEntryModal({
 
               <input
 
-                className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2 pr-12 text-base outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)] sm:text-sm"
+                className="min-h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-3 py-2.5 text-base outline-none focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-muted)] sm:text-sm"
 
                 placeholder="Coffee, Uber, Rent..."
 
@@ -701,22 +678,6 @@ export function TransactionEntryModal({
                 onChange={(e) => setInput((prev) => ({ ...prev, description: e.target.value }))}
 
               />
-
-              <button
-
-                type="button"
-
-                className={cn(fintechIconButton, "absolute right-1 top-1/2 -translate-y-1/2 !min-h-10 !min-w-10")}
-
-                aria-label="Voice input"
-
-                onClick={() => setVoicePanel((v) => !v)}
-
-              >
-
-                <Mic className={cn("h-4 w-4", voicePanel && "text-[var(--accent)]")} />
-
-              </button>
 
             </div>
 

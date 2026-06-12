@@ -67,6 +67,7 @@ type AppDataState = {
   updateGoal: (id: string, patch: Partial<AppGoal>) => void;
   deleteGoal: (id: string) => void;
   contributeToGoal: (id: string, amount: number) => void;
+  payDownDebt: (id: string, amount: number) => void;
   setAccounts: (accounts: AppAccount[]) => void;
   setCategories: (categories: AppCategory[]) => void;
   setRecurring: (recurring: AppRecurringRule[]) => void;
@@ -284,8 +285,16 @@ export const useAppDataStore = create<AppDataState>()(
       contributeToGoal: (id, amount) =>
         set((state) => ({
           goals: state.goals.map((row) =>
-            row.id === id
+            row.id === id && (row.kind ?? "sinking") !== "debt"
               ? { ...row, current: Math.min(row.target, row.current + Math.max(0, amount)) }
+              : row
+          ),
+        })),
+      payDownDebt: (id, amount) =>
+        set((state) => ({
+          goals: state.goals.map((row) =>
+            row.id === id && (row.kind ?? "sinking") === "debt"
+              ? { ...row, current: Math.max(0, row.current - Math.max(0, amount)) }
               : row
           ),
         })),
@@ -307,9 +316,18 @@ export const useAppDataStore = create<AppDataState>()(
           demoRecurring: enrichedRecurring,
           goals: demoGoals.map((g) => ({
             ...g,
+            kind: "kind" in g ? (g as AppGoal).kind : "sinking",
             targetDate: new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10),
-            icon: g.name.includes("Emergency") ? "Shield" : "Plane",
-            color: g.name.includes("Emergency") ? "#22c55e" : "#38bdf8",
+            icon: g.name.includes("Emergency")
+              ? "Shield"
+              : g.name.includes("Car")
+                ? "Car"
+                : "Plane",
+            color: g.name.includes("Emergency")
+              ? "#22c55e"
+              : g.name.includes("Car")
+                ? "#f472b6"
+                : "#38bdf8",
           })),
         }),
       loadFromPublicTemplate: (payload) =>

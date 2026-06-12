@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { createDebouncedStorage } from "@/lib/storage/debounced-storage";
+import type { SessionPayload } from "@/lib/auth/session";
 import type { UserSubscription } from "@/types/billing";
 
 type SubscriptionState = UserSubscription & {
@@ -27,10 +28,20 @@ export const useSubscriptionStore = create<SubscriptionState>()(
           status: active ? "active" : "none",
         }),
       syncFromServer: async () => {
-        const { readClientDemoMode } = await import("@/lib/auth/demo-mode");
-        if (readClientDemoMode()) {
-          get().setPremium(true);
-          return;
+        try {
+          const sessionRes = await fetch("/api/auth/session", { credentials: "include" });
+          if (sessionRes.ok) {
+            const body = (await sessionRes.json()) as {
+              user?: SessionPayload | null;
+            };
+            const { resolveClientDemoMode } = await import("@/lib/auth/demo-mode");
+            if (resolveClientDemoMode(body.user)) {
+              get().setPremium(true);
+              return;
+            }
+          }
+        } catch {
+          /* fall through to billing API */
         }
         try {
           const response = await fetch("/api/billing/status");
