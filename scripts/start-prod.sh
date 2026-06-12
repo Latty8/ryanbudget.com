@@ -20,4 +20,9 @@ if [[ -z "${MONGODB_URI:-}" ]]; then
   echo "Create .env.production in $ROOT with MONGODB_URI=..." >&2
 fi
 
+if [[ -z "${NEXTAUTH_SECRET:-}" ]]; then
+  echo "WARNING: NEXTAUTH_SECRET is not set — OAuth bridge may be unavailable." >&2
+  echo "Add NEXTAUTH_SECRET=\$(openssl rand -base64 32) to .env.production" >&2
+fi
+
 exec "$ROOT/node_modules/.bin/next" start -H "$HOSTNAME" -p "$PORT"

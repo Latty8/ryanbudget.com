@@ -11,6 +11,8 @@ export async function GET() {
     version: process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown",
     config: {
       mongoConfigured: isMongoDBConfigured(),
+      nextAuthConfigured: Boolean(process.env.NEXTAUTH_SECRET?.trim()),
+      nextAuthUrlSet: Boolean(process.env.NEXTAUTH_URL?.trim()),
       cloudSyncClientFlag: process.env.NEXT_PUBLIC_ENABLE_CLOUD_SYNC === "true",
       resendConfigured: hasResend,
       nodeEnv: process.env.NODE_ENV ?? "unknown",
